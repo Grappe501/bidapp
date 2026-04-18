@@ -1,10 +1,14 @@
+/**
+ * Runtime note: Netlify/server bundles do not resolve Vite-style `@/…` aliases.
+ * Use relative imports for anything under `src/server` and `netlify/functions`.
+ */
 import type {
   GroundingBundlePayload,
   GroundingBundleType,
   KnowledgeProvenanceKind,
   RetrievalQueryType,
-} from "@/types";
-import { emptyGroundingPayload, summarizeGaps } from "@/lib/grounding-utils";
+} from "../../types";
+import { emptyGroundingPayload, summarizeGaps } from "../../lib/grounding-utils";
 import { retrieveChunks } from "./retrieval.service";
 import { listRequirementsByProject } from "../repositories/requirement.repo";
 import { listEvidenceByProject } from "../repositories/evidence.repo";

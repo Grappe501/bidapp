@@ -1,9 +1,13 @@
-import type { BidReviewSnapshot } from "@/lib/review-rules-engine";
+import type { BidReviewSnapshot } from "../../lib/review-rules-engine";
 import {
   evaluateFinalValidationGate,
   type FinalValidationGateResult,
-} from "@/lib/submission-utils";
-import type { OutputArtifact, RedactionPackagingSummary, ReviewIssue } from "@/types";
+} from "../../lib/submission-utils";
+import type {
+  OutputArtifact,
+  RedactionPackagingSummary,
+  ReviewIssue,
+} from "../../types";
 
 export function runFinalValidationGate(
   snapshot: BidReviewSnapshot,

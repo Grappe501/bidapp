@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",
-    "typecheck:server": "tsc -p tsconfig.server.json"
+    "check:server-aliases": "tsx scripts/check-server-aliases.ts",
+    "typecheck:server": "tsc -p tsconfig.server.json && npm run check:server-aliases"
   },
   "dependencies": {
     "@netlify/functions": "^3.0.4",

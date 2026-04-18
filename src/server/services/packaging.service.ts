@@ -2,14 +2,14 @@ import {
   assembleOutputBundles,
   buildBundlePayload,
   computePackagingCompleteness,
-} from "@/lib/output-utils";
+} from "../../lib/output-utils";
 import type {
   OutputArtifact,
   OutputBundle,
   OutputBundleType,
   PackagingCompleteness,
   RedactionFlag,
-} from "@/types";
+} from "../../types";
 
 export function buildSubmissionBundles(
   projectId: string,

@@ -1,10 +1,10 @@
-import { summarizeRedactionPackaging } from "@/lib/output-utils";
+import { summarizeRedactionPackaging } from "../../lib/output-utils";
 import type {
   OutputArtifact,
   RedactionFlag,
   RedactionPackagingSummary,
   SubmissionItem,
-} from "@/types";
+} from "../../types";
 
 export function buildRedactionPackagingSummary(
   flags: RedactionFlag[],

@@ -1,5 +1,5 @@
 import { buildAndStoreGroundingBundle } from "../services/grounding.service";
-import type { GroundingBundlePayload, GroundingBundleType } from "@/types";
+import type { GroundingBundlePayload, GroundingBundleType } from "../../types";
 
 export async function runBuildGroundingBundleJob(input: {
   projectId: string;

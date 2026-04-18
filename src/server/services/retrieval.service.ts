@@ -1,4 +1,4 @@
-import { cosineSimilarity } from "@/lib/retrieval-utils";
+import { cosineSimilarity } from "../../lib/retrieval-utils";
 import { embedQuery } from "./embeddings.service";
 import {
   insertRetrievalQuery,
@@ -6,7 +6,7 @@ import {
   listEmbeddingsWithMetaForProject,
   type DbChunkEmbeddingRow,
 } from "../repositories/retrieval.repo";
-import type { RetrievalQueryType } from "@/types";
+import type { RetrievalQueryType } from "../../types";
 
 export type RetrievedChunk = {
   chunkId: string;

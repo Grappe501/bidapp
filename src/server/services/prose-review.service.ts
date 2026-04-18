@@ -8,7 +8,7 @@ import type {
   GroundedProseReviewResult,
   RequirementProofSupportLevel,
   RequirementSupportSummary,
-} from "@/types";
+} from "../../types";
 import { SECTION_STRATEGY } from "../lib/drafting-constants";
 import { defaultParseModel, getOpenAI } from "./openai-client";
 

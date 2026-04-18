@@ -1,4 +1,4 @@
-import type { CompetitorProfile, ThreatLevel } from "@/types";
+import type { CompetitorProfile, ThreatLevel } from "../../types";
 
 /**
  * Structured competitor profile helpers (curated data — not web scraping).

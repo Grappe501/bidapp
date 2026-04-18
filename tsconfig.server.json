@@ -1,5 +1,8 @@
 {
   "compilerOptions": {
+    // `src/server` and `netlify/functions` must use relative imports into `src/*`
+    // (see scripts/check-server-aliases.ts). `@/*` stays here so TypeScript can still
+    // resolve shared `src/lib` modules that import other files via `@/…`.
     "target": "ES2022",
     "lib": ["ES2022"],
     "module": "ESNext",

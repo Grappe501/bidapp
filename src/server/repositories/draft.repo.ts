@@ -1,6 +1,6 @@
 import { query, withTransaction } from "../db/client";
 import type { PoolClient } from "pg";
-import type { DraftMetadata, DraftSectionType, DraftStatus } from "@/types";
+import type { DraftMetadata, DraftSectionType, DraftStatus } from "../../types";
 
 const SECTION_TYPES: DraftSectionType[] = [
   "Experience",

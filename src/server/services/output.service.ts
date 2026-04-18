@@ -1,8 +1,8 @@
 import {
   gatherOutputArtifacts,
   type OutputGatherInput,
-} from "@/lib/output-utils";
-import type { OutputArtifact } from "@/types";
+} from "../../lib/output-utils";
+import type { OutputArtifact } from "../../types";
 
 export type { OutputGatherInput };
 

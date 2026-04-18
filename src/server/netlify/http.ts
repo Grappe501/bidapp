@@ -1,3 +1,7 @@
+/**
+ * Shared Netlify helpers. Prefer relative imports from functions and server code;
+ * `@/…` aliases are not resolved reliably in this runtime.
+ */
 import type { HandlerResponse } from "@netlify/functions";
 
 export const corsHeaders: Record<string, string> = {

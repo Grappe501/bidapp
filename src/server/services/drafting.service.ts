@@ -1,6 +1,6 @@
-import type { GroundingBundlePayload } from "@/types";
+import type { GroundingBundlePayload } from "../../types";
 import { defaultParseModel, getOpenAI } from "./openai-client";
-import type { DraftSectionType } from "@/types";
+import type { DraftSectionType } from "../../types";
 import {
   SECTION_STRATEGY,
   SECTION_SUPPORT_EXPECTATIONS,

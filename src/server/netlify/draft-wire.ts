@@ -1,6 +1,10 @@
 import type { DbDraftSection, DbDraftVersion } from "../repositories/draft.repo";
 import type { DbGroundingBundle } from "../repositories/grounding.repo";
-import type { DraftSection, DraftVersion, GroundingBundlePayload } from "@/types";
+import type {
+  DraftSection,
+  DraftVersion,
+  GroundingBundlePayload,
+} from "../../types";
 
 export function wireDraftSection(s: DbDraftSection): DraftSection {
   return {

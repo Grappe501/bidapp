@@ -1,4 +1,4 @@
-import type { DraftSectionType } from "@/types";
+import type { DraftSectionType } from "../../types";
 
 /** Mirrors BP-005.5 mock model for server-side drafting prompts (1000 pts). */
 export const DRAFTING_SCORING_BLOCKS = [

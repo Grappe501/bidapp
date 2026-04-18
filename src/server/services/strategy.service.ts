@@ -1,10 +1,13 @@
-import { computeStrategicSummary, type StrategicSummary } from "@/lib/strategy-utils";
+import {
+  computeStrategicSummary,
+  type StrategicSummary,
+} from "../../lib/strategy-utils";
 import type {
   CompetitorProfile,
   Differentiator,
   EvaluatorLens,
   WinTheme,
-} from "@/types";
+} from "../../types";
 
 export function buildStrategicSummary(
   competitors: CompetitorProfile[],

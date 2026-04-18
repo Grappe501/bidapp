@@ -1,5 +1,8 @@
 /** Proof-graph summaries feed grounding bundles and the BP-007 review / readiness engine. */
-import type { RequirementProofSupportLevel, RequirementSupportSummary } from "@/types";
+import type {
+  RequirementProofSupportLevel,
+  RequirementSupportSummary,
+} from "../../types";
 import {
   listEvidenceByProject,
   listRequirementEvidenceLinksByProject,

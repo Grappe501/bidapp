@@ -1,4 +1,4 @@
-import type { WinTheme } from "@/types";
+import type { WinTheme } from "../../types";
 
 const DEFAULT_SECTIONS = [
   "Experience",

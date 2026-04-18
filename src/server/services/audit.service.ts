@@ -1,4 +1,7 @@
-import type { SubmissionAuditLog, SubmissionAuditActionType } from "@/types";
+import type {
+  SubmissionAuditLog,
+  SubmissionAuditActionType,
+} from "../../types";
 
 export function appendAuditEntry(
   logs: SubmissionAuditLog[],

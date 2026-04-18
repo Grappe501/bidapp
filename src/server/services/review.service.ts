@@ -1,8 +1,8 @@
 import {
   runReviewRules,
   type BidReviewSnapshot,
-} from "@/lib/review-rules-engine";
-import type { ReviewIssue } from "@/types";
+} from "../../lib/review-rules-engine";
+import type { ReviewIssue } from "../../types";
 
 export type { BidReviewSnapshot };
 

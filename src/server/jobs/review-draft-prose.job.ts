@@ -3,7 +3,7 @@ import type {
   DraftSectionType,
   GroundingBundlePayload,
   GroundedProseReviewResult,
-} from "@/types";
+} from "../../types";
 
 export async function runReviewDraftProseJob(input: {
   sectionType: DraftSectionType;

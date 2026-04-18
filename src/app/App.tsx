@@ -2,6 +2,7 @@ import { BrowserRouter } from "react-router-dom";
 import { ArchitectureProvider } from "@/context/ArchitectureProvider";
 import { ControlProvider } from "@/context/ControlProvider";
 import { DraftingProvider } from "@/context/DraftingProvider";
+import { ReviewProvider } from "@/context/ReviewProvider";
 import { EvidenceProvider } from "@/context/EvidenceProvider";
 import { IntelligenceProvider } from "@/context/IntelligenceProvider";
 import { RequirementProvider } from "@/context/RequirementProvider";
@@ -21,9 +22,11 @@ export function App() {
                 <ControlProvider>
                   <IntelligenceProvider>
                     <DraftingProvider>
-                      <AppLayout>
-                        <AppRoutes />
-                      </AppLayout>
+                      <ReviewProvider>
+                        <AppLayout>
+                          <AppRoutes />
+                        </AppLayout>
+                      </ReviewProvider>
                     </DraftingProvider>
                   </IntelligenceProvider>
                 </ControlProvider>

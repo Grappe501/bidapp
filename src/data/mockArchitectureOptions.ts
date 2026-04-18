@@ -9,7 +9,7 @@ export const MOCK_ARCHITECTURE_OPTIONS: ArchitectureOption[] = [
     name: "SuiteRx core + EvolvedRx control + targeted specialists",
     status: "Recommended",
     summary:
-      "SuiteRx as system of record for claims and benefits, EvolvedRx orchestrating PA/appeals and exceptions, Pharmesol on outreach, PersonalMed on financial analytics. Balanced for defensibility and Arkansas Medicaid complexity.",
+      "SuiteRx as system of record for claims and benefits, EvolvedRx orchestrating PA/appeals and exceptions, Pharmesol on outreach, PersonalMed on financial analytics. MatrixCare-facing eligibility interfaces where the state directs. Balanced for defensibility and Arkansas Medicaid complexity.",
     recommended: true,
     components: [
       {

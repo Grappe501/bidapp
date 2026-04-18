@@ -19,6 +19,10 @@ import { ScoringPage } from "@/pages/Control/ScoringPage";
 import { SubmissionPage } from "@/pages/Control/SubmissionPage";
 import { DraftingPage } from "@/pages/Drafting/DraftingPage";
 import { DraftSectionPage } from "@/pages/Drafting/DraftSectionPage";
+import { ReadinessPage } from "@/pages/Review/ReadinessPage";
+import { ReviewDashboardPage } from "@/pages/Review/ReviewDashboardPage";
+import { ReviewIssueDetailPage } from "@/pages/Review/ReviewIssueDetailPage";
+import { ReviewIssuesPage } from "@/pages/Review/ReviewIssuesPage";
 
 function RoutePlaceholder({ title }: { title: string }) {
   return (
@@ -65,7 +69,10 @@ export function AppRoutes() {
       />
       <Route path="/drafts" element={<DraftingPage />} />
       <Route path="/drafts/:sectionId" element={<DraftSectionPage />} />
-      <Route path="/review" element={<RoutePlaceholder title="Review" />} />
+      <Route path="/review" element={<ReviewDashboardPage />} />
+      <Route path="/review/issues" element={<ReviewIssuesPage />} />
+      <Route path="/review/issues/:issueId" element={<ReviewIssueDetailPage />} />
+      <Route path="/review/readiness" element={<ReadinessPage />} />
       <Route path="/output" element={<RoutePlaceholder title="Output" />} />
     </Routes>
   );

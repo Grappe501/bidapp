@@ -717,3 +717,94 @@ export const DRAFT_SECTION_TYPES: DraftSectionType[] = [
   "Executive Summary",
   "Architecture Narrative",
 ];
+
+/* ——— Review & readiness (BP-007) ——— */
+
+export type ReviewIssueType =
+  | "Missing Requirement Coverage"
+  | "Weak Evidence Support"
+  | "Unsupported Claim"
+  | "Submission Gap"
+  | "Page Limit Risk"
+  | "Scoring Weakness"
+  | "Contract Exposure"
+  | "Discussion Readiness Gap"
+  | "Redaction Risk"
+  | "Vendor Validation Gap"
+  | "Architecture Risk"
+  | "Other";
+
+export type ReviewSeverity = "Low" | "Moderate" | "High" | "Critical";
+
+export type ReviewIssueStatus =
+  | "Open"
+  | "In Review"
+  | "Resolved"
+  | "Dismissed";
+
+export type ReviewEntityType =
+  | "requirement"
+  | "evidence"
+  | "submission_item"
+  | "draft_section"
+  | "vendor"
+  | "architecture_option"
+  | "discussion_item"
+  | "contract_risk"
+  | "redaction_flag"
+  | "project";
+
+export type ReviewIssue = {
+  id: string;
+  projectId: string;
+  issueType: ReviewIssueType;
+  severity: ReviewSeverity;
+  title: string;
+  description: string;
+  entityType: ReviewEntityType;
+  entityId: string;
+  status: ReviewIssueStatus;
+  suggestedFix: string;
+  createdAt: string;
+  updatedAt: string;
+  resolutionNotes?: string;
+};
+
+export type ReadinessScore = {
+  overall: number;
+  submission: number;
+  coverage: number;
+  grounding: number;
+  scoring_alignment: number;
+  contract_readiness: number;
+  discussion_readiness: number;
+};
+
+export const REVIEW_ISSUE_TYPES: ReviewIssueType[] = [
+  "Missing Requirement Coverage",
+  "Weak Evidence Support",
+  "Unsupported Claim",
+  "Submission Gap",
+  "Page Limit Risk",
+  "Scoring Weakness",
+  "Contract Exposure",
+  "Discussion Readiness Gap",
+  "Redaction Risk",
+  "Vendor Validation Gap",
+  "Architecture Risk",
+  "Other",
+];
+
+export const REVIEW_SEVERITIES: ReviewSeverity[] = [
+  "Low",
+  "Moderate",
+  "High",
+  "Critical",
+];
+
+export const REVIEW_ISSUE_STATUSES: ReviewIssueStatus[] = [
+  "Open",
+  "In Review",
+  "Resolved",
+  "Dismissed",
+];

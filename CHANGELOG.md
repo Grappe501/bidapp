@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.0 — 2026-04-18
+
+- Added review dashboard, issue tracking, and readiness scoring (`/review`, `/review/issues`, `/review/issues/:issueId`, `/review/readiness`)
+- Added rule-based coverage, submission, section constraint, discussion, redaction, contract exposure, and vendor validation checks (`review-rules-engine`, `review.service`)
+- Added issue detail and resolution flows with persisted status overrides (`ReviewProvider`, `localStorage`)
+- Added section-level and bid-level readiness views and supporting audit cards
+
 ## v0.6.0 — 2026-04-18
 
 - Added drafting studio routes (`/drafts`, `/drafts/:sectionId`) with section strategy, grounding bundle selector, generator, editor, versions, coverage, scoring feedback, and constraint warnings

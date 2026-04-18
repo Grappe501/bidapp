@@ -14,7 +14,7 @@ const navItems: NavItem[] = [
   { to: "/architecture", label: "Architecture" },
   { to: "/control/submission", label: "Bid control", prefix: "/control" },
   { to: "/drafts", label: "Drafts", prefix: "/drafts" },
-  { to: "/review", label: "Review" },
+  { to: "/review", label: "Review", prefix: "/review" },
   { to: "/output", label: "Output" },
 ];
 

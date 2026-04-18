@@ -19,7 +19,7 @@ import { SectionStrategyPanel } from "@/components/drafting/SectionStrategyPanel
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useDrafting } from "@/context/useDrafting";
-import { MOCK_PROJECT } from "@/data/mockProject";
+import { useWorkspace } from "@/context/useWorkspace";
 import { DRAFTING_COPY } from "@/lib/drafting-copy";
 import {
   isFunctionsApiConfigured,
@@ -57,12 +57,13 @@ export function DraftSectionPage() {
     setAutoGroundedReviewAfterGenerate,
   } = useDrafting();
 
+  const { project } = useWorkspace();
   const envProjectId = (
     import.meta.env.VITE_DEFAULT_PROJECT_ID as string | undefined
   )?.trim();
-  const apiProjectId = envProjectId || MOCK_PROJECT.id;
+  const apiProjectId = (envProjectId || project.id || "").trim();
   const showWorkspaceProjectHint =
-    isFunctionsApiConfigured() && !envProjectId;
+    isFunctionsApiConfigured() && !apiProjectId;
 
   const section = sectionId ? getSection(sectionId) : undefined;
   const versions = sectionId ? getVersionsForSection(sectionId) : [];

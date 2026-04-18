@@ -1,11 +1,11 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_EVIDENCE } from "@/data/mockEvidence";
-import { MOCK_REQUIREMENT_EVIDENCE_LINKS } from "@/data/mockRequirementEvidenceLinks";
+import { useProjectWorkspace } from "@/context/project-workspace-context";
 import type { EvidenceItem, RequirementEvidenceLink } from "@/types";
 import {
   EvidenceContext,
@@ -13,12 +13,15 @@ import {
 } from "./evidence-context";
 
 export function EvidenceProvider({ children }: { children: ReactNode }) {
-  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>(() => [
-    ...MOCK_EVIDENCE,
-  ]);
-  const [links, setLinks] = useState<RequirementEvidenceLink[]>(() => [
-    ...MOCK_REQUIREMENT_EVIDENCE_LINKS,
-  ]);
+  const { workspace } = useProjectWorkspace();
+  const [evidenceItems, setEvidenceItems] = useState<EvidenceItem[]>([]);
+  const [links, setLinks] = useState<RequirementEvidenceLink[]>([]);
+
+  useEffect(() => {
+    if (!workspace) return;
+    setEvidenceItems(workspace.evidence);
+    setLinks(workspace.requirementEvidenceLinks);
+  }, [workspace]);
 
   const linkEvidence = useCallback((input: LinkEvidenceInput) => {
     const now = new Date().toISOString();

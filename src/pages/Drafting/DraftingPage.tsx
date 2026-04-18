@@ -3,11 +3,12 @@ import { BidControlNav } from "@/components/control/BidControlNav";
 import { SectionSelector } from "@/components/drafting/SectionSelector";
 import { Card } from "@/components/ui/Card";
 import { useDrafting } from "@/context/useDrafting";
-import { MOCK_PROJECT } from "@/data/mockProject";
+import { useWorkspace } from "@/context/useWorkspace";
 import { DRAFTING_COPY } from "@/lib/drafting-copy";
 import { SECTION_FOCUS } from "@/lib/drafting-utils";
 
 export function DraftingPage() {
+  const { project } = useWorkspace();
   const { sections, getActiveVersion, getSelectedBundle } = useDrafting();
 
   return (
@@ -20,7 +21,7 @@ export function DraftingPage() {
             Drafting studio
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">
-            <span className="font-medium text-ink">{MOCK_PROJECT.bidNumber}</span>
+            <span className="font-medium text-ink">{project.bidNumber}</span>
             {" — "}
             {DRAFTING_COPY.studioIntro}
           </p>

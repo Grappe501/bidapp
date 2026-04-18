@@ -6,9 +6,10 @@ import { StrategyActionPanel } from "@/components/strategy/StrategyActionPanel";
 import { StrategySubNav } from "@/components/strategy/StrategySubNav";
 import { ThreatMapCard } from "@/components/strategy/ThreatMapCard";
 import { useStrategy } from "@/context/useStrategy";
-import { MOCK_PROJECT } from "@/data/mockProject";
+import { useWorkspace } from "@/context/useWorkspace";
 
 export function StrategyOverviewPage() {
+  const { project } = useWorkspace();
   const { strategicSummary, winThemes, competitors } = useStrategy();
   const topId = strategicSummary.topThreats[0]?.id;
 
@@ -22,13 +23,13 @@ export function StrategyOverviewPage() {
             Win strategy command center
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">
-            Bid-specific competitive framing for {MOCK_PROJECT.bidNumber}: who likely
+            Bid-specific competitive framing for {project.bidNumber}: who likely
             shows up, how they may score, and how Malone + partners should win on
             substance — not noise.
           </p>
         </div>
 
-        <CompetitiveSummaryCard summary={strategicSummary} bidNumber={MOCK_PROJECT.bidNumber} />
+        <CompetitiveSummaryCard summary={strategicSummary} bidNumber={project.bidNumber} />
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="p-5">

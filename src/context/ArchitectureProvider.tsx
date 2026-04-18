@@ -1,10 +1,11 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_ARCHITECTURE_OPTIONS } from "@/data/mockArchitectureOptions";
+import { useProjectWorkspace } from "@/context/project-workspace-context";
 import type {
   ArchitectureComponent,
   ArchitectureOption,
@@ -13,9 +14,14 @@ import type {
 import { ArchitectureContext } from "./architecture-context";
 
 export function ArchitectureProvider({ children }: { children: ReactNode }) {
-  const [options, setOptions] = useState<ArchitectureOption[]>(() => [
-    ...MOCK_ARCHITECTURE_OPTIONS,
-  ]);
+  const { workspace } = useProjectWorkspace();
+  const [options, setOptions] = useState<ArchitectureOption[]>([]);
+
+  useEffect(() => {
+    if (workspace?.architectureOptions) {
+      setOptions(workspace.architectureOptions);
+    }
+  }, [workspace]);
 
   const updateOption = useCallback((id: string, patch: Partial<ArchitectureOption>) => {
     const touched = new Date().toISOString();

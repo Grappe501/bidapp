@@ -5,10 +5,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_PROJECT } from "@/data/mockProject";
-import { MOCK_SUBMISSION_TASKS } from "@/data/mockSubmissionTasks";
-import { MOCK_SUBMISSION_WORKFLOW_STEPS } from "@/data/mockSubmissionWorkflow";
 import { useOutput } from "@/context/useOutput";
+import { useWorkspace } from "@/context/useWorkspace";
 import { appendAuditEntry } from "@/server/services/audit.service";
 import { runFinalValidationGate } from "@/server/services/submission.service";
 import {
@@ -16,14 +14,20 @@ import {
   validateStepCompletion,
 } from "@/server/services/workflow.service";
 import { SubmissionContext, SUBMISSION_PRESET_ACTORS } from "./submission-context";
+import type {
+  SubmissionAuditLog,
+  SubmissionExecutionLog,
+  SubmissionTask,
+  SubmissionWorkflowStep,
+} from "@/types";
 
 const STORAGE_KEY = "bidapp-submission-workflow-v1";
 
 type Persisted = {
-  workflowSteps: typeof MOCK_SUBMISSION_WORKFLOW_STEPS;
-  tasks: typeof MOCK_SUBMISSION_TASKS;
-  auditLog: import("@/types").SubmissionAuditLog[];
-  executionLog: import("@/types").SubmissionExecutionLog;
+  workflowSteps: SubmissionWorkflowStep[];
+  tasks: SubmissionTask[];
+  auditLog: SubmissionAuditLog[];
+  executionLog: SubmissionExecutionLog;
   currentActor: string;
 };
 
@@ -45,24 +49,16 @@ function savePersisted(data: Persisted) {
   }
 }
 
-const initialExecutionLog: import("@/types").SubmissionExecutionLog = {
-  projectId: MOCK_PROJECT.id,
-  finalStatus: "Not submitted",
-  submittedAt: null,
-  executedBy: "",
-  confirmationNotes: "",
-};
-
-function seedAudit(): import("@/types").SubmissionAuditLog[] {
+function seedAudit(projectId: string): SubmissionAuditLog[] {
   const t = new Date().toISOString();
   return [
     {
       id: "audit-seed-1",
-      projectId: MOCK_PROJECT.id,
+      projectId,
       actionType: "Other",
       actor: "System",
       entityType: "project",
-      entityId: MOCK_PROJECT.id,
+      entityId: projectId,
       description: "Submission execution workspace initialized (BP-009).",
       createdAt: t,
     },
@@ -76,23 +72,29 @@ export function SubmissionProvider({ children }: { children: ReactNode }) {
     artifacts,
     redactionSummary,
   } = useOutput();
+  const { project } = useWorkspace();
+  const projectId = project.id;
 
   const p = loadPersisted();
 
-  const [workflowSteps, setWorkflowSteps] = useState(() =>
-    p?.workflowSteps?.length
-      ? p.workflowSteps
-      : [...MOCK_SUBMISSION_WORKFLOW_STEPS],
+  const [workflowSteps, setWorkflowSteps] = useState<SubmissionWorkflowStep[]>(
+    () => (p?.workflowSteps?.length ? p.workflowSteps : []),
   );
-  const [tasks, setTasks] = useState(() =>
-    p?.tasks?.length ? p.tasks : [...MOCK_SUBMISSION_TASKS],
+  const [tasks, setTasks] = useState<SubmissionTask[]>(() =>
+    p?.tasks?.length ? p.tasks : [],
   );
-  const [auditLog, setAuditLog] = useState<import("@/types").SubmissionAuditLog[]>(
-    () => (p?.auditLog?.length ? p.auditLog : seedAudit()),
+  const [auditLog, setAuditLog] = useState<SubmissionAuditLog[]>(() =>
+    p?.auditLog?.length ? p.auditLog : seedAudit(projectId),
   );
-  const [executionLog, setExecutionLog] = useState<
-    import("@/types").SubmissionExecutionLog
-  >(() => p?.executionLog ?? { ...initialExecutionLog });
+  const [executionLog, setExecutionLog] = useState<SubmissionExecutionLog>(() =>
+    p?.executionLog ?? {
+      projectId,
+      finalStatus: "Not submitted",
+      submittedAt: null,
+      executedBy: "",
+      confirmationNotes: "",
+    },
+  );
   const [currentActor, setCurrentActorState] = useState(
     () => p?.currentActor ?? SUBMISSION_PRESET_ACTORS[0],
   );
@@ -151,7 +153,7 @@ export function SubmissionProvider({ children }: { children: ReactNode }) {
     }) => {
       setAuditLog((prev) =>
         appendAuditEntry(prev, {
-          projectId: MOCK_PROJECT.id,
+          projectId,
           actionType: row.actionType,
           actor: currentActor,
           entityType: row.entityType,
@@ -160,7 +162,7 @@ export function SubmissionProvider({ children }: { children: ReactNode }) {
         }),
       );
     },
-    [currentActor],
+    [currentActor, projectId],
   );
 
   const setCurrentActor = useCallback((a: string) => {
@@ -265,7 +267,7 @@ export function SubmissionProvider({ children }: { children: ReactNode }) {
       }
       const t = new Date().toISOString();
       setExecutionLog({
-        projectId: MOCK_PROJECT.id,
+        projectId,
         finalStatus: "Submitted",
         submittedAt: t,
         executedBy: currentActor,
@@ -285,12 +287,12 @@ export function SubmissionProvider({ children }: { children: ReactNode }) {
       pushAudit({
         actionType: "Submission marked complete",
         entityType: "project",
-        entityId: MOCK_PROJECT.id,
+        entityId: projectId,
         description: `Submission recorded by ${currentActor}. ${confirmationNotes.slice(0, 200)}`,
       });
       setLastStepActionMessage(null);
     },
-    [finalGate.status, workflowSteps, currentActor, pushAudit],
+    [finalGate.status, workflowSteps, currentActor, pushAudit, projectId],
   );
 
   const value = useMemo(

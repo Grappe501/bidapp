@@ -9,11 +9,12 @@ import { UnsupportedClaimCard } from "@/components/review/UnsupportedClaimCard";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useReview } from "@/context/useReview";
+import { useWorkspace } from "@/context/useWorkspace";
 import { REVIEW_RULE_GROUPS } from "@/lib/review-catalog";
 import { activeIssues, issueSummary } from "@/lib/review-utils";
-import { MOCK_PROJECT } from "@/data/mockProject";
 
 export function ReviewDashboardPage() {
+  const { project } = useWorkspace();
   const { allIssues, snapshot, runReview, readiness } = useReview();
   const act = activeIssues(allIssues);
   const s = issueSummary(allIssues);
@@ -33,7 +34,7 @@ export function ReviewDashboardPage() {
               Review command center
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">
-              Red-team pass on {MOCK_PROJECT.bidNumber}: proof graph, grounded
+              Red-team pass on {project.bidNumber}: proof graph, grounded
               prose review, coverage, submission, contract posture, and discussion
               readiness — without panic UI.
             </p>

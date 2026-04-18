@@ -1,4 +1,5 @@
 import type { Handler } from "@netlify/functions";
+import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
 import { runParseDocumentWithAiJob } from "../../src/server/jobs/parse-document-with-ai.job";
 import type { AiParseMode } from "../../src/server/services/ai-parsing.service";
 import {
@@ -17,6 +18,8 @@ type Body = { projectId: string; fileId: string; mode: AiParseMode };
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const denied = assertInternalApiKey(event);
+  if (denied) return denied;
   if (event.httpMethod !== "POST") {
     return jsonResponse(405, { error: "Method not allowed" });
   }
@@ -36,8 +39,5 @@ export const handler: Handler = async (event) => {
       mode: body.mode,
     });
     return jsonResponse(200, result);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return jsonResponse(500, { error: message });
-  }
+  } catch (e) { logServerError("parse-document-ai", e); return internalErrorResponse(); }
 };

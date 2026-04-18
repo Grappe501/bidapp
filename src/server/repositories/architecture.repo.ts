@@ -122,6 +122,29 @@ export async function createArchitectureComponent(input: {
   };
 }
 
+export async function listArchitectureComponentsByOptionId(
+  architectureOptionId: string,
+): Promise<DbArchitectureComponent[]> {
+  const r = await query(
+    `SELECT * FROM architecture_components WHERE architecture_option_id = $1 ORDER BY created_at`,
+    [architectureOptionId],
+  );
+  return r.rows.map((row: Record<string, unknown>) => {
+    const x = row as Record<string, unknown>;
+    return {
+      id: String(x.id),
+      architectureOptionId: String(x.architecture_option_id),
+      vendorId: x.vendor_id == null ? null : String(x.vendor_id),
+      vendorName: String(x.vendor_name),
+      role: String(x.role),
+      responsibilitySummary: String(x.responsibility_summary),
+      optional: Boolean(x.optional_layer),
+      createdAt: new Date(String(x.created_at)).toISOString(),
+      updatedAt: new Date(String(x.updated_at)).toISOString(),
+    };
+  });
+}
+
 export async function listArchitectureOptionsByProject(
   projectId: string,
 ): Promise<DbArchitectureOption[]> {

@@ -132,3 +132,15 @@ export async function getFile(id: string): Promise<DbFile | null> {
   if (r.rowCount === 0) return null;
   return mapFile(r.rows[0] as Record<string, unknown>);
 }
+
+export async function getFileForProject(
+  id: string,
+  projectId: string,
+): Promise<DbFile | null> {
+  const r = await query(
+    `SELECT * FROM files WHERE id = $1 AND project_id = $2`,
+    [id, projectId],
+  );
+  if (r.rowCount === 0) return null;
+  return mapFile(r.rows[0] as Record<string, unknown>);
+}

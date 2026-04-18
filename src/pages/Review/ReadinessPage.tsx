@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useReview } from "@/context/useReview";
 import { useControl } from "@/context/useControl";
+import { useWorkspace } from "@/context/useWorkspace";
 import { activeIssues, issueSummary } from "@/lib/review-utils";
-import { MOCK_PROJECT } from "@/data/mockProject";
 
 export function ReadinessPage() {
+  const { project } = useWorkspace();
   const { readiness, allIssues, snapshot, runReview } = useReview();
   const { redactionFlags } = useControl();
   const act = activeIssues(allIssues);
@@ -27,7 +28,7 @@ export function ReadinessPage() {
           <div>
             <h1 className="text-2xl font-semibold text-ink">Bid readiness</h1>
             <p className="mt-2 max-w-3xl text-sm text-ink-muted">
-              Weighted composite for {MOCK_PROJECT.bidNumber}. Inputs now include
+              Weighted composite for {project.bidNumber}. Inputs now include
               proof-graph support and grounded prose review on drafts — still not a
               prediction of evaluation outcome, but harder to inflate with surface
               completeness alone.

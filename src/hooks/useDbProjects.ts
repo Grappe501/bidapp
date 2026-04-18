@@ -3,8 +3,9 @@ import { dbProjectToProject, fetchDbProjects, type DbProjectRow } from "@/lib/fu
 import type { Project } from "@/types";
 
 export function useDbProjects() {
+  const projectId = (import.meta.env.VITE_DEFAULT_PROJECT_ID ?? "").trim();
   const enabled = Boolean(
-    (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim(),
+    (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim() && projectId,
   );
   const [rows, setRows] = useState<DbProjectRow[] | null>(null);
   const [loading, setLoading] = useState(enabled);
@@ -20,11 +21,11 @@ export function useDbProjects() {
     (async () => {
       setLoading(true);
       setError(null);
-      const list = await fetchDbProjects();
+      const list = await fetchDbProjects(projectId);
       if (cancelled) return;
       if (list === null) {
         setRows(null);
-        setError("Could not reach list-projects (check CORS, URL, and DB).");
+        setError("Could not load project (check API key, CORS, URL, and DB).");
       } else {
         setRows(list);
       }
@@ -33,7 +34,7 @@ export function useDbProjects() {
     return () => {
       cancelled = true;
     };
-  }, [enabled]);
+  }, [enabled, projectId]);
 
   const projects: Project[] | null =
     rows === null ? null : rows.map(dbProjectToProject);

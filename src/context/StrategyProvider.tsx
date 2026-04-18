@@ -5,11 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_COMPETITORS } from "@/data/mockCompetitors";
-import { MOCK_DIFFERENTIATORS } from "@/data/mockDifferentiators";
-import { MOCK_EVALUATOR_LENSES } from "@/data/mockEvaluatorLenses";
-import { MOCK_PROJECT } from "@/data/mockProject";
-import { MOCK_WIN_THEMES } from "@/data/mockWinThemes";
+import { useWorkspace } from "@/context/useWorkspace";
 import { buildStrategicSummary } from "@/server/services/strategy.service";
 import { StrategyContext } from "./strategy-context";
 import type {
@@ -51,20 +47,21 @@ function touch<T extends { updatedAt: string }>(row: T): T {
 }
 
 export function StrategyProvider({ children }: { children: ReactNode }) {
-  const projectId = MOCK_PROJECT.id;
+  const { project } = useWorkspace();
+  const projectId = project.id;
   const p = loadPersisted();
 
   const [competitors, setCompetitors] = useState<CompetitorProfile[]>(() =>
-    p?.competitors?.length ? p.competitors : [...MOCK_COMPETITORS],
+    p?.competitors?.length ? p.competitors : [],
   );
   const [winThemes, setWinThemes] = useState<WinTheme[]>(() =>
-    p?.winThemes?.length ? p.winThemes : [...MOCK_WIN_THEMES],
+    p?.winThemes?.length ? p.winThemes : [],
   );
   const [differentiators, setDifferentiators] = useState<Differentiator[]>(() =>
-    p?.differentiators?.length ? p.differentiators : [...MOCK_DIFFERENTIATORS],
+    p?.differentiators?.length ? p.differentiators : [],
   );
   const [evaluatorLenses, setEvaluatorLenses] = useState<EvaluatorLens[]>(() =>
-    p?.evaluatorLenses?.length ? p.evaluatorLenses : [...MOCK_EVALUATOR_LENSES],
+    p?.evaluatorLenses?.length ? p.evaluatorLenses : [],
   );
 
   useEffect(() => {

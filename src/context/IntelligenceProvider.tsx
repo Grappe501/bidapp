@@ -1,10 +1,11 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_COMPANY_PROFILES } from "@/data/mockCompanyProfiles";
+import { useProjectWorkspace } from "@/context/project-workspace-context";
 import { applyIngestToProfile } from "@/lib/intelligence-utils";
 import type {
   CompanyProfile,
@@ -14,9 +15,14 @@ import type {
 import { IntelligenceContext } from "./intelligence-context";
 
 export function IntelligenceProvider({ children }: { children: ReactNode }) {
-  const [profiles, setProfiles] = useState<CompanyProfile[]>(() => [
-    ...MOCK_COMPANY_PROFILES,
-  ]);
+  const { workspace } = useProjectWorkspace();
+  const [profiles, setProfiles] = useState<CompanyProfile[]>([]);
+
+  useEffect(() => {
+    if (workspace?.companyProfiles) {
+      setProfiles(workspace.companyProfiles);
+    }
+  }, [workspace]);
   const [ingestEntries, setIngestEntries] = useState<IntelligenceIngestEntry[]>(
     () => [],
   );

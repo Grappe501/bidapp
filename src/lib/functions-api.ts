@@ -1,14 +1,22 @@
 import type {
+  ArchitectureOption,
+  CompanyProfile,
   DraftMetadata,
   DraftSection,
   DraftSectionType,
   DraftStatus,
   DraftVersion,
+  EvidenceItem,
+  FileRecord,
   GroundedProseReviewResult,
   GroundingBundlePayload,
   GroundingBundleType,
   Project,
+  Requirement,
+  RequirementEvidenceLink,
   RetrievalQueryType,
+  SubmissionItem,
+  Vendor,
 } from "@/types";
 import type { VendorLinkRecommendedAction } from "@/lib/allcare-branding-next-actions";
 
@@ -28,6 +36,25 @@ function functionsBase(): string {
   return (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").replace(/\/$/, "");
 }
 
+function apiHeaders(): Record<string, string> {
+  const h: Record<string, string> = { "Content-Type": "application/json" };
+  const key = (import.meta.env.VITE_INTERNAL_API_KEY ?? "").trim();
+  if (key) h["x-api-key"] = key;
+  return h;
+}
+
+export type ProjectWorkspaceApiPayload = {
+  project: Project;
+  files: FileRecord[];
+  requirements: Requirement[];
+  evidence: EvidenceItem[];
+  requirementEvidenceLinks: RequirementEvidenceLink[];
+  vendors: Vendor[];
+  architectureOptions: ArchitectureOption[];
+  companyProfiles: CompanyProfile[];
+  submissionItems: SubmissionItem[];
+};
+
 async function postFunctionJson<T>(
   name: string,
   body: unknown,
@@ -38,7 +65,7 @@ async function postFunctionJson<T>(
   }
   const res = await fetch(`${base}/.netlify/functions/${name}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: apiHeaders(),
     body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => ({}))) as { error?: string } &
@@ -62,17 +89,32 @@ export function dbProjectToProject(row: DbProjectRow): Project {
   };
 }
 
-export async function fetchDbProjects(): Promise<DbProjectRow[] | null> {
+/** Scoped fetch: returns0 or 1 projects for the given id. */
+export async function fetchDbProjects(
+  projectId: string,
+): Promise<DbProjectRow[] | null> {
   const base = functionsBase();
-  if (!base) return null;
+  if (!base || !projectId.trim()) return null;
   try {
-    const res = await fetch(`${base}/.netlify/functions/list-projects`);
+    const res = await fetch(`${base}/.netlify/functions/list-projects`, {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ projectId: projectId.trim() }),
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as { projects?: DbProjectRow[] };
     return data.projects ?? [];
   } catch {
     return null;
   }
+}
+
+export async function postLoadProjectWorkspace(
+  projectId: string,
+): Promise<ProjectWorkspaceApiPayload> {
+  return postFunctionJson<ProjectWorkspaceApiPayload>("load-project-workspace", {
+    projectId,
+  });
 }
 
 export async function postIngestUrl(input: {
@@ -87,7 +129,7 @@ export async function postIngestUrl(input: {
   try {
     const res = await fetch(`${base}/.netlify/functions/ingest-url`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: apiHeaders(),
       body: JSON.stringify(input),
     });
     if (!res.ok) {
@@ -104,10 +146,13 @@ export async function postIngestUrl(input: {
   }
 }
 
-export async function postEmbedFile(fileId: string): Promise<{
+export async function postEmbedFile(
+  fileId: string,
+  projectId: string,
+): Promise<{
   embedded: number;
 }> {
-  return postFunctionJson("embed-file", { fileId });
+  return postFunctionJson("embed-file", { fileId, projectId });
 }
 
 export async function postRetrieveContext(input: {

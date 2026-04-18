@@ -1,15 +1,21 @@
 /**
  * Shared Netlify helpers. Prefer relative imports from functions and server code;
  * `@/…` aliases are not resolved reliably in this runtime.
+ *
+ * Set ALLOWED_ORIGIN in production (e.g. https://your-app.netlify.app). Defaults to * if unset.
  */
 import type { HandlerResponse } from "@netlify/functions";
 
-export const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Content-Type": "application/json",
-};
+export function getCorsHeaders(): Record<string, string> {
+  const origin = process.env.ALLOWED_ORIGIN?.trim() || "*";
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers":
+      "Content-Type, Authorization, x-api-key, X-Api-Key",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Content-Type": "application/json",
+  };
+}
 
 export function jsonResponse(
   statusCode: number,
@@ -17,13 +23,13 @@ export function jsonResponse(
 ): HandlerResponse {
   return {
     statusCode,
-    headers: corsHeaders,
+    headers: getCorsHeaders(),
     body: JSON.stringify(body),
   };
 }
 
 export function optionsResponse(): HandlerResponse {
-  return { statusCode: 204, headers: corsHeaders, body: "" };
+  return { statusCode: 204, headers: getCorsHeaders(), body: "" };
 }
 
 export function readJson<T>(raw: string | null): T | null {

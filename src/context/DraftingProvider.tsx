@@ -5,8 +5,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { createInitialDraftSections } from "@/data/mockDraftSections";
-import { MOCK_PROJECT } from "@/data/mockProject";
 import {
   fetchDraftingWorkspace,
   isFunctionsApiConfigured,
@@ -93,53 +91,32 @@ function savePersisted(projectId: string, data: Partial<Persisted>) {
   }
 }
 
-function initialDraftingState(projectId: string): Persisted {
-  const p = loadPersisted(projectId);
-  return {
-    sections: p?.sections?.length
-      ? p.sections
-      : createInitialDraftSections(projectId),
-    versions: sortVersions(p?.versions ?? []),
-    bundleBySection: p?.bundleBySection ?? {},
-    autoGroundedReviewAfterGenerate: p?.autoGroundedReviewAfterGenerate ?? false,
-  };
-}
-
 export function DraftingProvider({ children }: { children: ReactNode }) {
   const projectId = useMemo(
-    () =>
-      (import.meta.env.VITE_DEFAULT_PROJECT_ID as string | undefined)?.trim() ||
-      MOCK_PROJECT.id,
+    () => (import.meta.env.VITE_DEFAULT_PROJECT_ID as string | undefined)?.trim() ?? "",
     [],
   );
 
   const remoteEnabled = useMemo(() => isFunctionsApiConfigured(), []);
 
-  const snapshot = useMemo(
-    () => initialDraftingState(projectId),
-    [projectId],
-  );
-
-  const [sections, setSections] = useState<DraftSection[]>(snapshot.sections);
-  const [versions, setVersions] = useState<DraftVersion[]>(snapshot.versions);
+  const [sections, setSections] = useState<DraftSection[]>([]);
+  const [versions, setVersions] = useState<DraftVersion[]>([]);
   const [bundleBySection, setBundleBySection] = useState<
     Record<string, SelectedBundle | null>
-  >(snapshot.bundleBySection);
+  >({});
   const [autoGroundedReviewAfterGenerate, setAutoGroundedReviewAfterGenerate] =
-    useState<boolean>(snapshot.autoGroundedReviewAfterGenerate ?? false);
+    useState<boolean>(() => {
+      if (!projectId) return false;
+      return loadPersisted(projectId)?.autoGroundedReviewAfterGenerate ?? false;
+    });
 
   useEffect(() => {
-    const next = initialDraftingState(projectId);
-    setSections(next.sections);
-    setVersions(next.versions);
-    setBundleBySection(next.bundleBySection);
-    setAutoGroundedReviewAfterGenerate(
-      next.autoGroundedReviewAfterGenerate ?? false,
-    );
+    const p = projectId ? loadPersisted(projectId) : null;
+    setAutoGroundedReviewAfterGenerate(p?.autoGroundedReviewAfterGenerate ?? false);
   }, [projectId]);
 
   useEffect(() => {
-    if (!remoteEnabled) return;
+    if (!remoteEnabled || !projectId) return;
     let cancelled = false;
     void fetchDraftingWorkspace(projectId).then((w) => {
       if (cancelled || !w) return;

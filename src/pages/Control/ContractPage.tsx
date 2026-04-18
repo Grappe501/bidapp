@@ -3,13 +3,12 @@ import { ContractClauseCard } from "@/components/control/ContractClauseCard";
 import { ContractRiskCard } from "@/components/control/ContractRiskCard";
 import { RedactionPanel } from "@/components/control/RedactionPanel";
 import { useControl } from "@/context/useControl";
-import {
-  MOCK_CONTRACT_CLAUSES,
-  MOCK_CONTRACT_RISKS,
-} from "@/data/mockContractRisks";
+import type { ContractClause, ContractRisk } from "@/types";
 
 export function ContractPage() {
   const { redactionFlags, updateRedactionFlag, addRedactionFlag } = useControl();
+  const contractRisks: ContractRisk[] = [];
+  const contractClauses: ContractClause[] = [];
 
   return (
     <div className="p-8">
@@ -30,16 +29,23 @@ export function ContractPage() {
 
         <section className="space-y-4">
           <h2 className="text-sm font-semibold text-ink">Binding risk register</h2>
-          <div className="grid gap-4 md:grid-cols-2">
-            {MOCK_CONTRACT_RISKS.map((r) => (
-              <ContractRiskCard
-                key={r.id}
-                category={r.category}
-                description={r.description}
-                severity={r.severity}
-              />
-            ))}
-          </div>
+          {contractRisks.length === 0 ? (
+            <p className="rounded-md border border-dashed border-border bg-zinc-50/60 px-4 py-6 text-sm text-ink-muted">
+              No contract risks are loaded for this project yet. Add them from your
+              source documents or intelligence pipeline when available.
+            </p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {contractRisks.map((r) => (
+                <ContractRiskCard
+                  key={r.id}
+                  category={r.category}
+                  description={r.description}
+                  severity={r.severity}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="space-y-4">
@@ -47,21 +53,27 @@ export function ContractPage() {
             Clause lens — proposal exposure
           </h2>
           <p className="text-xs text-ink-muted">
-            Illustrative references; replace with live article citations from the
-            awarded draft. Use this to force alignment between volumes and future
-            SRV-1 obligations.
+            Live article citations from the awarded draft should appear here when
+            ingested. Use this to force alignment between volumes and future SRV-1
+            obligations.
           </p>
-          <div className="grid gap-4 md:grid-cols-3">
-            {MOCK_CONTRACT_CLAUSES.map((c) => (
-              <ContractClauseCard
-                key={c.id}
-                reference={c.reference}
-                title={c.title}
-                obligationSummary={c.obligationSummary}
-                proposalExposure={c.proposalExposure}
-              />
-            ))}
-          </div>
+          {contractClauses.length === 0 ? (
+            <p className="rounded-md border border-dashed border-border bg-zinc-50/60 px-4 py-6 text-sm text-ink-muted">
+              No clause lens rows loaded for this project.
+            </p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              {contractClauses.map((c) => (
+                <ContractClauseCard
+                  key={c.id}
+                  reference={c.reference}
+                  title={c.title}
+                  obligationSummary={c.obligationSummary}
+                  proposalExposure={c.proposalExposure}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="space-y-4">

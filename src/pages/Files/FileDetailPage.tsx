@@ -18,11 +18,14 @@ import { postEmbedFile, postParseDocumentAi } from "@/lib/functions-api";
 export function FileDetailPage() {
   const { fileId } = useParams<{ fileId: string }>();
   const navigate = useNavigate();
-  const { files, updateFile } = useWorkspace();
+  const { files, updateFile, project } = useWorkspace();
   const file = files.find((f) => f.id === fileId);
   const [tagInput, setTagInput] = useState("");
   const [dbProjectId, setDbProjectId] = useState(
-    () => import.meta.env.VITE_DEFAULT_PROJECT_ID ?? "",
+    () =>
+      project.id ||
+      (import.meta.env.VITE_DEFAULT_PROJECT_ID as string | undefined) ||
+      "",
   );
   const [dbFileId, setDbFileId] = useState(() => fileId ?? "");
   const [parseMode, setParseMode] = useState<
@@ -34,6 +37,10 @@ export function FileDetailPage() {
   useEffect(() => {
     if (file?.id) setDbFileId(file.id);
   }, [file?.id]);
+
+  useEffect(() => {
+    if (project.id) setDbProjectId(project.id);
+  }, [project.id]);
 
   if (!fileId || !file) {
     return (
@@ -139,6 +146,7 @@ export function FileDetailPage() {
               disabled={
                 backendBusy ||
                 !(import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim() ||
+                !dbProjectId.trim() ||
                 !dbFileId.trim()
               }
               onClick={() => {
@@ -146,7 +154,10 @@ export function FileDetailPage() {
                   setBackendBusy(true);
                   setBackendMsg("");
                   try {
-                    const r = await postEmbedFile(dbFileId.trim());
+                    const r = await postEmbedFile(
+                      dbFileId.trim(),
+                      dbProjectId.trim(),
+                    );
                     setBackendMsg(`Embedded ${r.embedded} new chunk(s).`);
                   } catch (e) {
                     setBackendMsg(

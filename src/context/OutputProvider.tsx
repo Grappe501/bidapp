@@ -1,6 +1,6 @@
 import { useCallback, useMemo, type ReactNode } from "react";
-import { MOCK_PROJECT } from "@/data/mockProject";
 import { useControl } from "@/context/useControl";
+import { useWorkspace } from "@/context/useWorkspace";
 import { useDrafting } from "@/context/useDrafting";
 import { useReview } from "@/context/useReview";
 import {
@@ -20,7 +20,7 @@ import type { PackagingCompleteness } from "@/types";
 import { OutputContext } from "./output-context";
 
 export function OutputProvider({ children }: { children: ReactNode }) {
-  const project = MOCK_PROJECT;
+  const { project } = useWorkspace();
   const { submissionItems, redactionFlags, discussionItems } = useControl();
   const { sections, getActiveVersion } = useDrafting();
   const { allIssues, readiness, snapshot } = useReview();

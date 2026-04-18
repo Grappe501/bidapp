@@ -1,25 +1,24 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_DISCUSSION_ITEMS } from "@/data/mockDiscussionItems";
-import { MOCK_REDACTION_FLAGS } from "@/data/mockRedactionFlags";
-import { MOCK_SUBMISSION_ITEMS } from "@/data/mockSubmissionItems";
+import { useProjectWorkspace } from "@/context/project-workspace-context";
 import type { DiscussionItem, RedactionFlag, SubmissionItem } from "@/types";
 import { ControlContext } from "./control-context";
 
 export function ControlProvider({ children }: { children: ReactNode }) {
-  const [submissionItems, setSubmissionItems] = useState<SubmissionItem[]>(() => [
-    ...MOCK_SUBMISSION_ITEMS,
-  ]);
-  const [discussionItems, setDiscussionItems] = useState<DiscussionItem[]>(() => [
-    ...MOCK_DISCUSSION_ITEMS,
-  ]);
-  const [redactionFlags, setRedactionFlags] = useState<RedactionFlag[]>(() => [
-    ...MOCK_REDACTION_FLAGS,
-  ]);
+  const { workspace } = useProjectWorkspace();
+  const [submissionItems, setSubmissionItems] = useState<SubmissionItem[]>([]);
+  const [discussionItems, setDiscussionItems] = useState<DiscussionItem[]>([]);
+  const [redactionFlags, setRedactionFlags] = useState<RedactionFlag[]>([]);
+
+  useEffect(() => {
+    if (!workspace) return;
+    setSubmissionItems(workspace.submissionItems);
+  }, [workspace]);
 
   const updateSubmissionItem = useCallback(
     (id: string, patch: Partial<SubmissionItem>) => {

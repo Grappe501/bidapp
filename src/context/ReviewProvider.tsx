@@ -5,10 +5,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_CONTRACT_RISKS } from "@/data/mockContractRisks";
-import { getSupplementalReviewIssues } from "@/data/mockReviewIssues";
-import { MOCK_PROJECT } from "@/data/mockProject";
 import { useArchitecture } from "@/context/useArchitecture";
+import { useWorkspace } from "@/context/useWorkspace";
 import { useControl } from "@/context/useControl";
 import { useDrafting } from "@/context/useDrafting";
 import { useEvidence } from "@/context/useEvidence";
@@ -70,7 +68,8 @@ function applyOverrides(
 }
 
 export function ReviewProvider({ children }: { children: ReactNode }) {
-  const projectId = MOCK_PROJECT.id;
+  const { project } = useWorkspace();
+  const projectId = project.id;
   const { requirements } = useRequirements();
   const { evidenceItems, links } = useEvidence();
   const { submissionItems, discussionItems, redactionFlags } = useControl();
@@ -123,7 +122,7 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
       submissionItems,
       discussionItems,
       redactionFlags,
-      contractRisks: MOCK_CONTRACT_RISKS,
+      contractRisks: [],
       draftSections: sections,
       draftVersions: versions,
       activeDraftBySection,
@@ -151,10 +150,7 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const generated = runReviewRules(snapshot);
-    const merged = mergeSupplementalIssues(
-      generated,
-      getSupplementalReviewIssues(projectId),
-    );
+    const merged = mergeSupplementalIssues(generated, []);
     setBaseIssues(merged);
     setLastRunAt(new Date().toISOString());
   }, [snapshot, projectId, refreshKey]);

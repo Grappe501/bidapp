@@ -58,6 +58,7 @@ export async function getProject(id: string): Promise<DbProject | null> {
   return mapProject(r.rows[0] as Record<string, unknown>);
 }
 
+/** @internal Used by scripts/tests only — runtime APIs must scope by projectId. */
 export async function listProjects(): Promise<DbProject[]> {
   const r = await query(
     `SELECT * FROM projects ORDER BY created_at DESC`,

@@ -1,12 +1,12 @@
 import {
   useCallback,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
-import { getMockCandidatesForFile } from "@/data/mockRequirementCandidates";
-import { MOCK_REQUIREMENTS } from "@/data/mockRequirements";
 import { useWorkspace } from "@/context/useWorkspace";
+import { useProjectWorkspace } from "@/context/project-workspace-context";
 import type { Requirement, RequirementCandidate } from "@/types";
 import { RequirementContext } from "./requirement-context";
 
@@ -46,10 +46,9 @@ function candidateToRequirement(
 }
 
 export function RequirementProvider({ children }: { children: ReactNode }) {
+  const { workspace } = useProjectWorkspace();
   const { files } = useWorkspace();
-  const [requirements, setRequirements] = useState<Requirement[]>(() => [
-    ...MOCK_REQUIREMENTS,
-  ]);
+  const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [pendingCandidatesByFile, setPendingCandidatesByFile] = useState<
     Record<string, RequirementCandidate[]>
   >({});
@@ -63,9 +62,14 @@ export function RequirementProvider({ children }: { children: ReactNode }) {
     [files],
   );
 
+  useEffect(() => {
+    if (workspace?.requirements) {
+      setRequirements(workspace.requirements);
+    }
+  }, [workspace]);
+
   const runExtraction = useCallback((fileId: string) => {
-    const next = getMockCandidatesForFile(fileId);
-    setPendingCandidatesByFile((prev) => ({ ...prev, [fileId]: next }));
+    setPendingCandidatesByFile((prev) => ({ ...prev, [fileId]: [] }));
     setExtractionRunFileIds((prev) => new Set(prev).add(fileId));
   }, []);
 

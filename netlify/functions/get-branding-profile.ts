@@ -1,4 +1,5 @@
 import type { Handler } from "@netlify/functions";
+import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
 import {
   loadAllCareBrandingWithStatsForProject,
   loadBrandingProfileWithStats,
@@ -19,6 +20,8 @@ type Body = {
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const denied = assertInternalApiKey(event);
+  if (denied) return denied;
   if (event.httpMethod !== "POST") {
     return jsonResponse(405, { error: "Method not allowed" });
   }
@@ -51,8 +54,5 @@ export const handler: Handler = async (event) => {
     }
     const responseBody: GetBrandingProfileResponseBody = { branding };
     return jsonResponse(200, responseBody);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Unknown error";
-    return jsonResponse(500, { error: message });
-  }
+  } catch (e) { logServerError("get-branding-profile", e); return internalErrorResponse(); }
 };

@@ -4,15 +4,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { MOCK_FILES } from "@/data/mockFiles";
-import { MOCK_PROJECT } from "@/data/mockProject";
 import { fileExtensionFromName } from "@/lib/utils";
-import type { FileRecord } from "@/types";
+import type { FileRecord, Project } from "@/types";
 import {
   WorkspaceContext,
   type UploadFileInput,
   type WorkspaceContextValue,
 } from "./workspace-context";
+import { useProjectWorkspace } from "./project-workspace-context";
 
 function recordFromUpload(input: UploadFileInput): FileRecord {
   return {
@@ -30,38 +29,72 @@ function recordFromUpload(input: UploadFileInput): FileRecord {
   };
 }
 
+function placeholderProject(
+  id: string,
+  title: string,
+  bidNumber: string,
+): Project {
+  return {
+    id,
+    title,
+    bidNumber,
+    issuingOrganization: "—",
+    dueDate: "",
+    status: "Drafting",
+    shortDescription: "",
+  };
+}
+
+/**
+ * Files and project come from Postgres via {@link ProjectWorkspaceProvider}.
+ * New uploads are session-only until a file-create API is wired.
+ */
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
-  const [files, setFiles] = useState<FileRecord[]>(() => [...MOCK_FILES]);
+  const { workspace, loading, error, projectId } = useProjectWorkspace();
+  const [sessionFiles, setSessionFiles] = useState<FileRecord[]>([]);
+
+  const files = useMemo(() => {
+    const dbFiles = workspace?.files ?? [];
+    return [...sessionFiles, ...dbFiles];
+  }, [sessionFiles, workspace?.files]);
 
   const addUploadedFile = useCallback((input: UploadFileInput) => {
-    setFiles((prev) => [recordFromUpload(input), ...prev]);
+    setSessionFiles((prev) => [recordFromUpload(input), ...prev]);
   }, []);
 
   const addUploadedFiles = useCallback((inputs: UploadFileInput[]) => {
     if (inputs.length === 0) return;
-    setFiles((prev) => [...inputs.map(recordFromUpload), ...prev]);
+    setSessionFiles((prev) => [...inputs.map(recordFromUpload), ...prev]);
   }, []);
 
   const updateFile = useCallback((id: string, patch: Partial<FileRecord>) => {
-    setFiles((prev) =>
+    setSessionFiles((prev) =>
       prev.map((f) => (f.id === id ? { ...f, ...patch } : f)),
     );
   }, []);
 
+  const project: Project = workspace?.project
+    ? workspace.project
+    : loading
+      ? placeholderProject(projectId || "", "Loading workspace…", "—")
+      : placeholderProject(
+          projectId || "",
+          error ? "Workspace unavailable" : "No project data",
+          "—",
+        );
+
   const value = useMemo<WorkspaceContextValue>(
     () => ({
-      project: MOCK_PROJECT,
+      project,
       files,
       addUploadedFile,
       addUploadedFiles,
       updateFile,
     }),
-    [files, addUploadedFile, addUploadedFiles, updateFile],
+    [project, files, addUploadedFile, addUploadedFiles, updateFile],
   );
 
   return (
-    <WorkspaceContext.Provider value={value}>
-      {children}
-    </WorkspaceContext.Provider>
+    <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>
   );
 }

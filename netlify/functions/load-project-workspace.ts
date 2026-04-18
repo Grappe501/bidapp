@@ -1,5 +1,4 @@
 import type { Handler } from "@netlify/functions";
-import { getProject } from "../../src/server/repositories/project.repo";
 import {
   assertInternalApiKey,
   internalErrorResponse,
@@ -10,13 +9,10 @@ import {
   optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
+import { loadProjectWorkspacePayload } from "../../src/server/services/project-workspace.service";
 
 type Body = { projectId?: string };
 
-/**
- * Scoped project fetch — returns0 or 1 row for the given projectId.
- * No global project listing in strict production posture.
- */
 export const handler: Handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return optionsResponse();
   const denied = assertInternalApiKey(event);
@@ -30,10 +26,13 @@ export const handler: Handler = async (event) => {
     return jsonResponse(400, { error: "projectId is required" });
   }
   try {
-    const p = await getProject(projectId);
-    return jsonResponse(200, { projects: p ? [p] : [] });
+    const payload = await loadProjectWorkspacePayload(projectId);
+    if (!payload) {
+      return jsonResponse(404, { error: "Project not found" });
+    }
+    return jsonResponse(200, payload);
   } catch (e) {
-    logServerError("list-projects", e);
+    logServerError("load-project-workspace", e);
     return internalErrorResponse();
   }
 };

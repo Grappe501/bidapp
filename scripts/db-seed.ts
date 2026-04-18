@@ -2,6 +2,8 @@
  * Idempotent seed: skips if a project with the mock bid number already exists.
  * Run after: npm run db:migrate
  */
+import "dotenv/config";
+
 import { closePool, query } from "../src/server/db/client";
 import { uuidFromSeed } from "../src/server/lib/deterministic-uuid";
 import {

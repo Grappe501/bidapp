@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 type NavItem =
   | { to: string; label: string; end?: boolean }
-  | { to: string; label: string; prefix: string };
+  | { to: string; label: string; prefix: string; title?: string };
 
 const navItems: NavItem[] = [
   { to: "/", label: "Dashboard", end: true },
@@ -15,7 +15,12 @@ const navItems: NavItem[] = [
   { to: "/control/submission", label: "Bid control", prefix: "/control" },
   { to: "/drafts", label: "Drafts", prefix: "/drafts" },
   { to: "/review", label: "Review", prefix: "/review" },
-  { to: "/output", label: "Output", prefix: "/output" },
+  {
+    to: "/output",
+    label: "Output",
+    prefix: "/output",
+    title: "Output center — packaging and readiness",
+  },
   { to: "/submission", label: "Submission", prefix: "/submission" },
   { to: "/strategy", label: "Strategy", prefix: "/strategy" },
 ];
@@ -46,6 +51,7 @@ export function Sidebar() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                title={"title" in item ? item.title : undefined}
                 className={linkClass(active)}
               >
                 {item.label}

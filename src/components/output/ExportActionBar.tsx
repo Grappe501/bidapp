@@ -33,7 +33,7 @@ export function ExportActionBar({
         </p>
       ) : (
         <p className="text-xs text-ink-subtle">
-          Exports are clipboard-first for manual assembly — no ARBuy upload.
+          Clipboard-first exports for manual packaging — no automated portal upload.
         </p>
       )}
     </div>

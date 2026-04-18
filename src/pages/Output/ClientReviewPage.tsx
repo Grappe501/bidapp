@@ -1,132 +1,196 @@
-import { ClientReviewSection } from "@/components/output/ClientReviewSection";
+import { useMemo } from "react";
+import { ClientArchitectureSnapshot } from "@/components/output/ClientArchitectureSnapshot";
+import { ClientDecisionPanel } from "@/components/output/ClientDecisionPanel";
+import { ClientNextActionsPanel } from "@/components/output/ClientNextActionsPanel";
+import { ClientReadinessStrip } from "@/components/output/ClientReadinessStrip";
+import { ClientRecommendationCard } from "@/components/output/ClientRecommendationCard";
+import { ClientReviewDraftStatus } from "@/components/output/ClientReviewDraftStatus";
 import { ClientReviewSummaryCard } from "@/components/output/ClientReviewSummaryCard";
+import { ClientRiskSnapshot } from "@/components/output/ClientRiskSnapshot";
 import { OutputSubNav } from "@/components/output/OutputSubNav";
+import { Button } from "@/components/ui/Button";
 import { useArchitecture } from "@/context/useArchitecture";
-import { useDrafting } from "@/context/useDrafting";
-import { useOutput } from "@/context/useOutput";
 import { useControl } from "@/context/useControl";
-import { useVendors } from "@/context/useVendors";
-import { activeIssues } from "@/lib/review-utils";
+import { useOutput } from "@/context/useOutput";
+import {
+  buildClientNextActions,
+  buildClientWatchouts,
+  buildDraftPacketRows,
+  buildUnresolvedDecisions,
+  formatClientReviewPacketSummary,
+  formatExecutiveSummaryCopy,
+  formatNextActionsCopy,
+  readinessHeadline,
+} from "@/lib/client-review-utils";
+import { copyTextToClipboard } from "@/lib/output-utils";
 
 export function ClientReviewPage() {
   const { project, readiness, reviewIssues, reviewSnapshot } = useOutput();
   const { options } = useArchitecture();
-  const { vendors } = useVendors();
-  const { getActiveVersion } = useDrafting();
   const { submissionItems } = useControl();
 
   const recommended = options.find((o) => o.recommended);
-  const primaryVendors = vendors.filter(
-    (v) => v.category === "Primary Platform" || v.fitScore >= 4,
+
+  const vendorStrategyLine = useMemo(() => {
+    if (!recommended) {
+      return "Define primary platform, intelligence layer, and supporting vendors in the architecture workspace — Malone remains the orchestration and governance lead.";
+    }
+    const core = recommended.components
+      .filter((c) => !c.optional)
+      .map((c) => `${c.vendorName} (${c.role})`);
+    return `Malone-led orchestration; proposed core stack: ${core.join("; ")}.`;
+  }, [recommended]);
+
+  const watchouts = useMemo(
+    () => buildClientWatchouts(reviewIssues, recommended, 3),
+    [reviewIssues, recommended],
   );
 
-  const req = submissionItems.filter((s) => s.required && s.phase === "Proposal");
-  const ok = req.filter((s) => s.status === "Ready" || s.status === "Validated").length;
-  const submissionProgressLabel = `${ok} of ${req.length} required proposal items ready or validated`;
+  const watchoutsExtended = useMemo(
+    () => buildClientWatchouts(reviewIssues, recommended, 5),
+    [reviewIssues, recommended],
+  );
 
-  const act = activeIssues(reviewIssues);
-  const majorRiskTeaser =
-    act.find((i) => i.severity === "Critical")?.title ??
-    "No critical review flags — still validate contract exposure and integration claims before client readout.";
+  const nextActions = useMemo(
+    () =>
+      buildClientNextActions({
+        issues: reviewIssues,
+        submissionItems,
+        readiness,
+        recommended,
+      }),
+    [reviewIssues, submissionItems, readiness, recommended],
+  );
 
-  const sectionBody = (sectionType: string) => {
-    const sec = reviewSnapshot.draftSections.find((s) => s.sectionType === sectionType);
-    if (!sec) return "—";
-    const v = getActiveVersion(sec.id);
-    const t = v?.content?.trim();
-    return t && t.length > 0 ? t : "Section not drafted yet.";
-  };
+  const decisions = useMemo(
+    () => buildUnresolvedDecisions(reviewIssues, submissionItems),
+    [reviewIssues, submissionItems],
+  );
 
-  const unresolvedTop = act
-    .filter((i) => i.severity === "High" || i.severity === "Critical")
-    .slice(0, 6);
+  const draftRows = useMemo(
+    () =>
+      buildDraftPacketRows(
+        reviewSnapshot.draftSections,
+        reviewSnapshot.activeDraftBySection,
+        reviewIssues,
+      ),
+    [reviewSnapshot, reviewIssues],
+  );
+
+  const execSummaryText = useMemo(
+    () =>
+      formatExecutiveSummaryCopy({
+        bidNumber: project.bidNumber,
+        projectTitle: project.title,
+        readiness,
+        readinessNarrative: readinessHeadline(readiness.overall),
+        recommendedName: recommended?.name,
+        vendorStrategyLine,
+        watchouts,
+        nextActions: nextActions.slice(0, 3),
+      }),
+    [project, readiness, recommended, vendorStrategyLine, watchouts, nextActions],
+  );
+
+  const packetSummaryText = useMemo(
+    () =>
+      formatClientReviewPacketSummary({
+        bidNumber: project.bidNumber,
+        projectTitle: project.title,
+        readiness,
+        recommended,
+        watchouts: watchoutsExtended,
+        decisions,
+        nextActions,
+        draftRows,
+      }),
+    [
+      project,
+      readiness,
+      recommended,
+      watchoutsExtended,
+      decisions,
+      nextActions,
+      draftRows,
+    ],
+  );
 
   return (
-    <div className="p-8">
-      <div className="mx-auto max-w-3xl space-y-8">
+    <div className="px-4 py-6 sm:p-8">
+      <div className="mx-auto w-full max-w-4xl space-y-8">
         <OutputSubNav />
+
+        <header className="space-y-2 border-b border-border pb-6">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
+            Client review packet
+          </h1>
+          <p className="max-w-3xl text-sm leading-relaxed text-ink-muted">
+            Executive brief for <span className="font-medium text-ink">{project.bidNumber}</span>
+            : where the bid stands, what we recommend, why it wins, what is still open, and
+            what decisions the client must make. Designed for readout and alignment — not
+            internal debugging.
+          </p>
+        </header>
 
         <ClientReviewSummaryCard
           bidNumber={project.bidNumber}
           projectTitle={project.title}
           readiness={readiness}
+          readinessHeadlineText={readinessHeadline(readiness.overall)}
           recommendedOption={recommended}
-          primaryVendors={primaryVendors}
-          submissionProgressLabel={submissionProgressLabel}
-          majorRiskTeaser={majorRiskTeaser}
+          vendorStrategyLine={vendorStrategyLine}
+          watchouts={watchouts}
+          nextActions={nextActions.slice(0, 3)}
         />
 
-        <ClientReviewSection title="Executive positioning" kicker="Narrative">
-          <p className="whitespace-pre-wrap text-ink-muted">
-            {sectionBody("Executive Summary")}
-          </p>
-        </ClientReviewSection>
+        <ClientRecommendationCard option={recommended} />
 
-        <ClientReviewSection title="Experience" kicker="Scored volume">
-          <p className="whitespace-pre-wrap text-ink-muted">
-            {sectionBody("Experience")}
-          </p>
-        </ClientReviewSection>
+        <ClientReviewDraftStatus rows={draftRows} />
 
-        <ClientReviewSection title="Solution" kicker="Scored volume">
-          <p className="whitespace-pre-wrap text-ink-muted">
-            {sectionBody("Solution")}
-          </p>
-        </ClientReviewSection>
+        <ClientArchitectureSnapshot option={recommended} />
 
-        <ClientReviewSection title="Risk" kicker="Scored volume">
-          <p className="whitespace-pre-wrap text-ink-muted">
-            {sectionBody("Risk")}
-          </p>
-        </ClientReviewSection>
+        <ClientDecisionPanel decisions={decisions} />
 
-        <ClientReviewSection title="Architecture recommendation" kicker="Strategy">
-          <p className="whitespace-pre-wrap text-ink-muted">
-            {recommended
-              ? `${recommended.name}\n\n${recommended.summary}`
-              : "Select a recommended option in the architecture workspace."}
-          </p>
-          <p className="mt-4 whitespace-pre-wrap text-ink-muted">
-            {sectionBody("Architecture Narrative")}
-          </p>
-        </ClientReviewSection>
+        <ClientRiskSnapshot issues={reviewIssues} fallbackWatchouts={watchouts} />
 
-        <ClientReviewSection title="Key unresolved items" kicker="Review">
-          {unresolvedTop.length ? (
-            <ul className="list-inside list-disc space-y-1 text-ink-muted">
-              {unresolvedTop.map((i) => (
-                <li key={i.id} className="text-sm">
-                  {i.title}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-ink-muted">
-              No high-severity open items. Confirm submission checklist and redaction
-              posture before external sharing.
-            </p>
-          )}
-        </ClientReviewSection>
+        <ClientReadinessStrip readiness={readiness} />
 
-        <ClientReviewSection title="Readiness snapshot" kicker="Metrics">
-          <dl className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
-            {(
-              [
-                ["Overall", readiness.overall],
-                ["Submission", readiness.submission],
-                ["Coverage", readiness.coverage],
-                ["Grounding", readiness.grounding],
-                ["Scoring fit", readiness.scoring_alignment],
-                ["Contract", readiness.contract_readiness],
-              ] as const
-            ).map(([k, v]) => (
-              <div key={k}>
-                <dt className="text-ink-subtle">{k}</dt>
-                <dd className="font-semibold tabular-nums text-ink">{v}</dd>
-              </div>
-            ))}
-          </dl>
-        </ClientReviewSection>
+        <ClientNextActionsPanel actions={nextActions} />
+
+        <div className="space-y-2 border-t border-border pt-6">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
+            Export
+          </p>
+          <p className="text-xs text-ink-muted">
+            Clipboard exports for email or offline readout.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="text-xs"
+              onClick={() => void copyTextToClipboard(execSummaryText)}
+            >
+              Copy executive summary (text)
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="text-xs"
+              onClick={() => void copyTextToClipboard(formatNextActionsCopy(nextActions))}
+            >
+              Copy next actions (text)
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="text-xs"
+              onClick={() => void copyTextToClipboard(packetSummaryText)}
+            >
+              Copy client review packet (Markdown)
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

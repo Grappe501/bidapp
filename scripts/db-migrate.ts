@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { runMigrations } from "../src/server/db/migrate";
 import { closePool } from "../src/server/db/client";
 

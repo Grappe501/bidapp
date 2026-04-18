@@ -1,125 +1,170 @@
-import { Link } from "react-router-dom";
+import { useMemo } from "react";
+import { OutputAttentionPanel } from "@/components/output/OutputAttentionPanel";
 import { OutputBundleCard } from "@/components/output/OutputBundleCard";
+import { OutputCommandSummary } from "@/components/output/OutputCommandSummary";
+import { OutputQuickActionPanel } from "@/components/output/OutputQuickActionPanel";
+import { OutputReadinessStrip } from "@/components/output/OutputReadinessStrip";
 import { OutputSubNav } from "@/components/output/OutputSubNav";
-import { Card } from "@/components/ui/Card";
 import { useOutput } from "@/context/useOutput";
-import { bundleArtifactIds } from "@/lib/output-utils";
-import { activeIssues } from "@/lib/review-utils";
+import {
+  buildOutputAttentionItems,
+  computeBundleSuitability,
+  OUTPUT_READINESS_STRIP_TYPES,
+} from "@/lib/output-utils";
+import { issueSummary } from "@/lib/review-utils";
+import type { OutputBundle, OutputBundleType } from "@/types";
+
+const BUNDLE_PAGE_ORDER: OutputBundleType[] = [
+  ...OUTPUT_READINESS_STRIP_TYPES,
+  "Discussion Packet",
+];
+
+function sortBundles(list: OutputBundle[]): OutputBundle[] {
+  return [...list].sort(
+    (a, b) =>
+      BUNDLE_PAGE_ORDER.indexOf(a.bundleType) -
+      BUNDLE_PAGE_ORDER.indexOf(b.bundleType),
+  );
+}
 
 export function OutputCenterPage() {
-  const { bundles, packagingByBundle, summary, artifacts, reviewIssues } =
-    useOutput();
-  const act = activeIssues(reviewIssues);
-  const criticalDrafts = act.filter((i) => i.issueType === "Page Limit Risk");
+  const {
+    bundles,
+    packagingByBundle,
+    summary,
+    artifacts,
+    redactionSummary,
+    readiness,
+    reviewIssues,
+    copyChecklistSummary,
+    copyReadinessSummary,
+  } = useOutput();
 
-  const weakSections = artifacts.filter(
-    (a) =>
-      a.artifactType === "Draft Section" &&
-      !a.isValidated &&
-      ["Experience", "Solution", "Risk"].includes(a.notes),
+  const iss = useMemo(() => issueSummary(reviewIssues), [reviewIssues]);
+
+  const submissionBundle = bundles.find(
+    (b) => b.bundleType === "Submission Package",
+  );
+  const clientBundle = bundles.find(
+    (b) => b.bundleType === "Client Review Packet",
+  );
+  const finalBundle = bundles.find(
+    (b) => b.bundleType === "Final Readiness Bundle",
   );
 
+  const submissionPackageComplete = submissionBundle
+    ? (packagingByBundle[submissionBundle.id]?.complete ?? false)
+    : false;
+  const clientPacketComplete = clientBundle
+    ? (packagingByBundle[clientBundle.id]?.complete ?? false)
+    : false;
+  const finalBundleComplete = finalBundle
+    ? (packagingByBundle[finalBundle.id]?.complete ?? false)
+    : false;
+
+  const attentionItems = useMemo(
+    () =>
+      buildOutputAttentionItems({
+        artifacts,
+        bundles,
+        packagingByBundle,
+        redactionSummary,
+        readiness,
+        reviewIssues,
+      }),
+    [
+      artifacts,
+      bundles,
+      packagingByBundle,
+      redactionSummary,
+      readiness,
+      reviewIssues,
+    ],
+  );
+
+  const sortedBundles = useMemo(() => sortBundles(bundles), [bundles]);
+
   return (
-    <div className="p-8">
-      <div className="mx-auto max-w-5xl space-y-8">
+    <div className="px-4 py-6 sm:p-8">
+      <div className="mx-auto w-full max-w-6xl space-y-8">
         <OutputSubNav />
 
-        <div>
+        <header className="space-y-2 border-b border-border pb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            Output command center
+            Output center
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">
-            Assemble submission materials, client review packets, and redaction
-            support — disciplined handoff without ARBuy automation.
+          <p className="max-w-3xl text-sm leading-relaxed text-ink-muted">
+            Final packaging and <span className="font-medium text-ink">readiness</span>{" "}
+            — what is on track, what is{" "}
+            <span className="font-medium text-ink">blocked</span>, and what belongs in
+            the <span className="font-medium text-ink">client review packet</span>,{" "}
+            <span className="font-medium text-ink">submission package</span>,{" "}
+            <span className="font-medium text-ink">redacted packet</span>, or{" "}
+            <span className="font-medium text-ink">final readiness bundle</span>. Artifact
+            workflow uses the same labels everywhere: Draft → In Progress → Ready →
+            Validated → Locked.
           </p>
-        </div>
+        </header>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="p-4">
-            <p className="text-xs font-medium text-ink-subtle">Artifacts tracked</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
-              {summary.totalArtifacts}
-            </p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs font-medium text-ink-subtle">Ready / validated</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
-              {summary.readyArtifacts + summary.validatedArtifacts}
-            </p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs font-medium text-ink-subtle">Redaction-sensitive</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
-              {summary.redactionSensitiveCount}
-            </p>
-          </Card>
-          <Card className="p-4">
-            <p className="text-xs font-medium text-ink-subtle">Output blockers</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">
-              {summary.outputBlockers}
-            </p>
-          </Card>
-        </div>
+        <OutputCommandSummary
+          summary={summary}
+          readiness={readiness}
+          reviewIssues={reviewIssues}
+          submissionPackageComplete={submissionPackageComplete}
+          clientPacketComplete={clientPacketComplete}
+          redactionUnresolved={redactionSummary.unresolvedCount}
+          finalBundleComplete={finalBundleComplete}
+        />
 
-        <div>
-          <h2 className="text-sm font-semibold text-ink">Bundles</h2>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {bundles.map((b) => (
+        <OutputReadinessStrip
+          bundles={bundles}
+          packagingByBundle={packagingByBundle}
+          redactionUnresolved={redactionSummary.unresolvedCount}
+          criticalIssueCount={iss.critical}
+        />
+
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-ink-subtle">
+            Bundles
+          </h2>
+          <p className="max-w-3xl text-xs leading-relaxed text-ink-muted">
+            Compare the <span className="font-medium text-ink">submission package</span>,{" "}
+            <span className="font-medium text-ink">client review packet</span>,{" "}
+            <span className="font-medium text-ink">redacted packet</span>, and{" "}
+            <span className="font-medium text-ink">final readiness bundle</span> at a
+            glance. Packaging <span className="font-medium text-ink">blockers</span> count
+            artifacts not yet Ready, Validated, or Locked.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {sortedBundles.map((b) => (
               <OutputBundleCard
                 key={b.id}
                 bundle={b}
                 completeness={packagingByBundle[b.id]}
+                suitability={computeBundleSuitability(
+                  b.bundleType,
+                  b.status,
+                  packagingByBundle[b.id],
+                  iss.critical,
+                  readiness.overall,
+                )}
+                redactionUnresolved={redactionSummary.unresolvedCount}
               />
             ))}
           </div>
-        </div>
+        </section>
 
-        <div>
-          <h2 className="text-sm font-semibold text-ink">Quick actions</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            <li>
-              <Link
-                to="/review/issues"
-                className="text-ink underline-offset-2 hover:underline"
-              >
-                Open critical issues
-              </Link>
-              <span className="text-ink-muted">
-                {" "}
-                ({act.filter((i) => i.severity === "Critical").length} active)
-              </span>
-            </li>
-            <li>
-              <Link
-                to="/output/submission"
-                className="text-ink underline-offset-2 hover:underline"
-              >
-                Submission package workspace
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/drafts"
-                className="text-ink underline-offset-2 hover:underline"
-              >
-                Drafts over page limit
-              </Link>
-              <span className="text-ink-muted"> ({criticalDrafts.length} flags)</span>
-            </li>
-            <li>
-              <span className="text-ink-muted">Weakly grounded sections: </span>
-              {weakSections.length ? (
-                <span className="text-ink">{weakSections.map((w) => w.notes).join(", ")}</span>
-              ) : (
-                <span className="text-ink-muted">none surfaced</span>
-              )}
-            </li>
-          </ul>
-        </div>
+        <OutputAttentionPanel items={attentionItems} />
 
-        <p className="text-xs text-ink-subtle">
-          Submission package currently tracks{" "}
-          {bundleArtifactIds("Submission Package", artifacts).length} linked artifacts.
+        <OutputQuickActionPanel
+          onCopyReadiness={() => void copyReadinessSummary()}
+          onCopyChecklist={() => void copyChecklistSummary()}
+        />
+
+        <p className="text-xs leading-relaxed text-ink-subtle">
+          <span className="font-medium text-ink">Readiness</span> scores come from the
+          review workspace (BP-007). This page does not replace that model — it orients
+          packaging work around the four primary bundles above.
         </p>
       </div>
     </div>

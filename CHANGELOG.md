@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.10.2 — 2026-04-18
+
+- Hardened and polished the **output module** (BP-008 upgrade sprint — Day 5): consistent terminology across **output center**, **submission package**, **client review packet**, **redacted packet**, **final readiness bundle**, **blockers**, **readiness**, and **redaction items**; aligned export/copy labels (Markdown vs text vs JSON) and improved clipboard report headers in `output-utils`
+- Normalized **packaging threshold** language (vs artifact **status** labels Draft / In Progress / Ready / Validated / Locked) on the submission package checklist, summary cards, and exports; calmer empty and attention copy on the output center
+- Smoothed **OutputSubNav** labels, sidebar tooltip for Output, page spacing rhythm (`space-y-8`), and neutral “portal upload” wording in output copy; removed unused `ClientReviewSection`
+- Documented BP-008 sprint completion and honest output-layer limits in `CURRENT_STATE.md`
+
 ## v0.10.1 — 2026-04-18
 
 - Hardened and polished the drafting studio (BP-006 Day 7): consistent terminology (grounding bundle, requirement coverage, score strength, constraint risk, unsupported claim, draft status, active version), calmer empty and error copy, aligned section list and section workspace layout with improved narrow-width padding

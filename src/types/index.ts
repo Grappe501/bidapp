@@ -896,12 +896,20 @@ export type PackagingCompleteness = {
   readyForAssemblyTitles: string[];
 };
 
+export type RedactionPacketSupportState = "ready" | "attention_needed" | "blocked";
+
 export type RedactionPackagingSummary = {
   totalFlagged: number;
   unresolvedCount: number;
   clearedCount: number;
+  /** Redaction items with no disposition yet (status Open). */
+  awaitingDecisionCount: number;
+  /** Items in legal / business review (status Under Review). */
+  inReviewCount: number;
   redactedPacketNeeded: boolean;
   redactedCopyArtifactReady: boolean;
+  /** Whether redacted packet support can proceed: flags cleared and copy posture OK. */
+  redactedPacketSupport: RedactionPacketSupportState;
   blockers: string[];
 };
 

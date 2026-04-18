@@ -32,7 +32,7 @@ export function SectionSelector({
         const meta = v?.metadata ?? null;
         const bundle = getSelectedBundle(s.id);
         const bundleReqCount = bundle?.payload.requirements.length ?? 0;
-        const health = coverageHealth(meta, bundleReqCount);
+        const health = coverageHealth(meta, bundleReqCount, bundle?.payload ?? null);
         const cap = SECTION_FOCUS[s.sectionType].maxPages;
         const focusShort = SECTION_FOCUS[s.sectionType].focus;
         const bundleLine = bundle

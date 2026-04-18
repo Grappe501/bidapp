@@ -13,6 +13,7 @@ import { listFactsByProject } from "../repositories/intelligence.repo";
 import { insertGroundingBundle } from "../repositories/grounding.repo";
 import type { DbRequirement } from "../repositories/requirement.repo";
 import type { DbEvidenceItem } from "../repositories/evidence.repo";
+import { buildRequirementSupportMapForRequirements } from "./proof-graph.service";
 
 const RETRIEVAL_BY_BUNDLE: Record<
   GroundingBundleType,
@@ -166,6 +167,11 @@ export async function buildAndStoreGroundingBundle(input: {
     provenanceKind: (f.classification as KnowledgeProvenanceKind) ?? "Vendor Claim",
     sourceId: f.sourceId,
   }));
+
+  base.requirementSupport = await buildRequirementSupportMapForRequirements(
+    input.projectId,
+    pickedReqs.map((r) => r.id),
+  );
 
   base.gaps = summarizeGaps(base);
   base.validationNotes = [

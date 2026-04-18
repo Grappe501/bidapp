@@ -67,6 +67,33 @@ export async function createEvidenceItem(input: {
   return mapEv(r.rows[0] as Record<string, unknown>);
 }
 
+export type DbRequirementEvidenceLink = {
+  id: string;
+  requirementId: string;
+  evidenceId: string;
+  supportStrength: string;
+  linkNote: string;
+  projectId: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+function mapLink(
+  row: Record<string, unknown>,
+  projectId: string,
+): DbRequirementEvidenceLink {
+  return {
+    id: String(row.id),
+    requirementId: String(row.requirement_id),
+    evidenceId: String(row.evidence_id),
+    supportStrength: String(row.support_strength),
+    linkNote: String(row.link_note ?? ""),
+    projectId,
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
 export async function createRequirementEvidenceLink(input: {
   requirementId: string;
   evidenceId: string;
@@ -82,6 +109,50 @@ export async function createRequirementEvidenceLink(input: {
       input.supportStrength,
       input.linkNote,
     ],
+  );
+}
+
+export async function upsertRequirementEvidenceLink(input: {
+  requirementId: string;
+  evidenceId: string;
+  supportStrength: string;
+  linkNote: string;
+}): Promise<void> {
+  const existing = await query(
+    `SELECT id FROM requirement_evidence_links
+     WHERE requirement_id = $1 AND evidence_id = $2 LIMIT 1`,
+    [input.requirementId, input.evidenceId],
+  );
+  if (existing.rows.length > 0) {
+    await query(
+      `UPDATE requirement_evidence_links
+       SET support_strength = $1, link_note = $2, updated_at = now()
+       WHERE requirement_id = $3 AND evidence_id = $4`,
+      [
+        input.supportStrength,
+        input.linkNote,
+        input.requirementId,
+        input.evidenceId,
+      ],
+    );
+    return;
+  }
+  await createRequirementEvidenceLink(input);
+}
+
+export async function listRequirementEvidenceLinksByProject(
+  projectId: string,
+): Promise<DbRequirementEvidenceLink[]> {
+  const r = await query(
+    `SELECT l.*, r.project_id AS req_project_id
+     FROM requirement_evidence_links l
+     INNER JOIN requirements r ON r.id = l.requirement_id
+     WHERE r.project_id = $1
+     ORDER BY l.created_at`,
+    [projectId],
+  );
+  return r.rows.map((row: Record<string, unknown>) =>
+    mapLink(row, String(row.req_project_id)),
   );
 }
 

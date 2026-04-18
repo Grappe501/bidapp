@@ -66,14 +66,26 @@ export type CoverageHealth = "complete" | "partial" | "weak";
 export function coverageHealth(
   meta: DraftMetadata | null,
   bundleRequirementCount: number,
+  bundle?: GroundingBundlePayload | null,
 ): CoverageHealth {
   if (!meta) return "weak";
   const miss = meta.missingRequirementIds.length;
+  const sup = bundle?.requirementSupport;
+  const cov = meta.requirementCoverageIds;
+
   if (
     miss === 0 &&
     meta.unsupportedClaimFlags.length === 0 &&
     bundleRequirementCount > 0
   ) {
+    if (sup && cov.length > 0) {
+      const thin = cov.filter((id) => {
+        const level = sup[id]?.level ?? "none";
+        return level !== "strong";
+      }).length;
+      if (thin >= Math.max(1, Math.ceil(cov.length * 0.4))) return "weak";
+      if (thin > 0) return "partial";
+    }
     return "complete";
   }
   if (bundleRequirementCount === 0) {
@@ -90,8 +102,22 @@ export type ScoreStrength = "Strong" | "Moderate" | "Weak";
 export function scoringStrength(
   sectionType: DraftSectionType,
   meta: DraftMetadata | null,
+  bundle?: GroundingBundlePayload | null,
 ): ScoreStrength {
   if (!meta) return "Weak";
+  const review = meta.groundedProseReview;
+  if (review && review.contradictions.length >= 2) return "Weak";
+  if (review && review.unsupported_claims.length > 2) return "Weak";
+
+  if (bundle?.requirementSupport && bundle.requirements.length > 0) {
+    let noneN = 0;
+    for (const r of bundle.requirements) {
+      const s = bundle.requirementSupport[r.id];
+      if (!s || s.level === "none") noneN += 1;
+    }
+    if (noneN / bundle.requirements.length > 0.45) return "Weak";
+  }
+
   if (meta.riskFlags.length > 2 || meta.unsupportedClaimFlags.length > 1) {
     return "Weak";
   }
@@ -170,7 +196,7 @@ export function buildConstraintGuidance(input: {
   }
 
   const missN = meta.missingRequirementIds.length;
-  const strength = scoringStrength(sectionType, meta);
+  const strength = scoringStrength(sectionType, meta, bundle);
 
   if (sectionType === "Experience") {
     if (missN > 0) {
@@ -245,6 +271,19 @@ export function buildConstraintGuidance(input: {
           "Grounding bundle lists requirements but no evidence rows — claims will be harder to defend in evaluation.",
       });
     }
+    const sup = bundle.requirementSupport;
+    if (sup && bundle.requirements.length > 0) {
+      const noneN = bundle.requirements.filter((r) => {
+        const s = sup[r.id];
+        return !s || s.level === "none";
+      }).length;
+      if (noneN > 0) {
+        items.push({
+          severity: noneN >= 2 ? "attention" : "advisory",
+          message: `${noneN} requirement(s) in this bundle have no proof-graph evidence — link evidence and run “build proof graph” before treating support as defensible.`,
+        });
+      }
+    }
   }
 
   const order: Record<ConstraintGuidanceSeverity, number> = {
@@ -310,7 +349,8 @@ export function countBundleWeakVerificationEvidence(
 
 /**
  * Interprets requirement coverage from bundle + structured metadata.
- * "Weak support" is heuristic: covered in metadata but requirement marked high/critical/open in bundle.
+ * When {@link GroundingBundlePayload.requirementSupport} is present, limited proof replaces the old
+ * risk/status heuristic for the “weak support” list.
  */
 export function analyzeRequirementCoverage(
   bundle: GroundingBundlePayload | null,
@@ -337,19 +377,27 @@ export function analyzeRequirementCoverage(
   const coveredIds = metadata.requirementCoverageIds;
   const missingIds = metadata.missingRequirementIds;
 
-  const weaklySupportedIds = coveredIds.filter((id) => {
-    const r = reqById.get(id);
-    if (!r) return false;
-    const rl = (r.riskLevel ?? "").toLowerCase();
-    if (rl === "high" || rl === "critical") return true;
-    const st = (r.status ?? "").toLowerCase();
-    return (
-      st.includes("pending") ||
-      st.includes("gap") ||
-      st.includes("open") ||
-      st.includes("tbd")
-    );
-  });
+  const weaklySupportedIds = bundle.requirementSupport
+    ? coveredIds.filter((id) => {
+        const s = bundle.requirementSupport![id];
+        const level = s?.level ?? "none";
+        return (
+          level === "weak" || level === "none" || level === "partial"
+        );
+      })
+    : coveredIds.filter((id) => {
+        const r = reqById.get(id);
+        if (!r) return false;
+        const rl = (r.riskLevel ?? "").toLowerCase();
+        if (rl === "high" || rl === "critical") return true;
+        const st = (r.status ?? "").toLowerCase();
+        return (
+          st.includes("pending") ||
+          st.includes("gap") ||
+          st.includes("open") ||
+          st.includes("tbd")
+        );
+      });
 
   const listLimit = 10;
 
@@ -364,6 +412,16 @@ export function analyzeRequirementCoverage(
     missing: missingIds.slice(0, listLimit).map(labelFor),
     weaklySupported: weaklySupportedIds.slice(0, listLimit).map((id) => {
       const base = labelFor(id);
+      if (bundle.requirementSupport) {
+        const sup = bundle.requirementSupport[id];
+        const level = sup?.level ?? "none";
+        return {
+          ...base,
+          subtitle:
+            base.subtitle ??
+            `Proof-graph support is “${level}” for this requirement — add or verify evidence, then rebuild the proof graph.`,
+        };
+      }
       return {
         ...base,
         subtitle:
@@ -422,8 +480,9 @@ export type ScoringStrengthExplanation = {
 export function explainScoringStrength(
   sectionType: DraftSectionType,
   meta: DraftMetadata | null,
+  bundle?: GroundingBundlePayload | null,
 ): ScoringStrengthExplanation {
-  const strength = scoringStrength(sectionType, meta);
+  const strength = scoringStrength(sectionType, meta, bundle);
   const driverLines: string[] = [];
   const sectionLens = SECTION_SCORING_LENS[sectionType];
   const evaluatorTips = [...SECTION_EVALUATOR_TIPS[sectionType]];
@@ -433,6 +492,25 @@ export function explainScoringStrength(
       "No structured metadata is attached to this version yet — generate or save a version to assess alignment.",
     );
     return { strength, driverLines, sectionLens, evaluatorTips };
+  }
+
+  if (bundle?.requirementSupport && bundle.requirements.length > 0) {
+    const noneN = bundle.requirements.filter((r) => {
+      const s = bundle.requirementSupport![r.id];
+      return !s || s.level === "none";
+    }).length;
+    if (noneN > 0) {
+      driverLines.push(
+        `${noneN} requirement(s) in the bundle have no proof-graph evidence — scoring reads as weaker until evidence is linked.`,
+      );
+    }
+  }
+
+  const gReview = meta.groundedProseReview;
+  if (gReview && gReview.contradictions.length > 0) {
+    driverLines.push(
+      `${gReview.contradictions.length} grounded-review mismatch(es) — reconcile draft language with vendor facts or architecture notes.`,
+    );
   }
 
   if (meta.unsupportedClaimFlags.length > 1) {
@@ -523,8 +601,12 @@ export function draftSectionHealthSnapshot(input: {
     bundle,
   });
   const critical = guidance.filter((g) => g.severity === "critical").length;
-  const cov = coverageHealth(metadata, bundle?.requirements.length ?? 0);
-  const str = scoringStrength(sectionType, metadata);
+  const cov = coverageHealth(
+    metadata,
+    bundle?.requirements.length ?? 0,
+    bundle,
+  );
+  const str = scoringStrength(sectionType, metadata, bundle);
 
   if (critical > 0 || str === "Weak" || cov === "weak") {
     const biggest =
@@ -661,6 +743,20 @@ export function draftFeedbackNextSteps(input: {
         detail: `${stats.gapCount} gaps recorded — enrich requirements or evidence, then regenerate if needed.`,
       });
     }
+    const sup = bundle.requirementSupport;
+    if (sup && bundle.requirements.length > 0) {
+      const noneN = bundle.requirements.filter((r) => {
+        const s = sup[r.id];
+        return !s || s.level === "none";
+      }).length;
+      if (noneN > 0) {
+        actions.push({
+          priority: 6,
+          title: "Build the proof graph",
+          detail: `${noneN} requirement(s) have no linked proof — attach evidence in the matrix, then run build proof graph (API) so feedback uses traceable support.`,
+        });
+      }
+    }
   }
 
   const seen = new Set<string>();
@@ -772,12 +868,31 @@ export function assessGroundingBundleQuality(
     );
   }
 
+  let proofGap = false;
+  if (payload.requirementSupport && payload.requirements.length > 0) {
+    const noneN = payload.requirements.filter((r) => {
+      const e = payload.requirementSupport![r.id];
+      return !e || e.level === "none";
+    }).length;
+    if (noneN > 0) {
+      reasons.push(
+        `${noneN} requirement(s) have no proof-graph evidence — link evidence and run build proof graph.`,
+      );
+      proofGap = true;
+    }
+  }
+
   const hasCore =
     s.requirementCount >= 1 &&
     s.evidenceCount >= 1 &&
     (s.chunkCount >= 1 || s.vendorFactCount >= 1);
 
-  if (s.gapCount === 0 && hasCore && s.validationNoteCount === 0) {
+  if (
+    s.gapCount === 0 &&
+    hasCore &&
+    s.validationNoteCount === 0 &&
+    !proofGap
+  ) {
     return {
       label: "Strong",
       reasons: [
@@ -865,6 +980,18 @@ export function getBundleGenerationReadiness(
     warnings.push(
       "Validation notes are present — treat claims as provisional until cleared.",
     );
+  }
+
+  if (payload.requirementSupport && payload.requirements.length > 0) {
+    const noneN = payload.requirements.filter((r) => {
+      const e = payload.requirementSupport![r.id];
+      return !e || e.level === "none";
+    }).length;
+    if (noneN > 0) {
+      warnings.push(
+        `${noneN} requirement(s) lack proof-graph rows — generated text may over- or under-claim versus traceable evidence.`,
+      );
+    }
   }
 
   if (quality.label === "Weak") {

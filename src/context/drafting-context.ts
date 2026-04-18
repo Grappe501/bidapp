@@ -57,6 +57,9 @@ export type DraftingContextValue = {
     versionId: string,
     locked: boolean,
   ) => void | Promise<void>;
+  /** When true, run grounded prose review immediately after a successful generate. */
+  autoGroundedReviewAfterGenerate: boolean;
+  setAutoGroundedReviewAfterGenerate: (value: boolean) => void;
 };
 
 export const DraftingContext = createContext<DraftingContextValue | null>(null);

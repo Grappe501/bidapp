@@ -609,6 +609,25 @@ export type GroundingRetrievedChunkRef = {
   sourceRef: string;
 };
 
+/** Proof-graph aggregate support for a requirement (BP-006 Day 6.5). */
+export type RequirementProofSupportLevel =
+  | "strong"
+  | "partial"
+  | "weak"
+  | "none";
+
+export type RequirementSupportValidationMix = {
+  verified: number;
+  vendor_claim: number;
+  unverified: number;
+};
+
+export type RequirementSupportSummary = {
+  level: RequirementProofSupportLevel;
+  evidence_ids: string[];
+  validation_mix: RequirementSupportValidationMix;
+};
+
 export type GroundingBundlePayload = {
   bundleType: GroundingBundleType;
   title: string;
@@ -638,6 +657,35 @@ export type GroundingBundlePayload = {
   gaps: string[];
   validationNotes: string[];
   assembledAt: string;
+  /** Per-requirement proof support (from requirement_evidence_proof / sync). */
+  requirementSupport?: Record<string, RequirementSupportSummary>;
+};
+
+export type GroundedProseReviewClarity = "strong" | "moderate" | "weak";
+
+export type GroundedProseReviewResult = {
+  clarity: GroundedProseReviewClarity;
+  technical_density: "high" | "moderate" | "low";
+  metrics_presence: GroundedProseReviewClarity;
+  requirement_findings: Array<{
+    requirement_id: string;
+    status: "fully_addressed" | "partially_addressed" | "not_addressed";
+    support_level: RequirementProofSupportLevel;
+    notes: string;
+  }>;
+  unsupported_claims: Array<{
+    text: string;
+    reason: string;
+    suggested_fix: string;
+  }>;
+  contradictions: Array<{
+    text: string;
+    conflicts_with: string;
+    source_type: string;
+    explanation: string;
+  }>;
+  improvement_actions: string[];
+  confidence: "high" | "medium" | "low";
 };
 
 export const RETRIEVAL_QUERY_TYPES: RetrievalQueryType[] = [
@@ -682,6 +730,8 @@ export type DraftMetadata = {
   unsupportedClaimFlags: string[];
   /** Last structured generation mode label for this version (client-set). */
   generationMode?: string;
+  /** Latest grounded prose review (optional; from review-draft-prose). */
+  groundedProseReview?: GroundedProseReviewResult | null;
 };
 
 export type DraftSection = {

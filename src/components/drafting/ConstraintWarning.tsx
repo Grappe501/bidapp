@@ -75,8 +75,8 @@ export function ConstraintWarning({
       <div>
         <h3 className="text-xs font-semibold text-amber-950">Constraint risk</h3>
         <p className="mt-1 text-[11px] leading-relaxed text-amber-950/80">
-          Prioritized from structured metadata and light grounding-bundle checks — not a
-          full compliance engine.
+          Prioritized from structured metadata, proof-graph gaps in the bundle, and light
+          shape checks — not a full compliance engine.
         </p>
       </div>
       <ul className="space-y-3">

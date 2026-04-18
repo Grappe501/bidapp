@@ -1,5 +1,9 @@
 import { Card } from "@/components/ui/Card";
-import type { DraftMetadata, DraftSectionType } from "@/types";
+import type {
+  DraftMetadata,
+  DraftSectionType,
+  GroundingBundlePayload,
+} from "@/types";
 import {
   explainScoringStrength,
   pointsLabel,
@@ -9,14 +13,16 @@ import {
 type ScoringFeedbackCardProps = {
   sectionType: DraftSectionType;
   metadata: DraftMetadata | null;
+  bundle: GroundingBundlePayload | null;
 };
 
 export function ScoringFeedbackCard({
   sectionType,
   metadata,
+  bundle,
 }: ScoringFeedbackCardProps) {
   const cats = scoringCategoriesForSection(sectionType);
-  const expl = explainScoringStrength(sectionType, metadata);
+  const expl = explainScoringStrength(sectionType, metadata, bundle);
 
   return (
     <Card className="space-y-4 p-4">
@@ -25,7 +31,10 @@ export function ScoringFeedbackCard({
         <p className="text-xs text-ink-muted">
           Signal:{" "}
           <span className="font-semibold text-ink">{expl.strength}</span>
-          <span className="text-ink-subtle"> (from metadata rules)</span>
+          <span className="text-ink-subtle">
+            {" "}
+            (metadata + proof graph when available)
+          </span>
         </p>
       </div>
 
@@ -94,8 +103,8 @@ export function ScoringFeedbackCard({
       ) : null}
 
       <p className="text-[11px] leading-relaxed text-ink-subtle">
-        Guidance is inferred from structured metadata only — not a prediction of actual
-        evaluation scores.
+        Guidance blends structured metadata with proof-graph support when the bundle
+        includes it — not a prediction of actual evaluation scores.
       </p>
     </Card>
   );

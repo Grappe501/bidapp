@@ -32,6 +32,7 @@ type Persisted = {
   sections: DraftSection[];
   versions: DraftVersion[];
   bundleBySection: Record<string, SelectedBundle | null>;
+  autoGroundedReviewAfterGenerate?: boolean;
 };
 
 function storageKey(projectId: string) {
@@ -74,9 +75,19 @@ function loadPersisted(projectId: string): Persisted | null {
   }
 }
 
-function savePersisted(projectId: string, data: Persisted) {
+function savePersisted(projectId: string, data: Partial<Persisted>) {
   try {
-    localStorage.setItem(storageKey(projectId), JSON.stringify(data));
+    const prev = loadPersisted(projectId);
+    const merged: Persisted = {
+      sections: data.sections ?? prev?.sections ?? [],
+      versions: data.versions ?? prev?.versions ?? [],
+      bundleBySection: data.bundleBySection ?? prev?.bundleBySection ?? {},
+      autoGroundedReviewAfterGenerate:
+        data.autoGroundedReviewAfterGenerate ??
+        prev?.autoGroundedReviewAfterGenerate ??
+        false,
+    };
+    localStorage.setItem(storageKey(projectId), JSON.stringify(merged));
   } catch {
     /* ignore quota */
   }
@@ -90,6 +101,7 @@ function initialDraftingState(projectId: string): Persisted {
       : createInitialDraftSections(projectId),
     versions: sortVersions(p?.versions ?? []),
     bundleBySection: p?.bundleBySection ?? {},
+    autoGroundedReviewAfterGenerate: p?.autoGroundedReviewAfterGenerate ?? false,
   };
 }
 
@@ -113,12 +125,17 @@ export function DraftingProvider({ children }: { children: ReactNode }) {
   const [bundleBySection, setBundleBySection] = useState<
     Record<string, SelectedBundle | null>
   >(snapshot.bundleBySection);
+  const [autoGroundedReviewAfterGenerate, setAutoGroundedReviewAfterGenerate] =
+    useState<boolean>(snapshot.autoGroundedReviewAfterGenerate ?? false);
 
   useEffect(() => {
     const next = initialDraftingState(projectId);
     setSections(next.sections);
     setVersions(next.versions);
     setBundleBySection(next.bundleBySection);
+    setAutoGroundedReviewAfterGenerate(
+      next.autoGroundedReviewAfterGenerate ?? false,
+    );
   }, [projectId]);
 
   useEffect(() => {
@@ -143,8 +160,19 @@ export function DraftingProvider({ children }: { children: ReactNode }) {
   }, [projectId, remoteEnabled]);
 
   useEffect(() => {
-    savePersisted(projectId, { sections, versions, bundleBySection });
-  }, [sections, versions, bundleBySection, projectId]);
+    savePersisted(projectId, {
+      sections,
+      versions,
+      bundleBySection,
+      autoGroundedReviewAfterGenerate,
+    });
+  }, [
+    sections,
+    versions,
+    bundleBySection,
+    autoGroundedReviewAfterGenerate,
+    projectId,
+  ]);
 
   const getSection = useCallback(
     (id: string) => sections.find((s) => s.id === id),
@@ -522,6 +550,8 @@ export function DraftingProvider({ children }: { children: ReactNode }) {
       duplicateVersion,
       updateVersionNote,
       setVersionLocked,
+      autoGroundedReviewAfterGenerate,
+      setAutoGroundedReviewAfterGenerate,
     }),
     [
       sections,
@@ -538,6 +568,7 @@ export function DraftingProvider({ children }: { children: ReactNode }) {
       duplicateVersion,
       updateVersionNote,
       setVersionLocked,
+      autoGroundedReviewAfterGenerate,
     ],
   );
 

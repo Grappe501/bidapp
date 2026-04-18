@@ -227,6 +227,7 @@ Return shape:
     `PAGE LIMIT: ${pageLimit} pages (hard budget for this section)`,
     `SECTION STRATEGY / FOCUS: ${constraintRules}`,
     `SUPPORT EXPECTATIONS (evaluators): ${supportExpectation}`,
+    `REQUIREMENT PROOF SUPPORT (per requirement id — honor weak/none; do not over-claim):\n${JSON.stringify(input.grounding.requirementSupport ?? {}, null, 0)}`,
     `SCORING MODEL SLICE (address explicitly in prose):\n${scoring.map((s) => `- ${s.name} (${s.maxPoints} pts, weight ${s.weight}): ${s.description}`).join("\n")}`,
     `GROUNDING GAPS (do not contradict; surface honestly in prose or flags):\n${input.grounding.gaps.join("\n") || "(none listed)"}`,
     weakEvidence.length > 0

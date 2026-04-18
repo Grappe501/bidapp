@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
-import { postGenerateDraft } from "@/lib/functions-api";
+import { postGenerateDraft, postReviewDraftProse } from "@/lib/functions-api";
+import { useDrafting } from "@/context/useDrafting";
 import {
   assessGroundingBundleQuality,
   getBundleGenerationReadiness,
@@ -66,6 +67,7 @@ export function DraftGeneratorPanel({
   activeContent,
   onGenerated,
 }: DraftGeneratorPanelProps) {
+  const { autoGroundedReviewAfterGenerate } = useDrafting();
   const [tone, setTone] = useState<string>(TONES[0]);
   const [transient, setTransient] = useState<Transient>(null);
   const [statusDetail, setStatusDetail] = useState("");
@@ -241,10 +243,22 @@ export function DraftGeneratorPanel({
           regeneration,
         },
       });
-      const meta: DraftMetadata = {
+      let meta: DraftMetadata = {
         ...r.metadata,
         generationMode: currentMode.label,
       };
+      if (autoGroundedReviewAfterGenerate) {
+        try {
+          const { review } = await postReviewDraftProse({
+            sectionType,
+            draftText: r.content,
+            grounding: selectedBundle.payload,
+          });
+          meta = { ...meta, groundedProseReview: review };
+        } catch {
+          /* optional pass — generation still succeeds */
+        }
+      }
       await Promise.resolve(onGenerated(r.content, meta));
       setLastSuccessMeta(meta);
       setTransient("success");
@@ -271,6 +285,7 @@ export function DraftGeneratorPanel({
     tone,
     onGenerated,
     persistMode,
+    autoGroundedReviewAfterGenerate,
   ]);
 
   retryRef.current = () => {

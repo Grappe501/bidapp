@@ -4,6 +4,7 @@ import type {
   DraftSectionType,
   DraftStatus,
   DraftVersion,
+  GroundedProseReviewResult,
   GroundingBundlePayload,
   GroundingBundleType,
   Project,
@@ -343,4 +344,19 @@ export async function postGenerateDraft(body: {
   };
 }): Promise<{ content: string; metadata: DraftMetadata }> {
   return postFunctionJson("generate-draft", body);
+}
+
+export async function postBuildProofGraph(body: {
+  projectId: string;
+  requirementId?: string | null;
+}): Promise<{ rowsSynced: number }> {
+  return postFunctionJson("build-proof-graph", body);
+}
+
+export async function postReviewDraftProse(body: {
+  sectionType: DraftSectionType;
+  draftText: string;
+  grounding: GroundingBundlePayload;
+}): Promise<{ review: GroundedProseReviewResult }> {
+  return postFunctionJson("review-draft-prose", body);
 }

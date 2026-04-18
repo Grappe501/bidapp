@@ -89,9 +89,9 @@ export function CoveragePanel({ bundle, metadata }: CoveragePanelProps) {
           <span className="font-medium text-ink">Missing</span> means the model did not
           claim coverage — not necessarily that the prose is wrong, but evaluators may
           not see an explicit hook.{" "}
-          <span className="font-medium text-ink">Weak support</span> is a heuristic:
-          the requirement is “covered” in metadata but flagged high/critical or open in
-          the bundle — confirm proof in the narrative.
+          <span className="font-medium text-ink">Limited proof</span> uses the proof graph
+          when this bundle includes requirement support; otherwise it falls back to the
+          older risk/status heuristic.
         </p>
       </div>
 
@@ -130,7 +130,7 @@ export function CoveragePanel({ bundle, metadata }: CoveragePanelProps) {
               tone={analysis.missingCount > 0 ? "warn" : "ok"}
             />
             <CountPill
-              label="Weak support"
+              label="Limited proof"
               value={analysis.weakSupportCount}
               tone={analysis.weakSupportCount > 0 ? "warn" : "default"}
             />
@@ -161,7 +161,7 @@ export function CoveragePanel({ bundle, metadata }: CoveragePanelProps) {
             <ReqList title="Covered requirements" rows={analysis.covered} variant="covered" />
             <ReqList title="Missing coverage" rows={analysis.missing} variant="missing" />
             <ReqList
-              title="Weak support (heuristic)"
+              title="Limited proof (covered reqs)"
               rows={analysis.weaklySupported}
               variant="weak"
             />

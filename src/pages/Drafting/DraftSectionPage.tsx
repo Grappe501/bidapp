@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { BidControlNav } from "@/components/control/BidControlNav";
 import { ConstraintWarning } from "@/components/drafting/ConstraintWarning";
+import { ContradictionAlert } from "@/components/drafting/ContradictionAlert";
 import { CoveragePanel } from "@/components/drafting/CoveragePanel";
 import { DraftEditor } from "@/components/drafting/DraftEditor";
 import { DraftGeneratorPanel } from "@/components/drafting/DraftGeneratorPanel";
@@ -10,14 +11,22 @@ import { DraftVersionList } from "@/components/drafting/DraftVersionList";
 import { GroundingBundlePreview } from "@/components/drafting/GroundingBundlePreview";
 import { GroundingBundleSelector } from "@/components/drafting/GroundingBundleSelector";
 import { FeedbackRecommendationList } from "@/components/drafting/FeedbackRecommendationList";
+import { ProseReviewPanel } from "@/components/drafting/ProseReviewPanel";
+import { RequirementProofTable } from "@/components/drafting/RequirementProofTable";
 import { ScoringFeedbackCard } from "@/components/drafting/ScoringFeedbackCard";
 import { SectionHealthIndicator } from "@/components/drafting/SectionHealthIndicator";
 import { SectionStrategyPanel } from "@/components/drafting/SectionStrategyPanel";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useDrafting } from "@/context/useDrafting";
 import { MOCK_PROJECT } from "@/data/mockProject";
 import { DRAFTING_COPY } from "@/lib/drafting-copy";
-import { isFunctionsApiConfigured } from "@/lib/functions-api";
+import {
+  isFunctionsApiConfigured,
+  postBuildProofGraph,
+  postReviewDraftProse,
+} from "@/lib/functions-api";
+import type { GroundedProseReviewResult } from "@/types";
 import {
   countWords,
   draftFeedbackNextSteps,
@@ -44,6 +53,8 @@ export function DraftSectionPage() {
     duplicateVersion,
     updateVersionNote,
     setVersionLocked,
+    autoGroundedReviewAfterGenerate,
+    setAutoGroundedReviewAfterGenerate,
   } = useDrafting();
 
   const envProjectId = (
@@ -69,6 +80,22 @@ export function DraftSectionPage() {
   useEffect(() => {
     setEditorDirty(false);
   }, [sectionId]);
+
+  const [proofBusy, setProofBusy] = useState(false);
+  const [reviewBusy, setReviewBusy] = useState(false);
+  const [proofNotice, setProofNotice] = useState("");
+  const [reviewError, setReviewError] = useState<string | null>(null);
+  const [localGroundedReview, setLocalGroundedReview] =
+    useState<GroundedProseReviewResult | null>(null);
+
+  useEffect(() => {
+    setLocalGroundedReview(null);
+    setProofNotice("");
+    setReviewError(null);
+  }, [sectionId]);
+
+  const groundedReview =
+    metadata?.groundedProseReview ?? localGroundedReview;
 
   const liveWords = countWords(content);
   const metricsMayBeStale = Boolean(
@@ -114,6 +141,75 @@ export function DraftSectionPage() {
     metadata && section
       ? pageOverflowRisk(metadata.estimatedPages, layout.max)
       : "ok";
+
+  const syncProofGraph = useCallback(async () => {
+    if (!isFunctionsApiConfigured()) {
+      setProofNotice("Configure VITE_FUNCTIONS_BASE_URL to sync the proof graph.");
+      return;
+    }
+    setProofBusy(true);
+    setProofNotice("");
+    try {
+      const r = await postBuildProofGraph({ projectId: apiProjectId });
+      setProofNotice(
+        `Synced ${r.rowsSynced} proof row(s). Rebuild or re-select this grounding bundle to refresh requirement support in the payload.`,
+      );
+    } catch (e) {
+      setProofNotice(
+        e instanceof Error ? e.message : "Proof graph sync failed.",
+      );
+    } finally {
+      setProofBusy(false);
+    }
+  }, [apiProjectId]);
+
+  const runGroundedReview = useCallback(async () => {
+    if (!section || !bundlePayload) {
+      setReviewError("Attach a grounding bundle first.");
+      return;
+    }
+    if (!content.trim()) {
+      setReviewError("Add draft text in the editor before running review.");
+      return;
+    }
+    if (!isFunctionsApiConfigured()) {
+      setReviewError("Configure VITE_FUNCTIONS_BASE_URL to run grounded review.");
+      return;
+    }
+    setReviewBusy(true);
+    setReviewError(null);
+    try {
+      const { review } = await postReviewDraftProse({
+        sectionType: section.sectionType,
+        draftText: content,
+        grounding: bundlePayload,
+      });
+      if (metadata && active) {
+        await Promise.resolve(
+          saveNewVersion({
+            sectionId: section.id,
+            content,
+            metadata: { ...metadata, groundedProseReview: review },
+            groundingBundleId: bundle?.id ?? active.groundingBundleId ?? null,
+          }),
+        );
+      } else {
+        setLocalGroundedReview(review);
+      }
+    } catch (e) {
+      setReviewError(e instanceof Error ? e.message : "Grounded review failed.");
+    } finally {
+      setReviewBusy(false);
+    }
+  }, [
+    section,
+    bundlePayload,
+    content,
+    metadata,
+    active,
+    bundle?.id,
+    saveNewVersion,
+  ]);
 
   if (!sectionId || !section) {
     return (
@@ -229,6 +325,70 @@ export function DraftSectionPage() {
           }}
         />
 
+        <div className={`${PANEL_GAP}`}>
+          <div className="space-y-2">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
+              Grounded review
+            </p>
+            <p className="max-w-3xl text-xs leading-relaxed text-ink-muted">
+              Proof graph support levels feed the grounding bundle. Sync proof rows after
+              you link requirements to evidence, rebuild the bundle if needed, then run a
+              prose review against the draft in the editor.
+            </p>
+          </div>
+
+          <Card className="space-y-3 border border-zinc-200/90 bg-zinc-50/40 p-4">
+            <label className="flex cursor-pointer items-start gap-2 text-xs text-ink-muted">
+              <input
+                type="checkbox"
+                className="mt-0.5 rounded border-zinc-300"
+                checked={autoGroundedReviewAfterGenerate}
+                onChange={(e) =>
+                  setAutoGroundedReviewAfterGenerate(e.target.checked)
+                }
+              />
+              <span>
+                <span className="font-medium text-ink">After generate</span>, run
+                grounded prose review automatically (uses OpenAI; may add a few seconds).
+              </span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={proofBusy || !isFunctionsApiConfigured()}
+                onClick={() => void syncProofGraph()}
+              >
+                {proofBusy ? "Syncing proof graph…" : "Sync proof graph"}
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  reviewBusy ||
+                  !bundle ||
+                  !content.trim() ||
+                  !isFunctionsApiConfigured()
+                }
+                onClick={() => void runGroundedReview()}
+              >
+                {reviewBusy ? "Running review…" : "Run grounded review"}
+              </Button>
+            </div>
+            {proofNotice ? (
+              <p className="text-[11px] leading-relaxed text-ink-muted">
+                {proofNotice}
+              </p>
+            ) : null}
+            {reviewError ? (
+              <p className="text-[11px] text-amber-900/90">{reviewError}</p>
+            ) : null}
+          </Card>
+
+          <RequirementProofTable bundle={bundlePayload} />
+          <ContradictionAlert contradictions={groundedReview?.contradictions ?? []} />
+          <ProseReviewPanel review={groundedReview} />
+        </div>
+
         <DraftEditor
           sectionId={section.id}
           content={content}
@@ -269,6 +429,7 @@ export function DraftSectionPage() {
           <ScoringFeedbackCard
             sectionType={section.sectionType}
             metadata={metadata}
+            bundle={bundlePayload}
           />
           <ConstraintWarning
             sectionType={section.sectionType}

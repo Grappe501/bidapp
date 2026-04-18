@@ -6,7 +6,10 @@ import {
   updateCompanyEnrichmentRun,
 } from "../repositories/intelligence.repo";
 import { createVendorClaim, findVendorIdByProjectAndName } from "../repositories/vendor.repo";
-import { extractEntitiesForMode } from "./ai-parsing.service";
+import {
+  extractEntitiesForMode,
+  type NormalizedVendorClaim,
+} from "./ai-parsing.service";
 
 function mapProvenanceToValidation(kind: string): string {
   if (kind === "Inferred Conclusion") return "Inferred";
@@ -92,16 +95,17 @@ export async function runCompanyEnrichment(input: {
           "extract_vendor_claims",
         );
         for (const ent of claimEntities) {
-          const e = asRecord(ent);
-          const claimText = String(e.claimText ?? "").trim();
+          const n = ent as NormalizedVendorClaim;
+          const claimText = n.claimText?.trim() ?? "";
           if (!claimText) continue;
-          const pk = String(e.provenanceKind ?? "Vendor Claim");
           await createVendorClaim({
             vendorId,
             sourceId: src.id,
             claimText,
-            validationStatus:
-              pk === "Inferred Conclusion" ? "Inferred" : "Unverified",
+            validationStatus: n.validationStatus,
+            credibility: n.credibility,
+            confidence: n.confidence,
+            claimCategory: n.claimCategory,
           });
           claimsCreated++;
         }

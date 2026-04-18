@@ -91,6 +91,44 @@ export function GroundingBundlePreview({
         </div>
       ) : null}
 
+      {payload.factSelectionSummary ? (
+        <div
+          className={`rounded-md border px-3 py-2 text-xs ${
+            (payload.weakFactIncludedCount ?? 0) > 0 ||
+            (payload.factSelectionDetail?.includedUnknownCount ?? 0) > 0
+              ? "border-amber-200/80 bg-amber-50/50 text-amber-950"
+              : "border-zinc-200/80 bg-white/80 text-ink-muted"
+          }`}
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
+            Vendor fact selection
+          </p>
+          <p className="mt-1 leading-snug">{payload.factSelectionSummary}</p>
+          {payload.factSelectionDetail ? (
+            <p className="mt-1.5 text-[10px] leading-snug text-ink-subtle">
+              Bundle evidence:{" "}
+              <span className="text-ink-muted">
+                {payload.factSelectionDetail.bundleQuality}
+              </span>
+              {payload.factSelectionDetail.includedUnknownCount > 0 ? (
+                <>
+                  {" "}
+                  · includes{" "}
+                  {payload.factSelectionDetail.includedUnknownCount} unknown-quality
+                  fact(s)
+                </>
+              ) : null}
+              {payload.factSelectionDetail.includedFallbackCount > 0 ? (
+                <>
+                  {" "}
+                  · {payload.factSelectionDetail.includedFallbackCount} fallback-tier
+                </>
+              ) : null}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <section className="space-y-2">
         <h3 className="text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
           Requirements in bundle
@@ -173,6 +211,9 @@ export function GroundingBundlePreview({
                 <p className="text-ink-muted">{f.factText}</p>
                 <p className="mt-1 text-[11px] text-ink-subtle">
                   {f.provenanceKind} · {f.validationStatus}
+                  {f.credibility || f.confidence
+                    ? ` · ${[f.credibility, f.confidence].filter(Boolean).join(" · ")}`
+                    : ""}
                 </p>
               </li>
             ))}

@@ -149,6 +149,146 @@ export async function postEnrichCompany(companyProfileId: string): Promise<{
   return postFunctionJson("enrich-company", { companyProfileId });
 }
 
+export type BrandingProfileApi = {
+  companyProfileId: string;
+  projectId: string;
+  companyName: string;
+  displayName: string;
+  websiteUrl: string;
+  summary: string;
+  notes: string;
+  appDisplayName: string;
+  logoUrl: string | null;
+  brandImageUrl: string | null;
+  logoCandidates: {
+    url: string;
+    score: number;
+    reason?: string;
+    signals?: string[];
+    confidence?: string;
+  }[];
+  ingestQualityScore: number | null;
+  ingestQualityBand: "strong" | "moderate" | "weak" | null;
+  ingestQualityConfidence: "high" | "medium" | "low" | null;
+  ingestQualityWarnings: string[];
+  ingestQualityPenalties: string[];
+  ingestQualityBreakdown: {
+    coverage: number;
+    parsing: number;
+    factConfidence: number;
+    operationalSignal: number;
+    vendorMatch: number;
+    brandingConfidence: number;
+  } | null;
+  intelligenceTrustHint: string | null;
+  logoConfidence: string | null;
+  vendorMatchConfidence: string | null;
+  vendorMatchType: string | null;
+  vendorResolutionNotes: string | null;
+  vendorResolutionCandidateCount: number | null;
+  subtitle: string;
+  brandingTags: string[];
+  aiTags: string[];
+  serviceLines: string[];
+  capabilities: string[];
+  technologyReferences: string[];
+  contactBlocks: {
+    label: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+  }[];
+  lastWebsiteScrapeAt: string | null;
+  lastScrapeAt: string | null;
+  lastScrapeSummary: Record<string, unknown> | null;
+  brandingMeta: Record<string, unknown>;
+  stats: {
+    websiteScrapePages: number;
+    factsTotal: number;
+    aiTags: number;
+    lastScrapeSummary: Record<string, unknown> | null;
+    claimsPromotedLastRun: number | null;
+    vendorMappedLastRun: boolean;
+  };
+};
+
+export type AllCareScrapeRunApi = {
+  dryRun: boolean;
+  companyProfileId: string;
+  pagesDiscovered: number;
+  pagesFetched: number;
+  pagesStored: number;
+  pagesSkippedRobots: number;
+  pagesSkippedDuplicate: number;
+  pagesErrored: number;
+  pagesLoadedFromStore: number;
+  factsCreated: number;
+  tagsCreated: number;
+  claimsPromoted: number;
+  logoDiscovered: boolean;
+  logoConfidence?: string | null;
+  errors: string[];
+  lastScrapeAt: string | null;
+  promotion: { vendorMapped: boolean; vendorId: string | null };
+  vendorResolution?: {
+    vendorId: string | null;
+    confidence: string;
+    matchType: string;
+    candidateCount?: number;
+    notes?: string;
+  };
+  promotionQuality?: {
+    promoted: number;
+    skipped_low_confidence: number;
+    skipped_marketing: number;
+    skipped_inferred: number;
+    skipped_duplicate: number;
+    skipped_non_operational: number;
+  } | null;
+  qualityScore?: number | null;
+  qualityBand?: "strong" | "moderate" | "weak" | null;
+  qualityPenalties?: string[] | null;
+  qualityConfidence?: "high" | "medium" | "low" | null;
+  qualityWarnings?: string[] | null;
+  qualityBreakdown?: {
+    coverage: number;
+    parsing: number;
+    factConfidence: number;
+    operationalSignal: number;
+    vendorMatch: number;
+    brandingConfidence: number;
+  } | null;
+  legacyFactsBackfilled?: number | null;
+  pages_scraped: number;
+  sources_upserted: number;
+  facts_created: number;
+  tags_created: number;
+  claims_promoted: number;
+  last_scrape_at: string | null;
+};
+
+export async function postScrapeAllCareSite(input: {
+  projectId: string;
+  companyProfileId?: string | null;
+  dryRun?: boolean;
+  runAiParse?: boolean;
+  forceReparse?: boolean;
+  forceRecrawl?: boolean;
+  maxPages?: number;
+  maxDepth?: number;
+  runBackfill?: boolean;
+}): Promise<AllCareScrapeRunApi> {
+  return postFunctionJson("scrape-allcare-site", input);
+}
+
+export async function postGetBrandingProfile(input: {
+  projectId?: string;
+  companyProfileId?: string;
+  ensureProfile?: boolean;
+}): Promise<{ branding: BrandingProfileApi }> {
+  return postFunctionJson("get-branding-profile", input);
+}
+
 export async function postBuildGroundingBundle(input: {
   projectId: string;
   bundleType: GroundingBundleType;
@@ -156,6 +296,7 @@ export async function postBuildGroundingBundle(input: {
   title?: string;
   topK?: number;
   fileId?: string;
+  strictGrounding?: boolean;
 }): Promise<{ bundleId: string; payload: GroundingBundlePayload }> {
   return postFunctionJson("build-grounding-bundle", input);
 }

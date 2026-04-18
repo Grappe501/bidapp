@@ -36,6 +36,9 @@ export const handler: Handler = async (event) => {
         name: profile.name,
         projectId: profile.projectId,
         profileType: profile.profileType,
+        websiteUrl: profile.websiteUrl,
+        displayName: profile.displayName,
+        summary: profile.summary,
       },
       sources: sources.map((s) => ({
         id: s.id,

@@ -653,7 +653,33 @@ export type GroundingBundlePayload = {
     validationStatus: string;
     provenanceKind: KnowledgeProvenanceKind;
     sourceId?: string;
+    /** operational | marketing | inferred — from ingest intelligence (optional for legacy bundles). */
+    credibility?: string;
+    /** high | medium | low — optional for legacy bundles. */
+    confidence?: string;
   }[];
+  /** Human-readable summary of how vendor facts were filtered for this bundle. */
+  factSelectionSummary?: string;
+  /** Structured selection stats (tier 1 / fallback / unknown). */
+  factSelectionDetail?: {
+    includedStrongCount: number;
+    includedFallbackCount: number;
+    includedUnknownCount: number;
+    droppedWeakCount: number;
+    bundleQuality: "strong" | "moderate" | "weak";
+  };
+  /** Counts of facts withheld by grounding quality rules (if computed). */
+  droppedFactCounts?: {
+    excludedMarketingLow: number;
+    excludedInferredLow: number;
+    excludedUnknown: number;
+    excludedMarketingMedium: number;
+    excludedOperationalLow: number;
+    excludedInferredMedium: number;
+    excludedOther: number;
+  };
+  /** Number of lower-trust facts still included (sparse evidence). */
+  weakFactIncludedCount?: number;
   gaps: string[];
   validationNotes: string[];
   assembledAt: string;

@@ -8,6 +8,7 @@ export async function runBuildGroundingBundleJob(input: {
   title?: string;
   topK?: number;
   fileId?: string;
+  strictGrounding?: boolean;
 }): Promise<{ bundleId: string; payload: GroundingBundlePayload }> {
   const { id, payload } = await buildAndStoreGroundingBundle(input);
   return { bundleId: id, payload };

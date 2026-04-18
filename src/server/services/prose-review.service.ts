@@ -218,6 +218,7 @@ export async function reviewDraftAgainstGrounding(
 
 STRICT RULES:
 - Do not hallucinate evidence or facts. Only reference requirement titles/ids, evidence excerpts, vendor facts, and architecture text provided in the user message.
+- Vendor facts may include credibility (operational / marketing / inferred) and confidence (high / medium / low). Prefer operational facts when judging support; flag over-reliance on marketing-only or low-confidence vendor language as weak or unsupported.
 - If the draft makes a claim not clearly supported by inputs, list it under unsupported_claims — do not assume missing data proves anything.
 - For requirement_findings, use only requirement_id values from the provided requirements list. Set support_level from the provided requirement_support map for each id.
 - Flag contradictions when draft text conflicts with vendor facts, architecture summary, or requirement support (e.g. draft asserts live integration but a vendor fact says "planned").

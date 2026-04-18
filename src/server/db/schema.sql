@@ -132,6 +132,10 @@ CREATE TABLE IF NOT EXISTS company_profiles (
   name text NOT NULL,
   profile_type text NOT NULL,
   summary text NOT NULL DEFAULT '',
+  website_url text NOT NULL DEFAULT '',
+  display_name text NOT NULL DEFAULT '',
+  notes text NOT NULL DEFAULT '',
+  branding_meta jsonb NOT NULL DEFAULT '{}',
   capabilities jsonb NOT NULL DEFAULT '[]',
   risks jsonb NOT NULL DEFAULT '[]',
   sources jsonb NOT NULL DEFAULT '[]',
@@ -148,9 +152,11 @@ CREATE TABLE IF NOT EXISTS intelligence_sources (
   company_profile_id uuid REFERENCES company_profiles (id) ON DELETE SET NULL,
   source_type text NOT NULL,
   url text,
+  url_normalized text,
   title text,
   raw_text text NOT NULL DEFAULT '',
   classification text,
+  metadata jsonb NOT NULL DEFAULT '{}',
   validation_status text NOT NULL DEFAULT 'Pending Validation',
   fetched_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -158,6 +164,9 @@ CREATE TABLE IF NOT EXISTS intelligence_sources (
 );
 CREATE INDEX IF NOT EXISTS idx_intel_sources_project_id ON intelligence_sources (project_id);
 CREATE INDEX IF NOT EXISTS idx_intel_sources_company_profile_id ON intelligence_sources (company_profile_id);
+CREATE INDEX IF NOT EXISTS idx_intel_sources_url_norm ON intelligence_sources (url_normalized);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_intel_sources_proj_profile_url_norm
+  ON intelligence_sources (project_id, company_profile_id, url_normalized);
 
 CREATE TABLE IF NOT EXISTS intelligence_facts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -168,12 +177,16 @@ CREATE TABLE IF NOT EXISTS intelligence_facts (
   fact_text text NOT NULL,
   classification text,
   validation_status text NOT NULL DEFAULT 'Pending Validation',
+  credibility text NOT NULL DEFAULT '',
+  confidence text NOT NULL DEFAULT '',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_intel_facts_project_id ON intelligence_facts (project_id);
 CREATE INDEX IF NOT EXISTS idx_intel_facts_source_id ON intelligence_facts (source_id);
 CREATE INDEX IF NOT EXISTS idx_intel_facts_company_profile_id ON intelligence_facts (company_profile_id);
+CREATE INDEX IF NOT EXISTS idx_intel_facts_credibility ON intelligence_facts (credibility);
+CREATE INDEX IF NOT EXISTS idx_intel_facts_confidence ON intelligence_facts (confidence);
 
 CREATE TABLE IF NOT EXISTS vendors (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -220,6 +233,9 @@ CREATE TABLE IF NOT EXISTS vendor_claims (
   source_id uuid REFERENCES intelligence_sources (id) ON DELETE SET NULL,
   claim_text text NOT NULL,
   validation_status text NOT NULL DEFAULT 'Unverified',
+  credibility text NOT NULL DEFAULT '',
+  confidence text NOT NULL DEFAULT '',
+  claim_category text NOT NULL DEFAULT 'other',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );

@@ -1,4 +1,9 @@
 import { query } from "../db/client";
+import { normalizeForMatch } from "../lib/string-similarity";
+import {
+  resolveFuzzyVendorMatches,
+  type VendorMatchCandidate,
+} from "../lib/vendor-match-utils";
 
 export type DbVendor = {
   id: string;
@@ -164,15 +169,137 @@ export async function createVendorClaim(input: {
   sourceId: string;
   claimText: string;
   validationStatus?: string;
+  credibility?: string;
+  confidence?: string;
+  claimCategory?: string;
 }): Promise<void> {
   await query(
-    `INSERT INTO vendor_claims (vendor_id, source_id, claim_text, validation_status, updated_at)
-     VALUES ($1, $2, $3, $4, now())`,
+    `INSERT INTO vendor_claims (
+       vendor_id, source_id, claim_text, validation_status,
+       credibility, confidence, claim_category, updated_at
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, now())`,
     [
       input.vendorId,
       input.sourceId,
       input.claimText,
       input.validationStatus ?? "Unverified",
+      input.credibility ?? "",
+      input.confidence ?? "",
+      input.claimCategory ?? "other",
     ],
   );
+}
+
+export async function vendorClaimExistsForSourceAndText(input: {
+  vendorId: string;
+  sourceId: string;
+  claimText: string;
+}): Promise<boolean> {
+  const r = await query(
+    `SELECT 1 FROM vendor_claims
+     WHERE vendor_id = $1 AND source_id = $2
+       AND lower(trim(claim_text)) = lower(trim($3))
+     LIMIT 1`,
+    [input.vendorId, input.sourceId, input.claimText],
+  );
+  return (r.rowCount ?? 0) > 0;
+}
+
+export type VendorResolution = {
+  vendorId: string | null;
+  confidence: "high" | "medium" | "low" | "none";
+  matchType: "linked" | "exact" | "fuzzy" | "ambiguous" | "none";
+  candidateCount: number;
+  candidates?: VendorMatchCandidate[];
+  notes?: string;
+};
+
+export type { VendorMatchCandidate };
+
+/**
+ * Resolves vendor conservatively: linked/exact stay high; fuzzy uses scored candidates
+ * with tie and pharmacy-signal penalties (see vendor-match-utils).
+ */
+export async function resolveVendorWithConfidence(input: {
+  projectId: string;
+  profileName: string;
+  displayName: string;
+  linkedVendorId: string | null;
+  /** Pages in this ingest; when low, fuzzy resolution is stricter. */
+  pagesIngested?: number;
+}): Promise<VendorResolution> {
+  if (input.linkedVendorId?.trim()) {
+    return {
+      vendorId: input.linkedVendorId.trim(),
+      confidence: "high",
+      matchType: "linked",
+      candidateCount: 1,
+    };
+  }
+
+  const vendors = await listVendorsByProject(input.projectId);
+  if (vendors.length === 0) {
+    return {
+      vendorId: null,
+      confidence: "none",
+      matchType: "none",
+      candidateCount: 0,
+      notes: "No vendors in project.",
+    };
+  }
+
+  const profileKeys = [
+    input.profileName,
+    input.displayName,
+    "AllCare Pharmacy",
+  ]
+    .map((s) => normalizeForMatch(s))
+    .filter((s, i, a) => s.length > 0 && a.indexOf(s) === i);
+
+  for (const v of vendors) {
+    const vn = normalizeForMatch(v.name);
+    for (const pk of profileKeys) {
+      if (pk.length > 0 && vn === pk) {
+        return {
+          vendorId: v.id,
+          confidence: "high",
+          matchType: "exact",
+          candidateCount: 1,
+        };
+      }
+    }
+  }
+
+  const fuzzy = resolveFuzzyVendorMatches({
+    vendors: vendors.map((v) => ({ id: v.id, name: v.name })),
+    profileName: input.profileName,
+    displayName: input.displayName,
+    pagesIngested: input.pagesIngested,
+  });
+
+  return {
+    vendorId: fuzzy.vendorId,
+    confidence: fuzzy.confidence,
+    matchType: fuzzy.matchType,
+    candidateCount: fuzzy.candidateCount,
+    notes: fuzzy.notes,
+    candidates: fuzzy.candidates,
+  };
+}
+
+/** @deprecated Prefer resolveVendorWithConfidence for judgment metadata. */
+export async function resolveVendorIdForAllCareClientProfile(input: {
+  projectId: string;
+  profileName: string;
+  linkedVendorId: string | null;
+}): Promise<string | null> {
+  const r = await resolveVendorWithConfidence({
+    projectId: input.projectId,
+    profileName: input.profileName,
+    displayName: input.profileName,
+    linkedVendorId: input.linkedVendorId,
+  });
+  if (r.matchType === "ambiguous") return null;
+  return r.vendorId;
 }

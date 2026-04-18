@@ -182,6 +182,8 @@ export async function generateGroundedDraft(
     text: f.factText,
     validation: f.validationStatus,
     provenance: f.provenanceKind,
+    credibility: f.credibility ?? "",
+    confidence: f.confidence ?? "",
   }));
   const arch = input.grounding.architectureOptions.map((a) => ({
     id: a.id,
@@ -199,6 +201,7 @@ export async function generateGroundedDraft(
 
 STRICT RULES:
 - Use ONLY facts supported by the provided requirements, evidence excerpts, retrieved chunk excerpts, vendor facts, and architecture summaries.
+- Vendor facts are ordered with operational, higher-confidence items first. Prefer operational + high/medium confidence for core positioning; treat marketing-only or low-confidence vendor facts as weak support—qualify ("Vendor states…") and do not rest a scored claim primarily on them unless the user explicitly asks for that tone.
 - Label inference explicitly in prose only when necessary: "Inferred:" or "Vendor states:" — never present inference as verified fact.
 - Do not invent metrics, contracts, or agency commitments.
 - Respect page limit (~${pageLimit} pages at ~${WORDS_PER_PAGE} words/page).

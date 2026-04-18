@@ -17,6 +17,7 @@ type Body = {
   title?: string;
   topK?: number;
   fileId?: string;
+  strictGrounding?: boolean;
 };
 
 export const handler: Handler = async (event) => {
@@ -39,6 +40,7 @@ export const handler: Handler = async (event) => {
       title: body.title,
       topK: body.topK,
       fileId: body.fileId,
+      strictGrounding: Boolean(body.strictGrounding),
     });
     return jsonResponse(200, result);
   } catch (e) {

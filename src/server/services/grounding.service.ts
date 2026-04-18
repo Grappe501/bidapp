@@ -11,6 +11,7 @@ import { listEvidenceByProject } from "../repositories/evidence.repo";
 import { listArchitectureOptionsByProject } from "../repositories/architecture.repo";
 import { listFactsByProject } from "../repositories/intelligence.repo";
 import { insertGroundingBundle } from "../repositories/grounding.repo";
+import { selectVendorFactsForGroundingBundle } from "../lib/grounding-quality-utils";
 import type { DbRequirement } from "../repositories/requirement.repo";
 import type { DbEvidenceItem } from "../repositories/evidence.repo";
 import { buildRequirementSupportMapForRequirements } from "./proof-graph.service";
@@ -107,6 +108,8 @@ export async function buildAndStoreGroundingBundle(input: {
   title?: string;
   topK?: number;
   fileId?: string;
+  /** When true, drop more marketing/inferred facts when operational coverage exists. */
+  strictGrounding?: boolean;
 }): Promise<{ id: string; payload: GroundingBundlePayload }> {
   const cfg = RETRIEVAL_BY_BUNDLE[input.bundleType];
   const title =
@@ -160,13 +163,21 @@ export async function buildAndStoreGroundingBundle(input: {
     summary: a.summary,
   }));
 
-  const facts = await listFactsByProject(input.projectId, 24);
-  base.vendorFacts = facts.map((f) => ({
+  const factsRaw = await listFactsByProject(input.projectId, 72);
+  const strict = input.strictGrounding ?? false;
+  const selection = selectVendorFactsForGroundingBundle(factsRaw, 24, strict);
+  base.vendorFacts = selection.selected.map((f) => ({
     factText: f.factText,
     validationStatus: f.validationStatus,
     provenanceKind: (f.classification as KnowledgeProvenanceKind) ?? "Vendor Claim",
     sourceId: f.sourceId,
+    credibility: f.credibility?.trim() || undefined,
+    confidence: f.confidence?.trim() || undefined,
   }));
+  base.factSelectionSummary = selection.factSelectionSummaryText;
+  base.factSelectionDetail = selection.factSelectionDetail;
+  base.droppedFactCounts = selection.droppedFactCounts;
+  base.weakFactIncludedCount = selection.weakFactIncludedCount;
 
   base.requirementSupport = await buildRequirementSupportMapForRequirements(
     input.projectId,
@@ -178,6 +189,20 @@ export async function buildAndStoreGroundingBundle(input: {
     ...base.validationNotes,
     "Bundle is retrieval-assisted; verify citations before external submission.",
   ];
+  if (selection.factSelectionDetail.includedUnknownCount > 0) {
+    base.validationNotes.push(
+      `Unknown-quality vendor facts (${selection.factSelectionDetail.includedUnknownCount}) are included — treat as provisional.`,
+    );
+  } else if (selection.weakFactIncludedCount > 0) {
+    base.validationNotes.push(
+      `This bundle includes ${selection.weakFactIncludedCount} lower-trust vendor fact(s); qualify them in prose.`,
+    );
+  }
+  if (selection.factSelectionDetail.bundleQuality === "weak") {
+    base.validationNotes.push(
+      "Grounding bundle quality is weak — sparse operational facts; review before scored claims.",
+    );
+  }
 
   const row = await insertGroundingBundle({
     projectId: input.projectId,

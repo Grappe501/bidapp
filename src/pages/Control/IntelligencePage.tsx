@@ -1,4 +1,5 @@
 import { BidControlNav } from "@/components/control/BidControlNav";
+import { AllCareBrandingPanel } from "@/components/intelligence/AllCareBrandingPanel";
 import { DbUrlIngestPanel } from "@/components/intelligence/DbUrlIngestPanel";
 import { IntelligenceBackendTools } from "@/components/intelligence/IntelligenceBackendTools";
 import { CompanyProfileCard } from "@/components/intelligence/CompanyProfileCard";
@@ -37,6 +38,8 @@ export function IntelligencePage() {
         </Card>
 
         <IntelligenceIngestPanel profiles={profiles} onIngest={addIngestEntry} />
+
+        <AllCareBrandingPanel />
 
         <DbUrlIngestPanel />
 

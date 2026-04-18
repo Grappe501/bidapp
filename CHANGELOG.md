@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.8.0 — 2026-04-18
+
+- Added output center and bundle views (`/output` and sub-routes)
+- Added submission package assembly with solicitation checklist, artifact cards, and copy/export actions
+- Added client review packet surface and final readiness bundle with BP-007 readiness integration
+- Added redaction support workflow (flags, previews, packet readiness)
+- Added `OutputProvider`, `output-utils`, and server `output` / `packaging` / `redaction` services; extended types for artifacts and bundles
+
 ## v0.7.0 — 2026-04-18
 
 - Added review dashboard, issue tracking, and readiness scoring (`/review`, `/review/issues`, `/review/issues/:issueId`, `/review/readiness`)

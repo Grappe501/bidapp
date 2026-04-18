@@ -55,4 +55,13 @@ export const MOCK_SUBMISSION_ITEMS: SubmissionItem[] = [
     owner: "Proposal ops",
     notes: "Mirror public-records posture; track redaction flags in control center.",
   },
+  {
+    id: "sub-007",
+    name: "Recommended options / vendor workbook",
+    required: true,
+    phase: "Proposal",
+    status: "Not Started",
+    owner: "Architecture lead",
+    notes: "State form aligning recommended stack with solicitation options language.",
+  },
 ];

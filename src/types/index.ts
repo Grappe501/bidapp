@@ -808,3 +808,116 @@ export const REVIEW_ISSUE_STATUSES: ReviewIssueStatus[] = [
   "Resolved",
   "Dismissed",
 ];
+
+/* ——— Output & packaging (BP-008) ——— */
+
+export type OutputArtifactType =
+  | "Draft Section"
+  | "Submission Form"
+  | "Price Sheet Support"
+  | "Requirement Matrix"
+  | "Review Report"
+  | "Client Review Memo"
+  | "Redacted Copy"
+  | "Final Bundle"
+  | "Discussion Prep"
+  | "Other";
+
+export type OutputStatus =
+  | "Draft"
+  | "In Progress"
+  | "Ready"
+  | "Validated"
+  | "Locked";
+
+export type OutputArtifactSourceEntityType =
+  | "draft_section"
+  | "submission_item"
+  | "project"
+  | "requirement"
+  | "redaction_flag"
+  | "discussion_item"
+  | "review"
+  | "other";
+
+export type OutputArtifact = {
+  id: string;
+  projectId: string;
+  artifactType: OutputArtifactType;
+  title: string;
+  status: OutputStatus;
+  sourceEntityType: OutputArtifactSourceEntityType;
+  sourceEntityId: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+  /** True when status is Ready, Validated, or Locked */
+  isValidated: boolean;
+  requiredForSubmission: boolean;
+};
+
+export type OutputBundleType =
+  | "Submission Package"
+  | "Client Review Packet"
+  | "Redacted Packet"
+  | "Final Readiness Bundle"
+  | "Discussion Packet";
+
+export type OutputBundle = {
+  id: string;
+  projectId: string;
+  bundleType: OutputBundleType;
+  title: string;
+  status: OutputStatus;
+  artifactIds: string[];
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PackagingCompleteness = {
+  bundleType: OutputBundleType;
+  complete: boolean;
+  percent: number;
+  missingRequiredTitles: string[];
+  notValidatedTitles: string[];
+  readyForAssemblyTitles: string[];
+};
+
+export type RedactionPackagingSummary = {
+  totalFlagged: number;
+  unresolvedCount: number;
+  clearedCount: number;
+  redactedPacketNeeded: boolean;
+  redactedCopyArtifactReady: boolean;
+  blockers: string[];
+};
+
+export const OUTPUT_ARTIFACT_TYPES: OutputArtifactType[] = [
+  "Draft Section",
+  "Submission Form",
+  "Price Sheet Support",
+  "Requirement Matrix",
+  "Review Report",
+  "Client Review Memo",
+  "Redacted Copy",
+  "Final Bundle",
+  "Discussion Prep",
+  "Other",
+];
+
+export const OUTPUT_STATUSES: OutputStatus[] = [
+  "Draft",
+  "In Progress",
+  "Ready",
+  "Validated",
+  "Locked",
+];
+
+export const OUTPUT_BUNDLE_TYPES: OutputBundleType[] = [
+  "Submission Package",
+  "Client Review Packet",
+  "Redacted Packet",
+  "Final Readiness Bundle",
+  "Discussion Packet",
+];

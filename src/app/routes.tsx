@@ -1,5 +1,4 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { Card } from "@/components/ui/Card";
 import { ArchitecturePage } from "@/pages/Architecture/ArchitecturePage";
 import { DashboardPage } from "@/pages/Dashboard/DashboardPage";
 import { FileDetailPage } from "@/pages/Files/FileDetailPage";
@@ -23,19 +22,11 @@ import { ReadinessPage } from "@/pages/Review/ReadinessPage";
 import { ReviewDashboardPage } from "@/pages/Review/ReviewDashboardPage";
 import { ReviewIssueDetailPage } from "@/pages/Review/ReviewIssueDetailPage";
 import { ReviewIssuesPage } from "@/pages/Review/ReviewIssuesPage";
-
-function RoutePlaceholder({ title }: { title: string }) {
-  return (
-    <div className="p-8">
-      <Card>
-        <h1 className="text-lg font-semibold text-ink">{title}</h1>
-        <p className="mt-2 text-sm leading-relaxed text-ink-muted">
-          This area will be implemented in a future build packet.
-        </p>
-      </Card>
-    </div>
-  );
-}
+import { ClientReviewPage } from "@/pages/Output/ClientReviewPage";
+import { FinalBundlePage } from "@/pages/Output/FinalBundlePage";
+import { OutputCenterPage } from "@/pages/Output/OutputCenterPage";
+import { RedactionPage } from "@/pages/Output/RedactionPage";
+import { SubmissionPackagePage } from "@/pages/Output/SubmissionPackagePage";
 
 export function AppRoutes() {
   return (
@@ -73,7 +64,11 @@ export function AppRoutes() {
       <Route path="/review/issues" element={<ReviewIssuesPage />} />
       <Route path="/review/issues/:issueId" element={<ReviewIssueDetailPage />} />
       <Route path="/review/readiness" element={<ReadinessPage />} />
-      <Route path="/output" element={<RoutePlaceholder title="Output" />} />
+      <Route path="/output" element={<OutputCenterPage />} />
+      <Route path="/output/submission" element={<SubmissionPackagePage />} />
+      <Route path="/output/client-review" element={<ClientReviewPage />} />
+      <Route path="/output/redaction" element={<RedactionPage />} />
+      <Route path="/output/final-bundle" element={<FinalBundlePage />} />
     </Routes>
   );
 }

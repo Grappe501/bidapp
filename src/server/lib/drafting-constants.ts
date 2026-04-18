@@ -87,3 +87,17 @@ export function scoringForSectionType(sectionType: DraftSectionType): typeof DRA
   const names = new Set(primary[sectionType]);
   return DRAFTING_SCORING_BLOCKS.filter((b) => names.has(b.name));
 }
+
+/** Evaluator-facing support expectations (prompt + UI “what we optimize for”). */
+export const SECTION_SUPPORT_EXPECTATIONS: Record<DraftSectionType, string> = {
+  Experience:
+    "Substantive claims should tie to requirements and evidence; prefer quantified outcomes and named references over generic capability statements.",
+  Solution:
+    "Approach must be defensible in oral review: plain-language value, criterion mapping, and no uncited technical depth.",
+  Risk:
+    "Each material risk needs mitigation, owner, and trace to evidence or an explicit gap — no undocumented residual risk.",
+  "Executive Summary":
+    "High-level only: mirror scored volumes; no new facts; flag where volumes are still open.",
+  "Architecture Narrative":
+    "Roles, integrations, and boundaries must be consistent with Solution/Risk volumes; no orphan components.",
+};

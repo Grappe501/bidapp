@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.10.1 — 2026-04-18
+
+- Hardened and polished the drafting studio (BP-006 Day 7): consistent terminology (grounding bundle, requirement coverage, score strength, constraint risk, unsupported claim, draft status, active version), calmer empty and error copy, aligned section list and section workspace layout with improved narrow-width padding
+- Refined Experience / Solution / Risk strategy copy and evaluator lens in `SectionStrategyPanel`; deduplicated weak-evidence counting via `countBundleWeakVerificationEvidence` in `drafting-utils`
+- Documented BP-006 completion, hybrid DB/local draft persistence, and known limitations in `CURRENT_STATE.md`
+
 ## v0.10.0 — 2026-04-18
 
 - Added competitive landscape and win strategy workspace (`/strategy` and sub-routes)

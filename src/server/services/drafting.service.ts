@@ -1,7 +1,11 @@
 import type { GroundingBundlePayload } from "@/types";
 import { defaultParseModel, getOpenAI } from "./openai-client";
 import type { DraftSectionType } from "@/types";
-import { SECTION_STRATEGY, scoringForSectionType } from "../lib/drafting-constants";
+import {
+  SECTION_STRATEGY,
+  SECTION_SUPPORT_EXPECTATIONS,
+  scoringForSectionType,
+} from "../lib/drafting-constants";
 import { getGroundingBundle } from "../repositories/grounding.repo";
 
 export type DraftMetadata = {
@@ -11,6 +15,7 @@ export type DraftMetadata = {
   missingRequirementIds: string[];
   riskFlags: string[];
   unsupportedClaimFlags: string[];
+  generationMode?: string;
 };
 
 export type DraftingGenerationInput = {
@@ -32,6 +37,10 @@ export type DraftingGenerationInput = {
     existingContent?: string;
     paragraphIndex?: number;
   };
+  /** Optional; merged into user prompt for controlled modes (non-breaking). */
+  strategicDirective?: string;
+  /** Human-readable mode label for traceability in prompt only. */
+  generationModeLabel?: string;
 };
 
 export type DraftingGenerationResult = {
@@ -195,35 +204,61 @@ STRICT RULES:
 - Respect page limit (~${pageLimit} pages at ~${WORDS_PER_PAGE} words/page).
 - Address scoring emphasis for this section type.
 - Surface gaps: if something is missing from inputs, say what is unsupported rather than fabricating.
+- Where evidence.validationStatus is Unverified or Pending, do not state associated claims as adjudicated fact; qualify or route to unsupported_claim_flags.
+- The metadata.unsupported_claim_flags array must list any substantive claim in your prose that lacks firm grounding in the inputs.
 
 Return shape:
 {"content": string (proposal prose with \\n\\n between paragraphs), "metadata": {"word_count": number, "estimated_pages": number, "requirement_coverage_ids": string[], "missing_requirement_ids": string[], "risk_flags": string[], "unsupported_claim_flags": string[]}}`;
 
   const regen = input.regeneration;
+  const supportExpectation = SECTION_SUPPORT_EXPECTATIONS[input.sectionType];
+  const weakEvidence = input.grounding.evidence
+    .filter((e) =>
+      /unverified|pending/i.test(String(e.validationStatus ?? "")),
+    )
+    .map((e) => ({
+      id: e.id,
+      title: e.title,
+      validationStatus: e.validationStatus,
+    }));
+
   const userParts = [
     `SECTION TYPE: ${input.sectionType}`,
-    `PAGE LIMIT: ${pageLimit} pages`,
-    `FOCUS: ${constraintRules}`,
-    `SCORING CRITERIA (emphasis for evaluators):\n${scoring.map((s) => `- ${s.name} (${s.maxPoints} pts): ${s.description}`).join("\n")}`,
-    `GROUNDING GAPS (must not hide):\n${input.grounding.gaps.join("\n") || "(none listed)"}`,
+    `PAGE LIMIT: ${pageLimit} pages (hard budget for this section)`,
+    `SECTION STRATEGY / FOCUS: ${constraintRules}`,
+    `SUPPORT EXPECTATIONS (evaluators): ${supportExpectation}`,
+    `SCORING MODEL SLICE (address explicitly in prose):\n${scoring.map((s) => `- ${s.name} (${s.maxPoints} pts, weight ${s.weight}): ${s.description}`).join("\n")}`,
+    `GROUNDING GAPS (do not contradict; surface honestly in prose or flags):\n${input.grounding.gaps.join("\n") || "(none listed)"}`,
+    weakEvidence.length > 0
+      ? `EVIDENCE WITH WEAK VERIFICATION (qualify; do not treat as proven):\n${JSON.stringify(weakEvidence.slice(0, 14), null, 0)}`
+      : `EVIDENCE WITH WEAK VERIFICATION: (none flagged as Unverified/Pending)`,
     `REQUIREMENTS:\n${JSON.stringify(reqList, null, 0)}`,
     `EVIDENCE:\n${JSON.stringify(evList, null, 0)}`,
     `VENDOR / INTEL FACTS:\n${JSON.stringify(facts, null, 0)}`,
     `ARCHITECTURE OPTIONS:\n${JSON.stringify(arch, null, 0)}`,
     `RETRIEVED SOURCE EXCERPTS:\n${JSON.stringify(chunkHints, null, 0)}`,
-    `VALIDATION NOTES:\n${input.grounding.validationNotes.join("\n")}`,
+    `VALIDATION NOTES FROM BUNDLE:\n${input.grounding.validationNotes.join("\n") || "(none)"}`,
   ];
+
+  if (input.generationModeLabel?.trim()) {
+    userParts.push(`REQUESTED GENERATION MODE: ${input.generationModeLabel.trim()}`);
+  }
+  if (input.strategicDirective?.trim()) {
+    userParts.push(
+      `GENERATION STRATEGY (apply throughout):\n${input.strategicDirective.trim()}`,
+    );
+  }
 
   if (input.tone) {
     userParts.push(`TONE: ${input.tone}`);
   }
   if (regen?.scope === "full" && regen.instruction) {
-    userParts.push(`REGENERATE FULL DRAFT: ${regen.instruction}`);
+    userParts.push(`REGENERATE FULL DRAFT TASK: ${regen.instruction}`);
   }
   if (regen?.scope === "paragraph" && regen.existingContent) {
     userParts.push(
-      `REGENERATE PARAGRAPH index ${regen.paragraphIndex ?? 0}: ${regen.instruction ?? "Improve clarity and grounding."}`,
-      `EXISTING DRAFT:\n${regen.existingContent}`,
+      `REGENERATE FIRST PARAGRAPH ONLY: ${regen.instruction ?? "Improve clarity and grounding."}`,
+      `EXISTING DRAFT (full text for context; only change opening paragraph):\n${regen.existingContent}`,
     );
   }
 

@@ -680,6 +680,8 @@ export type DraftMetadata = {
   missingRequirementIds: string[];
   riskFlags: string[];
   unsupportedClaimFlags: string[];
+  /** Last structured generation mode label for this version (client-set). */
+  generationMode?: string;
 };
 
 export type DraftSection = {
@@ -689,6 +691,8 @@ export type DraftSection = {
   title: string;
   status: DraftStatus;
   activeVersionId: string | null;
+  /** When loaded from DB: last selected grounding bundle for this section. */
+  selectedGroundingBundleId?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -700,6 +704,14 @@ export type DraftVersion = {
   groundingBundleId: string | null;
   metadata: DraftMetadata;
   createdAt: string;
+  /** Server updated time when persisted (local-only versions omit this). */
+  updatedAt?: string;
+  /** Optional short label for revision history (user-editable). */
+  note?: string;
+  /**
+   * Protected revision: in-place overwrite is blocked; duplicate or switch active to edit elsewhere.
+   */
+  locked?: boolean;
 };
 
 export const DRAFT_STATUSES: DraftStatus[] = [

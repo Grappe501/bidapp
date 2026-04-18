@@ -1,6 +1,9 @@
 import type {
   DraftMetadata,
+  DraftSection,
   DraftSectionType,
+  DraftStatus,
+  DraftVersion,
   GroundingBundlePayload,
   GroundingBundleType,
   Project,
@@ -216,6 +219,111 @@ export async function fetchGroundingBundles(
   return data.bundles;
 }
 
+export type DraftingWorkspacePayload = {
+  sections: DraftSection[];
+  versions: DraftVersion[];
+  bundles: {
+    id: string;
+    bundleType: string;
+    title: string;
+    createdAt: string;
+    payload: GroundingBundlePayload;
+  }[];
+};
+
+/** True when Netlify functions base URL is configured (draft APIs may be used). */
+export function isFunctionsApiConfigured(): boolean {
+  return Boolean(functionsBase());
+}
+
+export async function fetchDraftingWorkspace(
+  projectId: string,
+): Promise<DraftingWorkspacePayload | null> {
+  if (!functionsBase() || !projectId) return null;
+  try {
+    return await postFunctionJson<DraftingWorkspacePayload>(
+      "list-draft-sections",
+      { projectId },
+    );
+  } catch {
+    return null;
+  }
+}
+
+export async function postSaveDraftVersionInsert(input: {
+  projectId: string;
+  sectionId: string;
+  content: string;
+  metadata: DraftMetadata;
+  groundingBundleId: string | null;
+  generationMode?: string | null;
+}): Promise<{ version: DraftVersion; section: DraftSection }> {
+  return postFunctionJson("save-draft-version", {
+    projectId: input.projectId,
+    action: "insert",
+    sectionId: input.sectionId,
+    content: input.content,
+    metadata: input.metadata,
+    groundingBundleId: input.groundingBundleId,
+    generationMode: input.generationMode ?? null,
+  });
+}
+
+export async function postPatchDraftVersionContent(input: {
+  projectId: string;
+  versionId: string;
+  content: string;
+}): Promise<{ version: DraftVersion; section: DraftSection | null }> {
+  return postFunctionJson("save-draft-version", {
+    projectId: input.projectId,
+    action: "patch_content",
+    versionId: input.versionId,
+    content: input.content,
+  });
+}
+
+export async function postSetActiveDraftVersion(input: {
+  projectId: string;
+  sectionId: string;
+  versionId: string;
+}): Promise<{ section: DraftSection }> {
+  return postFunctionJson("set-active-draft-version", input);
+}
+
+export async function postUpdateDraftSectionStatus(input: {
+  projectId: string;
+  sectionId: string;
+  status: DraftStatus;
+}): Promise<{ section: DraftSection }> {
+  return postFunctionJson("update-draft-section-status", input);
+}
+
+export async function postSetDraftSectionBundle(input: {
+  projectId: string;
+  sectionId: string;
+  bundleId: string | null;
+}): Promise<{ section: DraftSection }> {
+  return postFunctionJson("set-draft-section-bundle", input);
+}
+
+export async function postDuplicateDraftVersion(input: {
+  projectId: string;
+  sectionId: string;
+  sourceVersionId: string;
+  note: string | null;
+}): Promise<{ version: DraftVersion; section: DraftSection }> {
+  return postFunctionJson("duplicate-draft-version", input);
+}
+
+export async function postUpdateDraftVersionMeta(input: {
+  projectId: string;
+  versionId: string;
+  note?: string | null;
+  locked?: boolean;
+}): Promise<{ version: DraftVersion; section: DraftSection | null }> {
+  return postFunctionJson("update-draft-version", input);
+}
+
 export async function postGenerateDraft(body: {
   mode: "structured";
   input: {
@@ -230,6 +338,8 @@ export async function postGenerateDraft(body: {
       existingContent?: string;
       paragraphIndex?: number;
     };
+    strategicDirective?: string;
+    generationModeLabel?: string;
   };
 }): Promise<{ content: string; metadata: DraftMetadata }> {
   return postFunctionJson("generate-draft", body);

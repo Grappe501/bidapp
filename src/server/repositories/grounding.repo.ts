@@ -80,3 +80,15 @@ export async function countGroundingBundlesByProject(
   );
   return Number(r.rows[0]?.c ?? 0);
 }
+
+export async function listGroundingBundlesByIds(
+  projectId: string,
+  ids: string[],
+): Promise<DbGroundingBundle[]> {
+  if (ids.length === 0) return [];
+  const r = await query(
+    `SELECT * FROM grounding_bundles WHERE project_id = $1 AND id = ANY($2::uuid[])`,
+    [projectId, ids],
+  );
+  return r.rows.map((row: Record<string, unknown>) => mapBundle(row));
+}

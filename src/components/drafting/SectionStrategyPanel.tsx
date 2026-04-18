@@ -4,6 +4,7 @@ import {
   pointsLabel,
   scoringCategoriesForSection,
   SECTION_FOCUS,
+  SECTION_SCORING_LENS,
 } from "@/lib/drafting-utils";
 
 type SectionStrategyPanelProps = {
@@ -35,9 +36,13 @@ export function SectionStrategyPanel({
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
           Focus: {focus.focus}
         </p>
+        <p className="mt-3 border-t border-border/70 pt-3 text-xs leading-relaxed text-ink-muted">
+          <span className="font-medium text-ink">Evaluator lens:</span>{" "}
+          {SECTION_SCORING_LENS[sectionType]}
+        </p>
       </div>
       <div>
-        <h3 className="text-xs font-semibold text-ink">Scoring emphasis</h3>
+        <h3 className="text-xs font-semibold text-ink">Score categories (bid model)</h3>
         <ul className="mt-2 space-y-2 text-xs text-ink-muted">
           {categories.map((c) => (
             <li key={c.id} className="rounded border border-border/80 bg-white px-2 py-1.5">

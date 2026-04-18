@@ -10,6 +10,8 @@ import type {
 export type SelectedBundle = {
   id: string;
   payload: GroundingBundlePayload;
+  /** When the bundle was chosen from the project list API (storage time). */
+  listCreatedAt?: string;
 };
 
 export type DraftingContextValue = {
@@ -22,16 +24,39 @@ export type DraftingContextValue = {
   setSelectedBundle: (
     sectionId: string,
     bundle: SelectedBundle | null,
-  ) => void;
+  ) => void | Promise<void>;
   saveNewVersion: (input: {
     sectionId: string;
     content: string;
     metadata: DraftMetadata;
     groundingBundleId: string | null;
-  }) => void;
-  setActiveVersion: (sectionId: string, versionId: string) => void;
-  updateActiveContent: (sectionId: string, content: string) => void;
-  updateSectionStatus: (sectionId: string, status: DraftStatus) => void;
+  }) => void | Promise<void>;
+  setActiveVersion: (
+    sectionId: string,
+    versionId: string,
+  ) => void | Promise<void>;
+  updateActiveContent: (
+    sectionId: string,
+    content: string,
+  ) => void | Promise<void>;
+  updateSectionStatus: (
+    sectionId: string,
+    status: DraftStatus,
+  ) => void | Promise<void>;
+  duplicateVersion: (
+    sectionId: string,
+    versionId: string,
+  ) => void | Promise<void>;
+  updateVersionNote: (
+    sectionId: string,
+    versionId: string,
+    note: string,
+  ) => void | Promise<void>;
+  setVersionLocked: (
+    sectionId: string,
+    versionId: string,
+    locked: boolean,
+  ) => void | Promise<void>;
 };
 
 export const DraftingContext = createContext<DraftingContextValue | null>(null);

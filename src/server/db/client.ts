@@ -48,6 +48,25 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   }
 }
 
+/** Run statements on one connection with BEGIN/COMMIT (pool.query would not). */
+export async function withTransaction<T>(
+  fn: (client: pg.PoolClient) => Promise<T>,
+): Promise<T> {
+  const p = getPool();
+  const client = await p.connect();
+  try {
+    await client.query("BEGIN");
+    const out = await fn(client);
+    await client.query("COMMIT");
+    return out;
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();

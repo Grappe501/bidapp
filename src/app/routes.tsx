@@ -27,6 +27,9 @@ import { FinalBundlePage } from "@/pages/Output/FinalBundlePage";
 import { OutputCenterPage } from "@/pages/Output/OutputCenterPage";
 import { RedactionPage } from "@/pages/Output/RedactionPage";
 import { SubmissionPackagePage } from "@/pages/Output/SubmissionPackagePage";
+import { SubmissionAuditPage } from "@/pages/Submission/SubmissionAuditPage";
+import { SubmissionRunbookPage } from "@/pages/Submission/SubmissionRunbookPage";
+import { SubmissionWorkflowPage } from "@/pages/Submission/SubmissionWorkflowPage";
 
 export function AppRoutes() {
   return (
@@ -69,6 +72,9 @@ export function AppRoutes() {
       <Route path="/output/client-review" element={<ClientReviewPage />} />
       <Route path="/output/redaction" element={<RedactionPage />} />
       <Route path="/output/final-bundle" element={<FinalBundlePage />} />
+      <Route path="/submission" element={<SubmissionWorkflowPage />} />
+      <Route path="/submission/runbook" element={<SubmissionRunbookPage />} />
+      <Route path="/submission/audit" element={<SubmissionAuditPage />} />
     </Routes>
   );
 }

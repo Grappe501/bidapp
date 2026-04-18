@@ -921,3 +921,97 @@ export const OUTPUT_BUNDLE_TYPES: OutputBundleType[] = [
   "Final Readiness Bundle",
   "Discussion Packet",
 ];
+
+/* ——— Submission workflow & execution (BP-009) ——— */
+
+export type SubmissionWorkflowStatus =
+  | "Not Started"
+  | "In Progress"
+  | "Ready"
+  | "Blocked"
+  | "Completed";
+
+export type TaskStatus =
+  | "Not Started"
+  | "In Progress"
+  | "Completed"
+  | "Blocked";
+
+export type SubmissionTaskRelatedEntityType =
+  | "submission_item"
+  | "draft_section"
+  | "review_issue"
+  | "redaction_flag"
+  | "workflow_step"
+  | "other";
+
+export type SubmissionAuditActionType =
+  | "Workflow step updated"
+  | "Task updated"
+  | "Final gate evaluated"
+  | "Draft approved"
+  | "Submission item validated"
+  | "Redaction flag resolved"
+  | "Submission marked complete"
+  | "Other";
+
+export type SubmissionWorkflowStep = {
+  id: string;
+  projectId: string;
+  stepName: string;
+  description: string;
+  orderIndex: number;
+  status: SubmissionWorkflowStatus;
+  required: boolean;
+  assignedTo: string;
+  completedAt: string | null;
+  notes: string;
+};
+
+export type SubmissionTask = {
+  id: string;
+  projectId: string;
+  taskName: string;
+  relatedEntityType: SubmissionTaskRelatedEntityType;
+  relatedEntityId: string;
+  assignedTo: string;
+  status: TaskStatus;
+  dueAt: string | null;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SubmissionAuditLog = {
+  id: string;
+  projectId: string;
+  actionType: SubmissionAuditActionType;
+  actor: string;
+  entityType: string;
+  entityId: string;
+  description: string;
+  createdAt: string;
+};
+
+export type SubmissionExecutionLog = {
+  projectId: string;
+  finalStatus: "Not submitted" | "Submitted";
+  submittedAt: string | null;
+  executedBy: string;
+  confirmationNotes: string;
+};
+
+export const SUBMISSION_WORKFLOW_STATUSES: SubmissionWorkflowStatus[] = [
+  "Not Started",
+  "In Progress",
+  "Ready",
+  "Blocked",
+  "Completed",
+];
+
+export const SUBMISSION_TASK_STATUSES: TaskStatus[] = [
+  "Not Started",
+  "In Progress",
+  "Completed",
+  "Blocked",
+];

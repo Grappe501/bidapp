@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9.0 — 2026-04-18
+
+- Added submission workflow engine with ordered steps, owners, and completion rules (`/submission`)
+- Added final validation gate (PASS/FAIL) blocking ARBuy steps until checklist, review, drafts, page limits, redaction, and discussion rules clear
+- Added submission runbook with copyable ARBuy steps (`/submission/runbook`)
+- Added task assignment panel with entity links and status/due dates
+- Added audit log + submission execution log (`/submission/audit`); `SubmissionProvider` with `localStorage` persistence
+- Added final export panel integration (checklist, readiness, runbook, bundle JSON, download)
+- Added server `submission`, `workflow`, and `audit` services and `submission-utils` gate logic
+
 ## v0.8.0 — 2026-04-18
 
 - Added output center and bundle views (`/output` and sub-routes)

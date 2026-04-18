@@ -1,0 +1,58 @@
+import type { SubmissionItem } from "@/types";
+
+export const MOCK_SUBMISSION_ITEMS: SubmissionItem[] = [
+  {
+    id: "sub-001",
+    name: "Proposal signature page",
+    required: true,
+    phase: "Proposal",
+    status: "In Progress",
+    owner: "Proposal ops",
+    notes: "ARBuy upload path confirmed; wet vs e-sign per state instructions.",
+  },
+  {
+    id: "sub-002",
+    name: "Technical sections (Experience, Solution, Risk)",
+    required: true,
+    phase: "Proposal",
+    status: "In Progress",
+    owner: "Volume lead",
+    notes: "Respect 2-page caps per scored section; cross-check S000000479 instructions.",
+  },
+  {
+    id: "sub-003",
+    name: "Price sheet / pricing workbook",
+    required: true,
+    phase: "Proposal",
+    status: "Not Started",
+    owner: "Finance desk",
+    notes: "State Excel template only; no alternate formats.",
+  },
+  {
+    id: "sub-004",
+    name: "Equal opportunity (EO) policy",
+    required: true,
+    phase: "Proposal",
+    status: "Ready",
+    owner: "Compliance",
+    notes: "Current-year policy PDF; match legal entity on record.",
+  },
+  {
+    id: "sub-005",
+    name: "Subcontractor disclosure form",
+    required: true,
+    phase: "Proposal",
+    status: "Not Started",
+    owner: "Legal",
+    notes: "Align named subs with architecture workbook and MSA flow-down list.",
+  },
+  {
+    id: "sub-006",
+    name: "Redacted copy (FOIA-safe)",
+    required: true,
+    phase: "Proposal",
+    status: "Not Started",
+    owner: "Proposal ops",
+    notes: "Mirror public-records posture; track redaction flags in control center.",
+  },
+];

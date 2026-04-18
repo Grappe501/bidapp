@@ -1015,3 +1015,141 @@ export const SUBMISSION_TASK_STATUSES: TaskStatus[] = [
   "Completed",
   "Blocked",
 ];
+
+/* ——— Competitive strategy & win themes (BP-010) ——— */
+
+export type CompetitorType =
+  | "Incumbent Pharmacy"
+  | "Regional LTC Pharmacy"
+  | "National LTC Pharmacy"
+  | "Technology-Forward Pharmacy"
+  | "PBM / Managed Services"
+  | "Unknown / Emerging"
+  | "Other";
+
+export type CompetitorLikelyStatus =
+  | "Monitoring"
+  | "Likely Bidder"
+  | "Strong Threat"
+  | "Secondary Threat"
+  | "Unclear";
+
+export type ThreatLevel = "Low" | "Moderate" | "High" | "Critical";
+
+export type EvidenceCharacter = "Sourced" | "Inferred" | "Judgment";
+
+export type CompetitorProfile = {
+  id: string;
+  projectId: string;
+  name: string;
+  competitorType: CompetitorType;
+  likelyStatus: CompetitorLikelyStatus;
+  incumbent: boolean;
+  summary: string;
+  likelyStrengths: string[];
+  likelyWeaknesses: string[];
+  likelyPositioning: string;
+  threatLevel: ThreatLevel;
+  evidenceCharacter: EvidenceCharacter;
+  evidenceBasis: string;
+  threatInterpretation: string;
+  counterPositioningNotes: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WinThemeStatus = "Draft" | "Active" | "Approved" | "Retired";
+
+export type WinTheme = {
+  id: string;
+  projectId: string;
+  title: string;
+  summary: string;
+  supportingPoints: string[];
+  targetSections: string[];
+  priority: number;
+  status: WinThemeStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DifferentiatorStrength = "Strong" | "Moderate" | "Emerging";
+
+export type Differentiator = {
+  id: string;
+  projectId: string;
+  title: string;
+  category: string;
+  ourPosition: string;
+  competitorGap: string;
+  proofBasis: string;
+  strength: DifferentiatorStrength;
+  evidenceCharacter: EvidenceCharacter;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type EvaluatorLens = {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  likelyConcerns: string[];
+  likelyValueSignals: string[];
+  strategicResponse: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type StrategyCompetitorFilters = {
+  threatLevel: ThreatLevel | "all";
+  likelyStatus: CompetitorLikelyStatus | "all";
+  incumbent: "all" | "yes" | "no";
+  search: string;
+};
+
+export const COMPETITOR_TYPES: CompetitorType[] = [
+  "Incumbent Pharmacy",
+  "Regional LTC Pharmacy",
+  "National LTC Pharmacy",
+  "Technology-Forward Pharmacy",
+  "PBM / Managed Services",
+  "Unknown / Emerging",
+  "Other",
+];
+
+export const COMPETITOR_LIKELY_STATUSES: CompetitorLikelyStatus[] = [
+  "Monitoring",
+  "Likely Bidder",
+  "Strong Threat",
+  "Secondary Threat",
+  "Unclear",
+];
+
+export const THREAT_LEVELS: ThreatLevel[] = [
+  "Low",
+  "Moderate",
+  "High",
+  "Critical",
+];
+
+export const WIN_THEME_STATUSES: WinThemeStatus[] = [
+  "Draft",
+  "Active",
+  "Approved",
+  "Retired",
+];
+
+export const DIFFERENTIATOR_STRENGTHS: DifferentiatorStrength[] = [
+  "Strong",
+  "Moderate",
+  "Emerging",
+];
+
+export const EVIDENCE_CHARACTERS: EvidenceCharacter[] = [
+  "Sourced",
+  "Inferred",
+  "Judgment",
+];

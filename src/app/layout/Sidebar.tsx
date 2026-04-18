@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { to: "/review", label: "Review", prefix: "/review" },
   { to: "/output", label: "Output", prefix: "/output" },
   { to: "/submission", label: "Submission", prefix: "/submission" },
+  { to: "/strategy", label: "Strategy", prefix: "/strategy" },
 ];
 
 const linkClass = (active: boolean) =>

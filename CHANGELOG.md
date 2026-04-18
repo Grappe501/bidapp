@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.10.0 — 2026-04-18
+
+- Added competitive landscape and win strategy workspace (`/strategy` and sub-routes)
+- Added competitor profiles, filters, detail editing, and threat-level mapping with explicit evidence character (sourced / inferred / judgment)
+- Added win theme builder with section targeting and priority
+- Added differentiation matrix and evaluator lens views with strategic response edits
+- Added `StrategyProvider`, strategy summary utilities, and server `strategy` / `competitor-analysis` / `win-theme` services
+
 ## v0.9.0 — 2026-04-18
 
 - Added submission workflow engine with ordered steps, owners, and completion rules (`/submission`)

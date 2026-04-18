@@ -4,6 +4,7 @@ import { ControlProvider } from "@/context/ControlProvider";
 import { DraftingProvider } from "@/context/DraftingProvider";
 import { OutputProvider } from "@/context/OutputProvider";
 import { ReviewProvider } from "@/context/ReviewProvider";
+import { StrategyProvider } from "@/context/StrategyProvider";
 import { SubmissionProvider } from "@/context/SubmissionProvider";
 import { EvidenceProvider } from "@/context/EvidenceProvider";
 import { IntelligenceProvider } from "@/context/IntelligenceProvider";
@@ -27,9 +28,11 @@ export function App() {
                       <ReviewProvider>
                         <OutputProvider>
                           <SubmissionProvider>
-                            <AppLayout>
-                              <AppRoutes />
-                            </AppLayout>
+                            <StrategyProvider>
+                              <AppLayout>
+                                <AppRoutes />
+                              </AppLayout>
+                            </StrategyProvider>
                           </SubmissionProvider>
                         </OutputProvider>
                       </ReviewProvider>

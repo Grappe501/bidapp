@@ -30,6 +30,12 @@ import { SubmissionPackagePage } from "@/pages/Output/SubmissionPackagePage";
 import { SubmissionAuditPage } from "@/pages/Submission/SubmissionAuditPage";
 import { SubmissionRunbookPage } from "@/pages/Submission/SubmissionRunbookPage";
 import { SubmissionWorkflowPage } from "@/pages/Submission/SubmissionWorkflowPage";
+import { CompetitorDetailPage } from "@/pages/Strategy/CompetitorDetailPage";
+import { CompetitorsPage } from "@/pages/Strategy/CompetitorsPage";
+import { DifferentiationPage } from "@/pages/Strategy/DifferentiationPage";
+import { EvaluatorLensPage } from "@/pages/Strategy/EvaluatorLensPage";
+import { StrategyOverviewPage } from "@/pages/Strategy/StrategyOverviewPage";
+import { WinThemesPage } from "@/pages/Strategy/WinThemesPage";
 
 export function AppRoutes() {
   return (
@@ -75,6 +81,15 @@ export function AppRoutes() {
       <Route path="/submission" element={<SubmissionWorkflowPage />} />
       <Route path="/submission/runbook" element={<SubmissionRunbookPage />} />
       <Route path="/submission/audit" element={<SubmissionAuditPage />} />
+      <Route path="/strategy" element={<StrategyOverviewPage />} />
+      <Route path="/strategy/competitors" element={<CompetitorsPage />} />
+      <Route
+        path="/strategy/competitors/:competitorId"
+        element={<CompetitorDetailPage />}
+      />
+      <Route path="/strategy/win-themes" element={<WinThemesPage />} />
+      <Route path="/strategy/differentiation" element={<DifferentiationPage />} />
+      <Route path="/strategy/evaluator-lens" element={<EvaluatorLensPage />} />
     </Routes>
   );
 }

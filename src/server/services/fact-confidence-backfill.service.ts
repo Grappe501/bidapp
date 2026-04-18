@@ -1,70 +1,168 @@
 import {
   assertIntelligenceFactsCredibilityColumns,
-  listFactsNeedingCredibilityBackfill,
+  listFactsByCompanyProfile,
   patchIntelligenceFactCredibility,
-  type DbIntelligenceFact,
+  setIntelligenceFactCredibility,
 } from "../repositories/intelligence.repo";
+import {
+  classifyFactsForLegacyAudit,
+  inferLegacyCredibilityForFact,
+  type SkippedAmbiguousExample,
+} from "../lib/legacy-fact-audit-utils";
 
-const MARKETING_HINT =
-  /\b(leading|trusted|premier|world[- ]class|best[- ]in[- ]class|high quality|innovative|#1|top rated)\b/i;
+export type LegacyFactBackfillMode =
+  | "fill-missing"
+  | "audit-only"
+  | "safe-correct"
+  | "moderate-correct";
 
-function inferLegacyCredibility(f: DbIntelligenceFact): {
-  credibility: string;
-  confidence: string;
-} {
-  const cls = (f.classification ?? "").toLowerCase();
-  if (cls.includes("verified")) {
-    return { credibility: "operational", confidence: "medium" };
-  }
+export type LegacyFactAuditSummary = {
+  examined: number;
+  filledMissing: number;
+  /** Total corrections applied (safe + moderate). */
+  correctedValues: number;
+  correctedSafeCount: number;
+  correctedModerateCount: number;
+  skippedAmbiguous: number;
+  skippedAmbiguousExamples?: SkippedAmbiguousExample[];
+  mode: LegacyFactBackfillMode;
+  at: string;
+  wouldFillMissing?: number;
+  /** @deprecated Use wouldCorrectSafe */
+  wouldCorrect?: number;
+  wouldCorrectSafe?: number;
+  wouldCorrectModerate?: number;
+};
 
-  const t = f.factType;
-  const text = f.factText.slice(0, 2000);
+const MAX_EXAMPLES_PERSIST = 10;
 
-  if (t === "ai_tag" || t === "page_summary") {
-    return { credibility: "inferred", confidence: "medium" };
-  }
-  if (t === "capability" || t === "technology_reference") {
-    return { credibility: "operational", confidence: "medium" };
-  }
-  if (t === "contact_block") {
-    return { credibility: "operational", confidence: "high" };
-  }
-  if (t === "allcare_fact") {
-    if (MARKETING_HINT.test(text)) {
-      return { credibility: "marketing", confidence: "low" };
-    }
-    if (
-      /\d|%|24\s*\/\s*7|hour|daily|weekly|delivery|integrat|system|platform|compliant/i.test(
-        text,
-      )
-    ) {
-      return { credibility: "operational", confidence: "medium" };
-    }
-    return { credibility: "operational", confidence: "medium" };
-  }
-  if (MARKETING_HINT.test(text)) {
-    return { credibility: "marketing", confidence: "medium" };
-  }
-  return { credibility: "inferred", confidence: "low" };
+function trimExamplesForPersist(
+  examples: SkippedAmbiguousExample[] | undefined,
+): SkippedAmbiguousExample[] | undefined {
+  if (!examples?.length) return examples;
+  return examples.slice(0, MAX_EXAMPLES_PERSIST);
+}
+
+export function trimLegacyFactAuditForBrandingMeta(
+  summary: LegacyFactAuditSummary,
+): LegacyFactAuditSummary {
+  return {
+    ...summary,
+    skippedAmbiguousExamples: trimExamplesForPersist(
+      summary.skippedAmbiguousExamples,
+    ),
+  };
 }
 
 /**
- * Idempotent backfill: only fills empty credibility/confidence cells (see patch SQL).
+ * Runs legacy intelligence_fact metadata maintenance for one company profile.
+ *
+ * - fill-missing: only empty credibility/confidence.
+ * - audit-only: no writes; returns counts and skipped examples.
+ * - safe-correct: fill-missing + high-confidence inconsistency fixes.
+ * - moderate-correct: safe-correct + additional likely (but not absolute) fixes (opt-in).
  */
-export async function backfillLegacyFactCredibilityForCompanyProfile(
+export async function runLegacyFactMetadataPass(
   companyProfileId: string,
-): Promise<{ examined: number; updated: number }> {
+  mode: LegacyFactBackfillMode,
+): Promise<LegacyFactAuditSummary> {
   await assertIntelligenceFactsCredibilityColumns();
-  const rows = await listFactsNeedingCredibilityBackfill(companyProfileId);
-  let updated = 0;
-  for (const f of rows) {
-    const { credibility, confidence } = inferLegacyCredibility(f);
+  const facts = await listFactsByCompanyProfile(companyProfileId);
+  const at = new Date().toISOString();
+  const {
+    missing,
+    safeCorrections,
+    moderateCorrections,
+    skippedAmbiguous,
+    skippedAmbiguousExamples,
+  } = classifyFactsForLegacyAudit(facts);
+
+  if (mode === "audit-only") {
+    return {
+      examined: facts.length,
+      filledMissing: 0,
+      correctedValues: 0,
+      correctedSafeCount: 0,
+      correctedModerateCount: 0,
+      skippedAmbiguous,
+      skippedAmbiguousExamples: [...skippedAmbiguousExamples],
+      mode,
+      at,
+      wouldFillMissing: missing.length,
+      wouldCorrect: safeCorrections.length,
+      wouldCorrectSafe: safeCorrections.length,
+      wouldCorrectModerate: moderateCorrections.length,
+    };
+  }
+
+  let filledMissing = 0;
+  let correctedSafeCount = 0;
+  let correctedModerateCount = 0;
+
+  for (const f of missing) {
+    const { credibility, confidence } = inferLegacyCredibilityForFact(f);
     await patchIntelligenceFactCredibility({
       id: f.id,
       credibility,
       confidence,
     });
-    updated++;
+    filledMissing++;
   }
-  return { examined: rows.length, updated };
+
+  if (mode === "safe-correct" || mode === "moderate-correct") {
+    for (const sc of safeCorrections) {
+      await setIntelligenceFactCredibility({
+        id: sc.fact.id,
+        credibility: sc.credibility,
+        confidence: sc.confidence,
+      });
+      correctedSafeCount++;
+    }
+  }
+
+  if (mode === "moderate-correct") {
+    for (const mc of moderateCorrections) {
+      await setIntelligenceFactCredibility({
+        id: mc.fact.id,
+        credibility: mc.credibility,
+        confidence: mc.confidence,
+      });
+      correctedModerateCount++;
+    }
+  }
+
+  const correctedValues = correctedSafeCount + correctedModerateCount;
+
+  return {
+    examined: facts.length,
+    filledMissing,
+    correctedValues,
+    correctedSafeCount,
+    correctedModerateCount,
+    skippedAmbiguous,
+    skippedAmbiguousExamples: [...skippedAmbiguousExamples],
+    mode,
+    at,
+  };
+}
+
+/** @deprecated Prefer runLegacyFactMetadataPass(…, "fill-missing"). */
+export async function backfillLegacyFactCredibilityForCompanyProfile(
+  companyProfileId: string,
+): Promise<{ examined: number; updated: number }> {
+  const r = await runLegacyFactMetadataPass(companyProfileId, "fill-missing");
+  return { examined: r.examined, updated: r.filledMissing };
+}
+
+export async function auditLegacyFactQuality(
+  companyProfileId: string,
+): Promise<LegacyFactAuditSummary> {
+  return runLegacyFactMetadataPass(companyProfileId, "audit-only");
+}
+
+export async function correctLegacyFactQuality(
+  companyProfileId: string,
+  mode: "fill-missing" | "safe-correct" | "moderate-correct",
+): Promise<LegacyFactAuditSummary> {
+  return runLegacyFactMetadataPass(companyProfileId, mode);
 }

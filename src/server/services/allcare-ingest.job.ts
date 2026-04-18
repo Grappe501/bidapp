@@ -12,7 +12,7 @@ import {
   resolveVendorWithConfidence,
   type VendorResolution,
 } from "../repositories/vendor.repo";
-import { createRobotsCache } from "../lib/robots-utils";
+import { createRobotsCache, deriveRobotsReviewSignals } from "../lib/robots-utils";
 import { computeAllCareIngestQuality } from "../lib/allcare-ingest-quality";
 import {
   crawlAllCarePublicSite,
@@ -29,12 +29,18 @@ import {
   persistAllCareStructuredFacts,
   parseAllCarePublicPageStructured,
 } from "./ai-parsing.service";
-import {
-  aggregateFactQualityForProfile,
-  assertIntelligenceFactsCredibilityColumns,
-} from "../repositories/intelligence.repo";
+import { aggregateFactQualityForProfile } from "../repositories/intelligence.repo";
 import type { PromotionQualitySummary } from "./allcare-vendor-promotion.service";
-import { backfillLegacyFactCredibilityForCompanyProfile } from "./fact-confidence-backfill.service";
+import {
+  assertAllCareIngestSchemaCapabilities,
+  checkAllCareIngestSchemaReady,
+} from "../lib/db-capability-checks";
+import {
+  runLegacyFactMetadataPass,
+  trimLegacyFactAuditForBrandingMeta,
+  type LegacyFactAuditSummary,
+  type LegacyFactBackfillMode,
+} from "./fact-confidence-backfill.service";
 
 export async function ensureAllCareCompanyProfile(
   projectId: string,
@@ -89,6 +95,14 @@ export type AllCareIngestSummary = {
   /** How much to trust qualityScore under current crawl/parse conditions. */
   qualityConfidence: "high" | "medium" | "low" | null;
   qualityWarnings: string[] | null;
+  qualityExplanation: string | null;
+  /** Preflight: DB migrations applied for AllCare ingest. */
+  schemaReady: boolean;
+  schemaIssues: string[];
+  robotsOperatorNote: string | null;
+  robotsReviewRecommended: boolean;
+  robotsReviewReason: string | null;
+  legacyFactAudit: LegacyFactAuditSummary | null;
   qualityBreakdown: {
     coverage: number;
     parsing: number;
@@ -124,10 +138,17 @@ export async function runAllCareSiteIngestJob(input: {
   maxPages?: number;
   maxDepth?: number;
   /**
-   * When true, runs idempotent backfill on intelligence_facts with empty credibility/confidence.
-   * Backfill is opt-in so deploys can predict DB writes; it only fills missing cells (see migration 006).
+   * When true, runs legacy fact metadata pass (see `backfillMode`).
+   * Default false: no extra writes beyond normal ingest.
    */
   runBackfill?: boolean;
+  /**
+   * Used only when `runBackfill` is true.
+   * - fill-missing: empty credibility/confidence only (safest).
+   * - audit-only: counts only, no fact row updates.
+   * - safe-correct: fill-missing plus narrowly scoped fixes to clearly wrong non-empty values.
+   */
+  backfillMode?: LegacyFactBackfillMode;
 }): Promise<AllCareIngestSummary> {
   const errors: string[] = [];
   let profile: DbCompanyProfile | null = null;
@@ -164,8 +185,9 @@ export async function runAllCareSiteIngestJob(input: {
   let sources: DbIntelligenceSource[] = [];
   let logoDiscovered = false;
 
-  if (!dry) {
-    await assertIntelligenceFactsCredibilityColumns();
+  const preflight = await checkAllCareIngestSchemaReady();
+  if (!dry && !preflight.schemaReady) {
+    throw new Error(preflight.schemaIssues.join("\n"));
   }
 
   if (dry) {
@@ -176,8 +198,23 @@ export async function runAllCareSiteIngestJob(input: {
     });
     pages = crawl.pages;
     crawlStats = { ...crawl.stats };
+    const dryUsedLiveRobots =
+      crawlStats.pagesLoadedFromStore === 0 &&
+      Boolean(crawlStats.robotsSelection);
+    const dryRobotsReview = deriveRobotsReviewSignals(
+      crawlStats.robotsSelection,
+      { usedLiveRobotsFetch: dryUsedLiveRobots },
+    );
     return {
       dryRun: true,
+      schemaReady: preflight.schemaReady,
+      schemaIssues: preflight.schemaIssues,
+      robotsOperatorNote:
+        crawlStats.robotsSelection?.rulesApproximate === true
+          ? "Robots matching used practical subset rules (not a full RFC engine)."
+          : null,
+      robotsReviewRecommended: dryRobotsReview.robotsReviewRecommended,
+      robotsReviewReason: dryRobotsReview.robotsReviewReason ?? null,
       companyProfileId: profile.id,
       pagesDiscovered: crawlStats.pagesDiscovered,
       pagesFetched: crawlStats.pagesFetched,
@@ -207,10 +244,14 @@ export async function runAllCareSiteIngestJob(input: {
       qualityPenalties: null,
       qualityConfidence: null,
       qualityWarnings: null,
+      qualityExplanation: null,
       qualityBreakdown: null,
       legacyFactsBackfilled: null,
+      legacyFactAudit: null,
     };
   }
+
+  await assertAllCareIngestSchemaCapabilities();
 
   if (!forceRecrawl) {
     const stored = await listIntelligenceSourcesByCompanyProfile(profile.id);
@@ -260,6 +301,19 @@ export async function runAllCareSiteIngestJob(input: {
 
   const lastScrapeAt = new Date().toISOString();
 
+  const robotsOperatorNote =
+    crawlStats.robotsSelection?.rulesApproximate === true
+      ? "Robots matching used practical subset rules (not a full RFC engine)."
+      : null;
+
+  const usedLiveRobotsFetch =
+    crawlStats.pagesLoadedFromStore === 0 &&
+    Boolean(crawlStats.robotsSelection);
+  const { robotsReviewRecommended, robotsReviewReason } =
+    deriveRobotsReviewSignals(crawlStats.robotsSelection, {
+      usedLiveRobotsFetch,
+    });
+
   const scrapeSummaryPayload = {
     pagesDiscovered: crawlStats.pagesDiscovered,
     pagesFetched: crawlStats.pagesFetched,
@@ -270,6 +324,9 @@ export async function runAllCareSiteIngestJob(input: {
     pagesPersisted: pages.length,
     logoDiscovered,
     robots: crawlStats.robotsSelection ?? null,
+    robots_operator_note: robotsOperatorNote,
+    robots_review_recommended: robotsReviewRecommended,
+    robots_review_reason: robotsReviewReason ?? null,
     at: lastScrapeAt,
   };
 
@@ -336,9 +393,12 @@ export async function runAllCareSiteIngestJob(input: {
   }
 
   let legacyFactsBackfilled: number | null = null;
+  let legacyFactAudit: LegacyFactAuditSummary | null = null;
   if (input.runBackfill) {
-    const bf = await backfillLegacyFactCredibilityForCompanyProfile(profile.id);
-    legacyFactsBackfilled = bf.updated;
+    const mode: LegacyFactBackfillMode = input.backfillMode ?? "fill-missing";
+    legacyFactAudit = await runLegacyFactMetadataPass(profile.id, mode);
+    legacyFactsBackfilled =
+      legacyFactAudit.filledMissing + legacyFactAudit.correctedValues;
   }
 
   const factAgg = await aggregateFactQualityForProfile(profile.id);
@@ -350,6 +410,7 @@ export async function runAllCareSiteIngestJob(input: {
     breakdown,
     penalties,
     warnings: qualityWarnings,
+    qualityExplanation,
   } = computeAllCareIngestQuality({
     crawlStats,
     pagesStored: pages.length,
@@ -368,6 +429,14 @@ export async function runAllCareSiteIngestJob(input: {
       accepted: c.accepted,
     })) ?? null;
 
+  const vendorRecommendedMeta =
+    vendorResolution.recommendedCandidates?.slice(0, 3).map((c) => ({
+      vendor_id: c.vendorId,
+      vendor_name: c.vendorName,
+      score: c.score,
+      score_breakdown: c.scoreBreakdown,
+    })) ?? null;
+
   await mergeCompanyProfileBrandingMeta({
     id: profile.id,
     patch: {
@@ -383,17 +452,27 @@ export async function runAllCareSiteIngestJob(input: {
         match_type: vendorResolution.matchType,
         candidate_count: vendorResolution.candidateCount,
         notes: vendorResolution.notes ?? null,
+        operator_guidance: vendorResolution.operatorGuidance ?? null,
+        recommended_action: vendorResolution.recommendedAction ?? null,
+        recommended_candidates: vendorRecommendedMeta,
         candidates: vendorCandidatesMeta,
       },
       allcare_ingest_quality: {
         qualityScore,
         qualityBand,
         confidence: qualityConfidence,
+        qualityExplanation,
         breakdown,
         penalties,
         warnings: qualityWarnings,
         at: lastScrapeAt,
       },
+      ...(legacyFactAudit
+        ? {
+            allcare_last_fact_audit:
+              trimLegacyFactAuditForBrandingMeta(legacyFactAudit),
+          }
+        : {}),
     },
   });
 
@@ -425,7 +504,14 @@ export async function runAllCareSiteIngestJob(input: {
     qualityPenalties: penalties,
     qualityConfidence,
     qualityWarnings,
+    qualityExplanation,
+    schemaReady: true,
+    schemaIssues: [],
+    robotsOperatorNote,
+    robotsReviewRecommended,
+    robotsReviewReason: robotsReviewReason ?? null,
     qualityBreakdown: breakdown,
     legacyFactsBackfilled,
+    legacyFactAudit,
   };
 }

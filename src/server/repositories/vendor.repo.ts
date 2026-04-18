@@ -206,6 +206,19 @@ export async function vendorClaimExistsForSourceAndText(input: {
   return (r.rowCount ?? 0) > 0;
 }
 
+export type VendorLinkRecommendedAction =
+  | "link_existing_vendor"
+  | "create_vendor_record"
+  | "review_candidates"
+  | "none";
+
+export type VendorRecommendedCandidate = {
+  vendorId: string;
+  vendorName: string;
+  score: number;
+  scoreBreakdown: VendorMatchCandidate["scoreBreakdown"];
+};
+
 export type VendorResolution = {
   vendorId: string | null;
   confidence: "high" | "medium" | "low" | "none";
@@ -213,7 +226,116 @@ export type VendorResolution = {
   candidateCount: number;
   candidates?: VendorMatchCandidate[];
   notes?: string;
+  /** Actionable guidance when match is not a confident link. */
+  operatorGuidance?: string;
+  /** Structured next step when vendorId is not confidently resolved. */
+  recommendedAction?: VendorLinkRecommendedAction;
+  recommendedCandidates?: VendorRecommendedCandidate[];
 };
+
+function toRecommendedCandidate(c: VendorMatchCandidate): VendorRecommendedCandidate {
+  return {
+    vendorId: c.vendorId,
+    vendorName: c.vendorName,
+    score: c.score,
+    scoreBreakdown: c.scoreBreakdown,
+  };
+}
+
+function withVendorLinkRecommendation(res: VendorResolution): VendorResolution {
+  if (res.matchType === "linked" || res.matchType === "exact") {
+    return { ...res, recommendedAction: "none" };
+  }
+
+  if (res.matchType === "ambiguous") {
+    const top = res.candidates?.slice(0, 3).map(toRecommendedCandidate) ?? [];
+    return {
+      ...res,
+      recommendedAction: "review_candidates",
+      recommendedCandidates: top,
+    };
+  }
+
+  if (res.matchType === "fuzzy" && res.vendorId && res.confidence === "medium") {
+    const accepted = res.candidates?.filter((c) => c.accepted) ?? [];
+    const top =
+      accepted.length > 0
+        ? accepted.slice(0, 1).map(toRecommendedCandidate)
+        : (res.candidates?.slice(0, 1).map(toRecommendedCandidate) ?? []);
+    return {
+      ...res,
+      recommendedAction: "link_existing_vendor",
+      recommendedCandidates: top,
+    };
+  }
+
+  if (res.matchType === "fuzzy") {
+    const top = res.candidates?.slice(0, 3).map(toRecommendedCandidate) ?? [];
+    return {
+      ...res,
+      recommendedAction: top.length > 0 ? "review_candidates" : "create_vendor_record",
+      recommendedCandidates: top,
+    };
+  }
+
+  if (res.matchType === "none" || res.confidence === "none") {
+    const top = res.candidates?.slice(0, 3).map(toRecommendedCandidate) ?? [];
+    if (top.length > 0) {
+      return {
+        ...res,
+        recommendedAction: "review_candidates",
+        recommendedCandidates: top,
+      };
+    }
+    return {
+      ...res,
+      recommendedAction: "create_vendor_record",
+      recommendedCandidates: [],
+    };
+  }
+
+  return { ...res, recommendedAction: "none" };
+}
+
+function withVendorOperatorGuidance(res: VendorResolution): VendorResolution {
+  if (res.matchType === "linked" || res.matchType === "exact") {
+    return withVendorLinkRecommendation({ ...res });
+  }
+  if (res.matchType === "fuzzy" && res.confidence === "medium") {
+    return withVendorLinkRecommendation({
+      ...res,
+      operatorGuidance:
+        "Fuzzy vendor match — confirm the record is correct for stronger bid claim reuse.",
+    });
+  }
+  const parts: string[] = [];
+  if (res.matchType === "ambiguous") {
+    parts.push(
+      "Multiple candidate vendor names were too close to auto-resolve.",
+    );
+    parts.push(
+      "Link the AllCare company profile to the correct vendor record to enable claim promotion.",
+    );
+  } else if (res.notes?.includes("No vendors in project")) {
+    parts.push(
+      "Create or confirm a project vendor record for AllCare Pharmacy before expecting vendor_claim promotion.",
+    );
+  } else if (res.matchType === "none" || res.confidence === "none") {
+    parts.push(
+      "Link the AllCare company profile to the correct vendor record to enable claim promotion.",
+    );
+    if (!res.notes?.includes("No vendors in project")) {
+      parts.push(
+        "Create or confirm a project vendor record for AllCare Pharmacy if one does not exist yet.",
+      );
+    }
+  }
+  const operatorGuidance = [...new Set(parts)].filter(Boolean).join(" ");
+  return withVendorLinkRecommendation({
+    ...res,
+    operatorGuidance: operatorGuidance || undefined,
+  });
+}
 
 export type { VendorMatchCandidate };
 
@@ -230,23 +352,23 @@ export async function resolveVendorWithConfidence(input: {
   pagesIngested?: number;
 }): Promise<VendorResolution> {
   if (input.linkedVendorId?.trim()) {
-    return {
+    return withVendorOperatorGuidance({
       vendorId: input.linkedVendorId.trim(),
       confidence: "high",
       matchType: "linked",
       candidateCount: 1,
-    };
+    });
   }
 
   const vendors = await listVendorsByProject(input.projectId);
   if (vendors.length === 0) {
-    return {
+    return withVendorOperatorGuidance({
       vendorId: null,
       confidence: "none",
       matchType: "none",
       candidateCount: 0,
       notes: "No vendors in project.",
-    };
+    });
   }
 
   const profileKeys = [
@@ -261,12 +383,12 @@ export async function resolveVendorWithConfidence(input: {
     const vn = normalizeForMatch(v.name);
     for (const pk of profileKeys) {
       if (pk.length > 0 && vn === pk) {
-        return {
+        return withVendorOperatorGuidance({
           vendorId: v.id,
           confidence: "high",
           matchType: "exact",
           candidateCount: 1,
-        };
+        });
       }
     }
   }
@@ -278,14 +400,14 @@ export async function resolveVendorWithConfidence(input: {
     pagesIngested: input.pagesIngested,
   });
 
-  return {
+  return withVendorOperatorGuidance({
     vendorId: fuzzy.vendorId,
     confidence: fuzzy.confidence,
     matchType: fuzzy.matchType,
     candidateCount: fuzzy.candidateCount,
     notes: fuzzy.notes,
     candidates: fuzzy.candidates,
-  };
+  });
 }
 
 /** @deprecated Prefer resolveVendorWithConfidence for judgment metadata. */

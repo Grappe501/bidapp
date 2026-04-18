@@ -20,6 +20,8 @@ export type IngestQualityResult = {
   qualityBand: IngestQualityBand;
   /** How much to trust the numeric score under current data conditions. */
   confidence: IngestQualityConfidence;
+  /** One or two sentences summarizing why the band/score looks the way it does. */
+  qualityExplanation: string;
   breakdown: IngestQualityBreakdown;
   penalties: string[];
   /** User-facing caveats (subset overlaps penalties; tuned for honesty). */
@@ -65,6 +67,38 @@ function uniqWarn(items: string[]): string[] {
     out.push(k);
   }
   return out;
+}
+
+function buildQualityExplanation(input: {
+  band: IngestQualityBand;
+  sparseData: boolean;
+  vendorUnresolved: boolean;
+  parseStress: boolean;
+  lowVolume: boolean;
+  marketingHeavy: boolean;
+  missingHeavy: boolean;
+  thinOperational: boolean;
+}): string {
+  const drivers: string[] = [];
+  if (input.sparseData) drivers.push("sparse crawl coverage");
+  if (input.vendorUnresolved) drivers.push("unresolved vendor linkage");
+  if (input.parseStress) drivers.push("partial AI parse failures");
+  if (input.lowVolume) drivers.push("low page or fact volume");
+  if (input.missingHeavy) drivers.push("missing credibility metadata on several facts");
+  if (input.marketingHeavy) drivers.push("a high share of marketing-class facts");
+  if (input.thinOperational) drivers.push("limited operational fact density");
+
+  const label =
+    input.band === "strong"
+      ? "Ingest quality is Strong"
+      : input.band === "moderate"
+        ? "Quality is capped at Moderate"
+        : "Quality is Weak";
+
+  if (drivers.length === 0) {
+    return `${label} — scoring did not hit major caps.`;
+  }
+  return `${label}, mainly due to ${drivers.slice(0, 3).join(", ")}.`;
 }
 
 function deriveResultConfidence(input: {
@@ -249,10 +283,30 @@ export function computeAllCareIngestQuality(input: {
     parseStress,
   });
 
+  const marketingHeavy =
+    marketingRatio > 0.32 && input.factAgg.marketing >= 3;
+  const missingHeavy = missingRatio > 0.22;
+  const thinOperational =
+    input.factAgg.total >= 4 &&
+    input.factAgg.operationalHigh + input.factAgg.operationalMedium <
+      Math.min(3, Math.max(1, Math.ceil(input.factAgg.total / 5)));
+
+  const qualityExplanation = buildQualityExplanation({
+    band: qualityBand,
+    sparseData,
+    vendorUnresolved,
+    parseStress,
+    lowVolume,
+    marketingHeavy,
+    missingHeavy,
+    thinOperational,
+  });
+
   return {
     qualityScore,
     qualityBand,
     confidence,
+    qualityExplanation,
     breakdown: {
       coverage,
       parsing,

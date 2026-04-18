@@ -124,6 +124,18 @@ export function GroundingBundlePreview({
                   · {payload.factSelectionDetail.includedFallbackCount} fallback-tier
                 </>
               ) : null}
+              {(payload.factSelectionDetail.droppedUnknownCount ?? 0) > 0 ? (
+                <>
+                  {" "}
+                  · {payload.factSelectionDetail.droppedUnknownCount} unknown-metadata
+                  fact(s) withheld
+                </>
+              ) : null}
+            </p>
+          ) : null}
+          {payload.bundleQualityNote || payload.factSelectionDetail?.bundleQualityNote ? (
+            <p className="mt-1 text-[10px] leading-snug text-amber-900/85">
+              {payload.bundleQualityNote ?? payload.factSelectionDetail?.bundleQualityNote}
             </p>
           ) : null}
         </div>

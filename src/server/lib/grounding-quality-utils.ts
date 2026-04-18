@@ -15,7 +15,11 @@ export type FactSelectionSummaryDetail = {
   includedFallbackCount: number;
   includedUnknownCount: number;
   droppedWeakCount: number;
+  /** Withheld unknown-metadata facts (see droppedFactCounts.excludedUnknown). */
+  droppedUnknownCount: number;
   bundleQuality: "strong" | "moderate" | "weak";
+  /** Short operator-facing note when fallback or unknown facts matter. */
+  bundleQualityNote?: string;
 };
 
 export type VendorFactSelectionResult = {
@@ -212,12 +216,29 @@ export function selectVendorFactsForGroundingBundle(
     bundleQuality = "strong";
   }
 
+  const droppedUnknownCount = dropped.excludedUnknown;
+
+  const bundleQualityNotes: string[] = [];
+  if (includedUnknownCount > 0) {
+    bundleQualityNotes.push(
+      "Unknown-quality facts were included sparingly — treat them as provisional.",
+    );
+  }
+  if (includedFallbackCount > 0 && bundleQuality !== "strong") {
+    bundleQualityNotes.push(
+      "This bundle includes fallback facts due to sparse stronger support.",
+    );
+  }
+
   const factSelectionDetail: FactSelectionSummaryDetail = {
     includedStrongCount,
     includedFallbackCount,
     includedUnknownCount,
     droppedWeakCount,
+    droppedUnknownCount,
     bundleQuality,
+    bundleQualityNote:
+      bundleQualityNotes.length > 0 ? bundleQualityNotes.join(" ") : undefined,
   };
 
   const weakFactIncludedCount = selected.filter((f) => {

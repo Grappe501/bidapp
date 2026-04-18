@@ -2,6 +2,7 @@ import type { Handler } from "@netlify/functions";
 import {
   loadAllCareBrandingWithStatsForProject,
   loadBrandingProfileWithStats,
+  type GetBrandingProfileResponseBody,
 } from "../../src/server/services/branding.service";
 import {
   jsonResponse,
@@ -21,9 +22,9 @@ export const handler: Handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return jsonResponse(405, { error: "Method not allowed" });
   }
-  const body = readJson<Body>(event.body);
-  const cid = body?.companyProfileId?.trim();
-  const pid = body?.projectId?.trim();
+  const req = readJson<Body>(event.body);
+  const cid = req?.companyProfileId?.trim();
+  const pid = req?.projectId?.trim();
   if (!cid && !pid) {
     return jsonResponse(400, {
       error: "projectId or companyProfileId required",
@@ -35,11 +36,12 @@ export const handler: Handler = async (event) => {
       if (!branding) {
         return jsonResponse(404, { error: "Company profile not found" });
       }
-      return jsonResponse(200, { branding });
+      const responseBody: GetBrandingProfileResponseBody = { branding };
+      return jsonResponse(200, responseBody);
     }
     const branding = await loadAllCareBrandingWithStatsForProject(
       pid!,
-      Boolean(body?.ensureProfile),
+      Boolean(req?.ensureProfile),
     );
     if (!branding) {
       return jsonResponse(404, {
@@ -47,7 +49,8 @@ export const handler: Handler = async (event) => {
           "AllCare client profile not found for project; pass ensureProfile: true to create it",
       });
     }
-    return jsonResponse(200, { branding });
+    const responseBody: GetBrandingProfileResponseBody = { branding };
+    return jsonResponse(200, responseBody);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
     return jsonResponse(500, { error: message });

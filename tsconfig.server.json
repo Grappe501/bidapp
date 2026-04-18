@@ -17,5 +17,10 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src/server/**/*.ts", "netlify/functions/**/*.ts", "scripts/**/*.ts"]
+  "include": [
+    "src/server/**/*.ts",
+    "src/lib/allcare-branding-next-actions.ts",
+    "netlify/functions/**/*.ts",
+    "scripts/**/*.ts"
+  ]
 }

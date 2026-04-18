@@ -176,6 +176,7 @@ export async function buildAndStoreGroundingBundle(input: {
   }));
   base.factSelectionSummary = selection.factSelectionSummaryText;
   base.factSelectionDetail = selection.factSelectionDetail;
+  base.bundleQualityNote = selection.factSelectionDetail.bundleQualityNote;
   base.droppedFactCounts = selection.droppedFactCounts;
   base.weakFactIncludedCount = selection.weakFactIncludedCount;
 

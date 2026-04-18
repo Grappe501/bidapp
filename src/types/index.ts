@@ -666,8 +666,12 @@ export type GroundingBundlePayload = {
     includedFallbackCount: number;
     includedUnknownCount: number;
     droppedWeakCount: number;
+    droppedUnknownCount?: number;
     bundleQuality: "strong" | "moderate" | "weak";
+    bundleQualityNote?: string;
   };
+  /** Duplicated from factSelectionDetail for older readers / quick display. */
+  bundleQualityNote?: string;
   /** Counts of facts withheld by grounding quality rules (if computed). */
   droppedFactCounts?: {
     excludedMarketingLow: number;

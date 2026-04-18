@@ -3,9 +3,14 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import {
+  deriveAllCareBrandingNextActions,
+  type VendorLinkRecommendedAction,
+} from "@/lib/allcare-branding-next-actions";
+import {
   isFunctionsApiConfigured,
   postGetBrandingProfile,
   postScrapeAllCareSite,
+  type AllCareLegacyFactBackfillMode,
   type AllCareScrapeRunApi,
   type BrandingProfileApi,
 } from "@/lib/functions-api";
@@ -25,6 +30,23 @@ function labelCase(s: string | null | undefined): string {
   return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
 }
 
+function labelRecommendedAction(
+  a: VendorLinkRecommendedAction | null | undefined,
+): string {
+  switch (a) {
+    case "link_existing_vendor":
+      return "Link existing vendor";
+    case "create_vendor_record":
+      return "Create vendor record";
+    case "review_candidates":
+      return "Review candidates";
+    case "none":
+      return "None";
+    default:
+      return "—";
+  }
+}
+
 export function AllCareBrandingPanel() {
   const [projectId, setProjectId] = useState(
     () => import.meta.env.VITE_DEFAULT_PROJECT_ID ?? "",
@@ -38,6 +60,8 @@ export function AllCareBrandingPanel() {
   const [maxPages, setMaxPages] = useState("");
   const [maxDepth, setMaxDepth] = useState("");
   const [runBackfill, setRunBackfill] = useState(false);
+  const [backfillMode, setBackfillMode] =
+    useState<AllCareLegacyFactBackfillMode>("fill-missing");
 
   const configured = isFunctionsApiConfigured();
 
@@ -155,13 +179,37 @@ export function AllCareBrandingPanel() {
             disabled={busy}
           />
           <span>
-            <span className="font-medium text-ink">Backfill legacy fact metadata</span>
+            <span className="font-medium text-ink">Legacy fact metadata pass</span>
             <span className="mt-0.5 block text-ink-muted">
-              Fills empty credibility/confidence on older intelligence facts for
-              this client profile (conservative defaults; idempotent).
+              Optional. Off by default — turn on to audit or repair credibility
+              labels on stored facts (never runs unless you enable it here).
             </span>
           </span>
         </label>
+        {runBackfill ? (
+          <label className="block space-y-1.5 text-xs sm:col-span-2">
+            <span className="font-medium text-ink-muted">Backfill mode</span>
+            <select
+              className="w-full max-w-md rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-ink"
+              value={backfillMode}
+              onChange={(e) =>
+                setBackfillMode(e.target.value as AllCareLegacyFactBackfillMode)
+              }
+              disabled={busy}
+            >
+              <option value="fill-missing">
+                Fill missing only (safest — empty fields)
+              </option>
+              <option value="audit-only">Audit only (no writes)</option>
+              <option value="safe-correct">
+                Safe correct (fill missing + narrow fixes)
+              </option>
+              <option value="moderate-correct">
+                Moderate correct (opt-in — extra likely fixes; audit first)
+              </option>
+            </select>
+          </label>
+        ) : null}
         <label className="block space-y-1.5 text-xs">
           <span className="font-medium text-ink-muted">Max pages (optional)</span>
           <Input
@@ -198,6 +246,7 @@ export function AllCareBrandingPanel() {
                 maxPages: parseOptInt(maxPages),
                 maxDepth: parseOptInt(maxDepth),
                 runBackfill,
+                backfillMode: runBackfill ? backfillMode : undefined,
               });
               setLastRun(r);
               const warn =
@@ -242,6 +291,12 @@ export function AllCareBrandingPanel() {
           <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-muted">
             Last run
           </p>
+          {lastRun.schemaReady === false ? (
+            <p className="mt-2 rounded border border-amber-200/80 bg-amber-50/80 px-2 py-1.5 text-[0.7rem] text-amber-950">
+              Schema preflight: issues reported — apply DB migrations before relying
+              on ingest.
+            </p>
+          ) : null}
           <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
             <div className="flex justify-between gap-2">
               <dt>Discovered / fetched</dt>
@@ -296,6 +351,62 @@ export function AllCareBrandingPanel() {
                 </dd>
               </div>
             ) : null}
+            {lastRun.qualityExplanation ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Quality summary</dt>
+                <dd className="mt-0.5 text-ink">{lastRun.qualityExplanation}</dd>
+              </div>
+            ) : null}
+            {lastRun.robotsOperatorNote ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Robots</dt>
+                <dd className="mt-0.5 text-ink">{lastRun.robotsOperatorNote}</dd>
+              </div>
+            ) : null}
+            {lastRun.robotsReviewRecommended ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Robots review</dt>
+                <dd className="mt-0.5 text-amber-950/90">
+                  {lastRun.robotsReviewReason?.trim() ||
+                    "Practical robots matching — manual review recommended."}
+                </dd>
+              </div>
+            ) : null}
+            {lastRun.legacyFactAudit ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Legacy fact pass</dt>
+                <dd className="mt-0.5 text-ink">
+                  {lastRun.legacyFactAudit.mode}: examined{" "}
+                  {lastRun.legacyFactAudit.examined}, filled{" "}
+                  {lastRun.legacyFactAudit.filledMissing}, corrected{" "}
+                  {lastRun.legacyFactAudit.correctedValues}
+                  {lastRun.legacyFactAudit.correctedSafeCount != null ||
+                  lastRun.legacyFactAudit.correctedModerateCount != null ? (
+                    <>
+                      {" "}
+                      (safe{" "}
+                      {lastRun.legacyFactAudit.correctedSafeCount ?? "—"}, mod{" "}
+                      {lastRun.legacyFactAudit.correctedModerateCount ?? "—"})
+                    </>
+                  ) : null}
+                  , ambiguous skipped{" "}
+                  {lastRun.legacyFactAudit.skippedAmbiguous}
+                  {lastRun.legacyFactAudit.wouldFillMissing != null ? (
+                    <>
+                      {" "}
+                      (would fill {lastRun.legacyFactAudit.wouldFillMissing})
+                    </>
+                  ) : null}
+                  {(lastRun.legacyFactAudit.skippedAmbiguousExamples?.length ??
+                    0) > 0 ? (
+                    <span className="mt-1 block text-[0.65rem] text-amber-950/85">
+                      Some ambiguous rows were skipped — review examples in
+                      branding when loaded.
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
             {lastRun.legacyFactsBackfilled != null &&
             lastRun.legacyFactsBackfilled > 0 ? (
               <div className="flex justify-between gap-2 sm:col-span-2">
@@ -315,6 +426,30 @@ export function AllCareBrandingPanel() {
 
       {branding ? (
         <div className="space-y-4 border-t border-zinc-200/80 pt-4">
+          {(() => {
+            const nextActions = deriveAllCareBrandingNextActions({
+              robotsReviewRecommended: branding.robotsReviewRecommended ?? false,
+              vendorRecommendedAction: branding.vendorRecommendedAction ?? null,
+              vendorMatchType: branding.vendorMatchType,
+              vendorMatchConfidence: branding.vendorMatchConfidence,
+              lastFactAudit: branding.lastFactAudit,
+              ingestQualityWarnings: branding.ingestQualityWarnings,
+              ingestQualityBand: branding.ingestQualityBand,
+            });
+            return nextActions.length > 0 ? (
+              <div className="rounded-lg border border-emerald-800/15 bg-emerald-50/50 px-3 py-2.5">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-950/80">
+                  What to do next
+                </p>
+                <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-[0.7rem] text-ink-muted">
+                  {nextActions.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null;
+          })()}
+
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
             {branding.logoUrl ? (
               <div className="shrink-0 overflow-hidden rounded-lg border border-zinc-200/90 bg-white p-3 shadow-sm">
@@ -407,6 +542,68 @@ export function AllCareBrandingPanel() {
                 <p className="mt-1 text-[0.65rem] text-ink-subtle">
                   Resolution: {branding.vendorResolutionNotes}
                 </p>
+              ) : null}
+              {branding.robotsReviewRecommended ? (
+                <p className="mt-2 rounded border border-amber-200/70 bg-amber-50/60 px-2 py-1.5 text-[0.65rem] leading-snug text-amber-950/90">
+                  Robots rules were interpreted using practical matching; review
+                  recommended
+                  {branding.robotsReviewReason
+                    ? `: ${branding.robotsReviewReason}`
+                    : "."}
+                </p>
+              ) : null}
+              {branding.vendorOperatorGuidance?.trim() ||
+              (branding.vendorRecommendedAction &&
+                branding.vendorRecommendedAction !== "none") ||
+              (branding.vendorRecommendedCandidates?.length ?? 0) > 0 ||
+              branding.vendorMatchType === "ambiguous" ||
+              branding.vendorMatchType === "none" ? (
+                <div className="mt-2 rounded-md border border-zinc-200/90 bg-white/80 px-2.5 py-2 text-[0.65rem] text-ink-muted shadow-sm">
+                  <p className="font-semibold text-ink">Vendor resolution</p>
+                  <p className="mt-1">
+                    Match: {labelCase(branding.vendorMatchType)} · confidence{" "}
+                    {labelCase(branding.vendorMatchConfidence)}
+                  </p>
+                  <p className="mt-0.5">
+                    Recommended:{" "}
+                    <span className="font-medium text-ink">
+                      {labelRecommendedAction(branding.vendorRecommendedAction)}
+                    </span>
+                  </p>
+                  {branding.vendorOperatorGuidance ? (
+                    <p className="mt-1 text-ink-subtle">
+                      {branding.vendorOperatorGuidance}
+                    </p>
+                  ) : null}
+                  {(branding.vendorRecommendedCandidates?.length ?? 0) > 0 ? (
+                    <p className="mt-1 text-ink-subtle">
+                      Top candidates:{" "}
+                      {branding.vendorRecommendedCandidates
+                        .slice(0, 3)
+                        .map((c) => c.vendorName)
+                        .join(", ")}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {branding.lastFactAudit ? (
+                <div className="mt-2 rounded-md border border-zinc-200/80 bg-zinc-50/50 px-2.5 py-2 text-[0.65rem] text-ink-muted">
+                  <p className="font-semibold text-ink">Legacy fact audit</p>
+                  <p className="mt-1">
+                    Mode {branding.lastFactAudit.mode} · corrected{" "}
+                    {branding.lastFactAudit.correctedValues}
+                    {branding.lastFactAudit.skippedAmbiguous
+                      ? ` · skipped ambiguous ${branding.lastFactAudit.skippedAmbiguous}`
+                      : ""}
+                  </p>
+                  {(branding.lastFactAudit.skippedAmbiguousExamples?.length ??
+                    0) > 0 ? (
+                    <p className="mt-1 text-amber-950/85">
+                      Ambiguous examples on file — review recommended (see
+                      metadata if needed).
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
               <p className="mt-1 leading-relaxed text-ink-muted">
                 {branding.subtitle || branding.summary || "—"}

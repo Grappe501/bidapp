@@ -16,8 +16,16 @@ type Body = {
   forceRecrawl?: boolean;
   maxPages?: number;
   maxDepth?: number;
-  /** Backfill empty credibility/confidence on legacy intelligence_facts for this profile. */
+  /**
+   * When true, runs legacy fact metadata pass (see backfillMode).
+   * Default false — no extra fact-row writes beyond normal ingest.
+   */
   runBackfill?: boolean;
+  backfillMode?:
+    | "fill-missing"
+    | "audit-only"
+    | "safe-correct"
+    | "moderate-correct";
 };
 
 export const handler: Handler = async (event) => {
@@ -40,6 +48,7 @@ export const handler: Handler = async (event) => {
       maxPages: body.maxPages,
       maxDepth: body.maxDepth,
       runBackfill: Boolean(body.runBackfill),
+      backfillMode: body.backfillMode,
     });
     return jsonResponse(200, {
       ...result,

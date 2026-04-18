@@ -8,7 +8,14 @@ import {
   maxFetchedAtWebsiteScrapesForProfile,
   type DbCompanyProfile,
 } from "../repositories/intelligence.repo";
+import type {
+  VendorLinkRecommendedAction,
+  VendorRecommendedCandidate,
+} from "../repositories/vendor.repo";
+import type { SkippedAmbiguousExample } from "../lib/legacy-fact-audit-utils";
 import { ensureAllCareCompanyProfile } from "./allcare-ingest.job";
+
+export { deriveAllCareBrandingNextActions } from "../../lib/allcare-branding-next-actions";
 
 export type BrandingProfileStats = {
   websiteScrapePages: number;
@@ -39,6 +46,22 @@ export type AllCareIngestQualityBreakdown = {
   brandingConfidence: number;
 };
 
+export type BrandingLastFactAudit = {
+  examined: number;
+  filledMissing: number;
+  correctedValues: number;
+  correctedSafeCount?: number;
+  correctedModerateCount?: number;
+  skippedAmbiguous: number;
+  skippedAmbiguousExamples?: SkippedAmbiguousExample[];
+  mode: string;
+  at: string;
+  wouldFillMissing?: number;
+  wouldCorrect?: number;
+  wouldCorrectSafe?: number;
+  wouldCorrectModerate?: number;
+};
+
 export type BrandingProfilePayload = {
   companyProfileId: string;
   projectId: string;
@@ -56,6 +79,10 @@ export type BrandingProfilePayload = {
   ingestQualityBand: "strong" | "moderate" | "weak" | null;
   /** Trust in the score itself (sparse crawl, vendor ambiguity, parse stress). */
   ingestQualityConfidence: "high" | "medium" | "low" | null;
+  /** Why the ingest quality score looks the way it does (one or two sentences). */
+  ingestQualityExplanation: string | null;
+  /** Stable alias for API consumers (same value as ingestQualityExplanation). */
+  qualityExplanation: string | null;
   ingestQualityWarnings: string[];
   ingestQualityPenalties: string[];
   ingestQualityBreakdown: AllCareIngestQualityBreakdown | null;
@@ -67,7 +94,19 @@ export type BrandingProfilePayload = {
   vendorMatchConfidence: string | null;
   vendorMatchType: string | null;
   vendorResolutionNotes: string | null;
+  /** Next-step guidance when vendor match is fuzzy, ambiguous, or missing. */
+  vendorOperatorGuidance: string | null;
   vendorResolutionCandidateCount: number | null;
+  /** Last crawl robots observability (subset matching). */
+  robotsOperatorNote: string | null;
+  /** When true, operators should sanity-check robots.txt interpretation. */
+  robotsReviewRecommended: boolean;
+  robotsReviewReason: string | null;
+  /** Structured vendor next step (persisted from last ingest). */
+  vendorRecommendedAction: VendorLinkRecommendedAction | null;
+  vendorRecommendedCandidates: VendorRecommendedCandidate[];
+  /** Result of the last legacy fact audit/backfill run, if any. */
+  lastFactAudit: BrandingLastFactAudit | null;
   subtitle: string;
   /** Same as aiTags; kept for older clients. */
   brandingTags: string[];
@@ -89,6 +128,11 @@ export type BrandingProfilePayload = {
 
 export type BrandingProfileWithStats = BrandingProfilePayload & {
   stats: BrandingScrapeStats;
+};
+
+/** Explicit Netlify `get-branding-profile` success body (API contract). */
+export type GetBrandingProfileResponseBody = {
+  branding: BrandingProfileWithStats;
 };
 
 function uniqKeepOrder(items: string[]): string[] {
@@ -163,6 +207,7 @@ function readIngestQualityFromMeta(meta: Record<string, unknown>): {
   score: number | null;
   band: "strong" | "moderate" | "weak" | null;
   confidence: "high" | "medium" | "low" | null;
+  qualityExplanation: string | null;
   warnings: string[];
   penalties: string[];
   breakdown: AllCareIngestQualityBreakdown | null;
@@ -173,6 +218,7 @@ function readIngestQualityFromMeta(meta: Record<string, unknown>): {
       score: null,
       band: null,
       confidence: null,
+      qualityExplanation: null,
       warnings: [],
       penalties: [],
       breakdown: null,
@@ -195,6 +241,9 @@ function readIngestQualityFromMeta(meta: Record<string, unknown>): {
     confRaw === "high" || confRaw === "medium" || confRaw === "low"
       ? confRaw
       : null;
+  const qe = o.qualityExplanation;
+  const qualityExplanation =
+    typeof qe === "string" && qe.trim() ? qe.trim() : null;
   if (band == null && score != null) {
     if (score >= 72) band = "strong";
     else if (score >= 46) band = "moderate";
@@ -202,7 +251,15 @@ function readIngestQualityFromMeta(meta: Record<string, unknown>): {
   }
   const b = o.breakdown;
   if (b == null || typeof b !== "object" || Array.isArray(b)) {
-    return { score, band, confidence, warnings, penalties, breakdown: null };
+    return {
+      score,
+      band,
+      confidence,
+      qualityExplanation,
+      warnings,
+      penalties,
+      breakdown: null,
+    };
   }
   const bd = b as Record<string, unknown>;
   const n = (k: string): number => {
@@ -214,6 +271,7 @@ function readIngestQualityFromMeta(meta: Record<string, unknown>): {
     score,
     band,
     confidence,
+    qualityExplanation,
     warnings,
     penalties,
     breakdown: {
@@ -260,11 +318,58 @@ function deriveTrustHint(input: {
   return parts.join(" ");
 }
 
+const VENDOR_RECOMMENDED_ACTIONS = new Set<VendorLinkRecommendedAction>([
+  "link_existing_vendor",
+  "create_vendor_record",
+  "review_candidates",
+  "none",
+]);
+
+function parseVendorRecommendedCandidates(
+  raw: unknown,
+): VendorRecommendedCandidate[] {
+  if (!Array.isArray(raw)) return [];
+  const out: VendorRecommendedCandidate[] = [];
+  for (const item of raw.slice(0, 3)) {
+    if (typeof item !== "object" || item === null) continue;
+    const x = item as Record<string, unknown>;
+    const id = String(x.vendor_id ?? x.vendorId ?? "").trim();
+    const name = String(x.vendor_name ?? x.vendorName ?? "").trim();
+    if (!id || !name) continue;
+    const score = typeof x.score === "number" && !Number.isNaN(x.score) ? x.score : 0;
+    const sb = (x.score_breakdown ?? x.scoreBreakdown) as Record<
+      string,
+      unknown
+    > | null;
+    if (!sb || typeof sb !== "object") continue;
+    const num = (k: string): number => {
+      const z = sb[k];
+      return typeof z === "number" && !Number.isNaN(z) ? z : 0;
+    };
+    out.push({
+      vendorId: id,
+      vendorName: name,
+      score,
+      scoreBreakdown: {
+        similarity: num("similarity"),
+        nameSignalBonus: num("nameSignalBonus"),
+        shortNamePenalty: num("shortNamePenalty"),
+        missingPharmacySignalPenalty: num("missingPharmacySignalPenalty"),
+        nearDuplicatePenalty: num("nearDuplicatePenalty"),
+      },
+    });
+  }
+  return out;
+}
+
 function readVendorResolutionFromMeta(meta: Record<string, unknown>): {
   confidence: string | null;
   matchType: string | null;
   candidateCount: number | null;
   notes: string | null;
+  operatorGuidance: string | null;
+  recommendedAction: VendorLinkRecommendedAction | null;
+  recommendedCandidates: VendorRecommendedCandidate[];
 } {
   const v = meta.allcare_last_vendor_resolution;
   if (v == null || typeof v !== "object" || Array.isArray(v)) {
@@ -273,10 +378,21 @@ function readVendorResolutionFromMeta(meta: Record<string, unknown>): {
       matchType: null,
       candidateCount: null,
       notes: null,
+      operatorGuidance: null,
+      recommendedAction: null,
+      recommendedCandidates: [],
     };
   }
   const o = v as Record<string, unknown>;
   const cc = o.candidate_count;
+  const og = o.operator_guidance;
+  const ra = o.recommended_action;
+  const actionRaw =
+    typeof ra === "string" && ra.trim() ? ra.trim() : "";
+  const recommendedAction =
+    actionRaw && VENDOR_RECOMMENDED_ACTIONS.has(actionRaw as VendorLinkRecommendedAction)
+      ? (actionRaw as VendorLinkRecommendedAction)
+      : null;
   return {
     confidence:
       typeof o.confidence === "string" && o.confidence.trim()
@@ -290,6 +406,107 @@ function readVendorResolutionFromMeta(meta: Record<string, unknown>): {
       typeof cc === "number" && Number.isFinite(cc) ? Math.round(cc) : null,
     notes:
       typeof o.notes === "string" && o.notes.trim() ? o.notes.trim() : null,
+    operatorGuidance:
+      typeof og === "string" && og.trim() ? og.trim() : null,
+    recommendedAction,
+    recommendedCandidates: parseVendorRecommendedCandidates(
+      o.recommended_candidates,
+    ),
+  };
+}
+
+function parseSkippedAmbiguousExamples(
+  raw: unknown,
+): SkippedAmbiguousExample[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SkippedAmbiguousExample[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const x = item as Record<string, unknown>;
+    const factId = String(x.factId ?? x.fact_id ?? "").trim();
+    if (!factId) continue;
+    out.push({
+      factId,
+      factType: String(x.factType ?? x.fact_type ?? ""),
+      factTextPreview: String(x.factTextPreview ?? x.fact_text_preview ?? ""),
+      currentCredibility: String(x.currentCredibility ?? x.current_credibility ?? ""),
+      currentConfidence: String(x.currentConfidence ?? x.current_confidence ?? ""),
+      suggestedCredibility: String(
+        x.suggestedCredibility ?? x.suggested_credibility ?? "",
+      ),
+      suggestedConfidence: String(
+        x.suggestedConfidence ?? x.suggested_confidence ?? "",
+      ),
+      reasonSkipped: String(x.reasonSkipped ?? x.reason_skipped ?? ""),
+    });
+  }
+  return out;
+}
+
+function readLastFactAuditFromMeta(
+  meta: Record<string, unknown>,
+): BrandingLastFactAudit | null {
+  const v = meta.allcare_last_fact_audit;
+  if (v == null || typeof v !== "object" || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const n = (k: string): number => {
+    const x = o[k];
+    return typeof x === "number" && Number.isFinite(x) ? Math.round(x) : 0;
+  };
+  const mode = String(o.mode ?? "");
+  const at = String(o.at ?? "");
+  if (!mode || !at) return null;
+  const optN = (k: string): number | undefined => {
+    const x = o[k];
+    return typeof x === "number" && Number.isFinite(x) ? Math.round(x) : undefined;
+  };
+  return {
+    examined: n("examined"),
+    filledMissing: n("filledMissing"),
+    correctedValues: n("correctedValues"),
+    correctedSafeCount: optN("correctedSafeCount"),
+    correctedModerateCount: optN("correctedModerateCount"),
+    skippedAmbiguous: n("skippedAmbiguous"),
+    skippedAmbiguousExamples: parseSkippedAmbiguousExamples(
+      o.skippedAmbiguousExamples,
+    ).slice(0, 10),
+    mode,
+    at,
+    wouldFillMissing:
+      typeof o.wouldFillMissing === "number"
+        ? Math.round(o.wouldFillMissing)
+        : undefined,
+    wouldCorrect:
+      typeof o.wouldCorrect === "number"
+        ? Math.round(o.wouldCorrect)
+        : undefined,
+    wouldCorrectSafe: optN("wouldCorrectSafe"),
+    wouldCorrectModerate: optN("wouldCorrectModerate"),
+  };
+}
+
+function readRobotsOperatorNoteFromScrapeSummary(
+  summary: Record<string, unknown> | null,
+): string | null {
+  if (!summary) return null;
+  const r = summary.robots_operator_note;
+  if (typeof r === "string" && r.trim()) return r.trim();
+  return null;
+}
+
+function readRobotsReviewFromScrapeSummary(summary: Record<string, unknown> | null): {
+  robotsReviewRecommended: boolean;
+  robotsReviewReason: string | null;
+} {
+  if (!summary) {
+    return { robotsReviewRecommended: false, robotsReviewReason: null };
+  }
+  const rec = summary.robots_review_recommended;
+  const reason = summary.robots_review_reason;
+  return {
+    robotsReviewRecommended: rec === true,
+    robotsReviewReason:
+      typeof reason === "string" && reason.trim() ? reason.trim() : null,
   };
 }
 
@@ -407,6 +624,7 @@ export async function buildBrandingPayloadFromProfile(
     score: ingestQualityScore,
     band: ingestQualityBand,
     confidence: ingestQualityConfidence,
+    qualityExplanation: ingestQualityExplanation,
     warnings: ingestQualityWarnings,
     penalties: ingestQualityPenalties,
     breakdown: ingestQualityBreakdown,
@@ -416,6 +634,9 @@ export async function buildBrandingPayloadFromProfile(
     matchType: vendorMatchType,
     candidateCount: vendorResolutionCandidateCount,
     notes: vendorResolutionNotes,
+    operatorGuidance: vendorOperatorGuidance,
+    recommendedAction: vendorRecommendedAction,
+    recommendedCandidates: vendorRecommendedCandidates,
   } = readVendorResolutionFromMeta(meta);
   const logoConfidence = readLogoConfidenceFromMeta(meta);
   const intelligenceTrustHint = deriveTrustHint({
@@ -435,6 +656,11 @@ export async function buildBrandingPayloadFromProfile(
       : null);
 
   const lastScrapeSummary = readLastScrapeSummary(meta);
+  const robotsOperatorNote =
+    readRobotsOperatorNoteFromScrapeSummary(lastScrapeSummary);
+  const { robotsReviewRecommended, robotsReviewReason } =
+    readRobotsReviewFromScrapeSummary(lastScrapeSummary);
+  const lastFactAudit = readLastFactAuditFromMeta(meta);
 
   return {
     companyProfileId: profile.id,
@@ -451,6 +677,8 @@ export async function buildBrandingPayloadFromProfile(
     ingestQualityScore,
     ingestQualityBand,
     ingestQualityConfidence,
+    ingestQualityExplanation,
+    qualityExplanation: ingestQualityExplanation,
     ingestQualityWarnings,
     ingestQualityPenalties,
     ingestQualityBreakdown,
@@ -459,7 +687,14 @@ export async function buildBrandingPayloadFromProfile(
     vendorMatchConfidence,
     vendorMatchType,
     vendorResolutionNotes,
+    vendorOperatorGuidance,
     vendorResolutionCandidateCount,
+    robotsOperatorNote,
+    robotsReviewRecommended,
+    robotsReviewReason,
+    vendorRecommendedAction,
+    vendorRecommendedCandidates,
+    lastFactAudit,
     subtitle: subtitle.trim(),
     brandingTags: tagList,
     aiTags: tagList,

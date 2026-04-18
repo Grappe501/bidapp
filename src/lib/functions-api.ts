@@ -10,6 +10,7 @@ import type {
   Project,
   RetrievalQueryType,
 } from "@/types";
+import type { VendorLinkRecommendedAction } from "@/lib/allcare-branding-next-actions";
 
 export type DbProjectRow = {
   id: string;
@@ -149,6 +150,52 @@ export async function postEnrichCompany(companyProfileId: string): Promise<{
   return postFunctionJson("enrich-company", { companyProfileId });
 }
 
+/** Score breakdown for a vendor resolution candidate (matches ingest meta). */
+export type VendorRecommendedCandidateApi = {
+  vendorId: string;
+  vendorName: string;
+  score: number;
+  scoreBreakdown: {
+    similarity: number;
+    nameSignalBonus: number;
+    shortNamePenalty: number;
+    missingPharmacySignalPenalty: number;
+    nearDuplicatePenalty: number;
+  };
+};
+
+/** Example row for operator review when legacy fact correction was skipped as ambiguous. */
+export type SkippedAmbiguousFactExampleApi = {
+  factId: string;
+  factType: string;
+  factTextPreview: string;
+  currentCredibility: string;
+  currentConfidence: string;
+  suggestedCredibility: string;
+  suggestedConfidence: string;
+  reasonSkipped: string;
+};
+
+export type BrandingLastFactAuditApi = {
+  examined: number;
+  filledMissing: number;
+  correctedValues: number;
+  correctedSafeCount?: number;
+  correctedModerateCount?: number;
+  skippedAmbiguous: number;
+  skippedAmbiguousExamples?: SkippedAmbiguousFactExampleApi[];
+  mode: string;
+  at: string;
+  wouldFillMissing?: number;
+  /** @deprecated Prefer wouldCorrectSafe */
+  wouldCorrect?: number;
+  wouldCorrectSafe?: number;
+  wouldCorrectModerate?: number;
+};
+
+/**
+ * Full branding profile returned by `get-branding-profile` (explicit contract).
+ */
 export type BrandingProfileApi = {
   companyProfileId: string;
   projectId: string;
@@ -170,6 +217,9 @@ export type BrandingProfileApi = {
   ingestQualityScore: number | null;
   ingestQualityBand: "strong" | "moderate" | "weak" | null;
   ingestQualityConfidence: "high" | "medium" | "low" | null;
+  ingestQualityExplanation: string | null;
+  /** Same as ingestQualityExplanation; stable name for API clients. */
+  qualityExplanation: string | null;
   ingestQualityWarnings: string[];
   ingestQualityPenalties: string[];
   ingestQualityBreakdown: {
@@ -185,7 +235,14 @@ export type BrandingProfileApi = {
   vendorMatchConfidence: string | null;
   vendorMatchType: string | null;
   vendorResolutionNotes: string | null;
+  vendorOperatorGuidance: string | null;
   vendorResolutionCandidateCount: number | null;
+  robotsOperatorNote: string | null;
+  robotsReviewRecommended: boolean;
+  robotsReviewReason: string | null;
+  vendorRecommendedAction: VendorLinkRecommendedAction | null;
+  vendorRecommendedCandidates: VendorRecommendedCandidateApi[];
+  lastFactAudit: BrandingLastFactAuditApi | null;
   subtitle: string;
   brandingTags: string[];
   aiTags: string[];
@@ -212,8 +269,21 @@ export type BrandingProfileApi = {
   };
 };
 
+/** Success body for POST `get-branding-profile`. */
+export type GetBrandingProfileResponseBody = {
+  branding: BrandingProfileApi;
+};
+
+export type AllCareLegacyFactBackfillMode =
+  | "fill-missing"
+  | "audit-only"
+  | "safe-correct"
+  | "moderate-correct";
+
 export type AllCareScrapeRunApi = {
   dryRun: boolean;
+  schemaReady?: boolean;
+  schemaIssues?: string[];
   companyProfileId: string;
   pagesDiscovered: number;
   pagesFetched: number;
@@ -236,6 +306,9 @@ export type AllCareScrapeRunApi = {
     matchType: string;
     candidateCount?: number;
     notes?: string;
+    operatorGuidance?: string;
+    recommendedAction?: VendorLinkRecommendedAction;
+    recommendedCandidates?: VendorRecommendedCandidateApi[];
   };
   promotionQuality?: {
     promoted: number;
@@ -250,6 +323,11 @@ export type AllCareScrapeRunApi = {
   qualityPenalties?: string[] | null;
   qualityConfidence?: "high" | "medium" | "low" | null;
   qualityWarnings?: string[] | null;
+  qualityExplanation?: string | null;
+  robotsOperatorNote?: string | null;
+  robotsReviewRecommended?: boolean;
+  robotsReviewReason?: string | null;
+  legacyFactAudit?: BrandingLastFactAuditApi | null;
   qualityBreakdown?: {
     coverage: number;
     parsing: number;
@@ -277,6 +355,7 @@ export async function postScrapeAllCareSite(input: {
   maxPages?: number;
   maxDepth?: number;
   runBackfill?: boolean;
+  backfillMode?: AllCareLegacyFactBackfillMode;
 }): Promise<AllCareScrapeRunApi> {
   return postFunctionJson("scrape-allcare-site", input);
 }
@@ -285,7 +364,7 @@ export async function postGetBrandingProfile(input: {
   projectId?: string;
   companyProfileId?: string;
   ensureProfile?: boolean;
-}): Promise<{ branding: BrandingProfileApi }> {
+}): Promise<GetBrandingProfileResponseBody> {
   return postFunctionJson("get-branding-profile", input);
 }
 

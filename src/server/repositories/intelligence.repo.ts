@@ -505,6 +505,21 @@ export async function patchIntelligenceFactCredibility(input: {
   );
 }
 
+/** Overwrites credibility/confidence (safe-correct / admin paths only). */
+export async function setIntelligenceFactCredibility(input: {
+  id: string;
+  credibility: string;
+  confidence: string;
+}): Promise<void> {
+  await assertIntelligenceFactsCredibilityColumns();
+  await query(
+    `UPDATE intelligence_facts
+     SET credibility = $2, confidence = $3, updated_at = now()
+     WHERE id = $1`,
+    [input.id, input.credibility, input.confidence],
+  );
+}
+
 export async function createIntelligenceFact(input: {
   projectId: string;
   sourceId: string;

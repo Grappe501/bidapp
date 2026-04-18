@@ -44,13 +44,31 @@ export type RobotsUserAgentMatchRule =
   | "wildcard"
   | "star";
 
+/** Public observability shape (subset rules — not full RFC 9309). */
+export type RobotsMatchKind =
+  | "exact"
+  | "substring"
+  | "inner-wildcard"
+  | "star"
+  | "none";
+
 export type RobotsSelectionMeta = {
   /** Normalized rule kind for observability (exact → substring → wildcard → star fallback). */
   matchRuleType: RobotsUserAgentMatchRule;
+  /** Alias of matchRuleType for API clarity (`wildcard` → `inner-wildcard`). */
+  matchKind: RobotsMatchKind;
   /** `User-agent:` value from the winning block (or `*`). */
   ruleSourceUserAgent: string;
+  /** Same as ruleSourceUserAgent (explicit name for operators). */
+  sourceUserAgent: string;
   matchedAgent: string;
   crawlDelaySec: number | null;
+  crawlDelayMs: number | null;
+  /**
+   * True when matching was not an exact UA equality hit (substring, inner wildcard, or `*` block).
+   * Also true when no robots block applied (`none`).
+   */
+  rulesApproximate: boolean;
 };
 
 function trimPath(p: string): string {
@@ -169,6 +187,40 @@ function blockMatchScore(
   return { score: 0, matchRuleType: "substring" };
 }
 
+function matchKindFromRuleType(
+  ruleType: RobotsUserAgentMatchRule,
+): RobotsMatchKind {
+  if (ruleType === "exact") return "exact";
+  if (ruleType === "substring") return "substring";
+  if (ruleType === "wildcard") return "inner-wildcard";
+  return "star";
+}
+
+function buildSelectionMeta(input: {
+  matchRuleType: RobotsUserAgentMatchRule;
+  ruleSourceUserAgent: string;
+  matchedAgent: string;
+  crawlDelaySec: number | null;
+  forceMatchKind?: RobotsMatchKind;
+}): RobotsSelectionMeta {
+  const matchKind = input.forceMatchKind ?? matchKindFromRuleType(input.matchRuleType);
+  const crawlDelayMs =
+    input.crawlDelaySec != null && Number.isFinite(input.crawlDelaySec)
+      ? Math.round(input.crawlDelaySec * 1000)
+      : null;
+  const rulesApproximate = matchKind !== "exact";
+  return {
+    matchRuleType: input.matchRuleType,
+    matchKind,
+    ruleSourceUserAgent: input.ruleSourceUserAgent,
+    sourceUserAgent: input.ruleSourceUserAgent,
+    matchedAgent: input.matchedAgent,
+    crawlDelaySec: input.crawlDelaySec,
+    crawlDelayMs,
+    rulesApproximate,
+  };
+}
+
 /**
  * Pick the best robots block for this crawler (exact → substring/wildcard → *).
  * Returns path rules, crawl-delay from that block, and **selection metadata** for logging / scrape summaries.
@@ -201,12 +253,12 @@ export function selectRulesForCrawler(
   if (!best || bestScore <= 0) {
     const star = doc.blocks.find((x) => x.userAgent.trim() === "*");
     if (star) {
-      const meta: RobotsSelectionMeta = {
+      const meta = buildSelectionMeta({
         matchRuleType: "star",
         ruleSourceUserAgent: "*",
         matchedAgent: "*",
         crawlDelaySec: star.crawlDelaySec,
-      };
+      });
       return {
         rules: star.rules,
         crawlDelaySec: star.crawlDelaySec,
@@ -214,21 +266,22 @@ export function selectRulesForCrawler(
         selectionMeta: meta,
       };
     }
-    const meta: RobotsSelectionMeta = {
+    const meta = buildSelectionMeta({
       matchRuleType: "star",
       ruleSourceUserAgent: "*",
       matchedAgent: "*",
       crawlDelaySec: null,
-    };
+      forceMatchKind: "none",
+    });
     return { rules: [], crawlDelaySec: null, matchedAgent: "*", selectionMeta: meta };
   }
 
-  const meta: RobotsSelectionMeta = {
+  const meta = buildSelectionMeta({
     matchRuleType: bestRuleType,
     ruleSourceUserAgent: best.userAgent,
     matchedAgent: best.userAgent,
     crawlDelaySec: best.crawlDelaySec,
-  };
+  });
 
   return {
     rules: best.rules,
@@ -266,6 +319,62 @@ export function isPathAllowedByRules(
 }
 
 export type RobotsCache = Map<string, ParsedRobotsDocument>;
+
+/**
+ * When a live crawl used robots.txt, signal if operators should double-check interpretation
+ * (practical subset matching — not a full RFC engine).
+ */
+export function deriveRobotsReviewSignals(
+  selection: RobotsSelectionMeta | null | undefined,
+  input: { usedLiveRobotsFetch: boolean },
+): { robotsReviewRecommended: boolean; robotsReviewReason?: string } {
+  if (!input.usedLiveRobotsFetch || !selection) {
+    return { robotsReviewRecommended: false };
+  }
+  if (selection.matchKind === "exact") {
+    return { robotsReviewRecommended: false };
+  }
+  const parts: string[] = [];
+  if (
+    selection.matchKind === "substring" ||
+    selection.matchKind === "inner-wildcard"
+  ) {
+    parts.push(
+      "User-agent rule matched via substring or inner-wildcard (non-exact).",
+    );
+  }
+  if (selection.matchKind === "star") {
+    parts.push(
+      "Generic User-agent: * (or fallback) block applied—confirm it matches this crawler.",
+    );
+  }
+  if (selection.matchKind === "none") {
+    parts.push(
+      "No specific user-agent block scored a match; path rules may be minimal.",
+    );
+  }
+  if (
+    selection.rulesApproximate &&
+    selection.crawlDelayMs != null &&
+    selection.crawlDelayMs > 0
+  ) {
+    parts.push(
+      "Crawl-delay was taken from the matched block—verify it reflects site intent.",
+    );
+  }
+  if (parts.length === 0 && selection.rulesApproximate) {
+    parts.push(
+      "Practical subset robots matching was used; manual review is prudent.",
+    );
+  }
+  const robotsReviewRecommended = parts.length > 0;
+  return {
+    robotsReviewRecommended,
+    robotsReviewReason: robotsReviewRecommended
+      ? parts.slice(0, 3).join(" ")
+      : undefined,
+  };
+}
 
 export function createRobotsCache(): RobotsCache {
   return new Map();

@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useReview } from "@/context/useReview";
 import { useControl } from "@/context/useControl";
-import { activeIssues } from "@/lib/review-utils";
+import { activeIssues, issueSummary } from "@/lib/review-utils";
 import { MOCK_PROJECT } from "@/data/mockProject";
 
 export function ReadinessPage() {
   const { readiness, allIssues, snapshot, runReview } = useReview();
   const { redactionFlags } = useControl();
   const act = activeIssues(allIssues);
+  const sum = issueSummary(allIssues);
   const openRedaction = redactionFlags.filter((f) => f.status === "Open");
 
   return (
@@ -26,9 +27,10 @@ export function ReadinessPage() {
           <div>
             <h1 className="text-2xl font-semibold text-ink">Bid readiness</h1>
             <p className="mt-2 max-w-3xl text-sm text-ink-muted">
-              Weighted composite for {MOCK_PROJECT.bidNumber}. Scores are
-              heuristic, not a prediction of actual evaluation — they summarize
-              how clean the operating data looks right now.
+              Weighted composite for {MOCK_PROJECT.bidNumber}. Inputs now include
+              proof-graph support and grounded prose review on drafts — still not a
+              prediction of evaluation outcome, but harder to inflate with surface
+              completeness alone.
             </p>
           </div>
           <Button type="button" variant="secondary" onClick={runReview}>
@@ -50,22 +52,22 @@ export function ReadinessPage() {
           <ReadinessScoreCard
             label="Coverage"
             value={readiness.coverage}
-            explanation="Mandatory requirements with links and non-blocked status."
+            explanation="Mandatory matrix health blended with proof-graph strong/partial support when bundles expose requirementSupport."
           />
           <ReadinessScoreCard
             label="Grounding"
             value={readiness.grounding}
-            explanation="Evidence vault presence and grounded scored draft sections."
+            explanation="Grounded sections and evidence density, discounted by prose unsupported claims, contradictions, and low-confidence reviews."
           />
           <ReadinessScoreCard
             label="Scoring alignment"
             value={readiness.scoring_alignment}
-            explanation="Page-limit and scoring-heuristic issues in active drafts."
+            explanation="Page limits, legacy scoring heuristics, and grounded quality signals (metrics, technical density, mitigation proof, confidence)."
           />
           <ReadinessScoreCard
             label="Contract readiness"
             value={readiness.contract_readiness}
-            explanation="Open contract/architecture exposure findings from the rule engine."
+            explanation="Contract/architecture register issues plus high-stakes unsupported claims and contradictions."
           />
           <ReadinessScoreCard
             label="Discussion readiness"
@@ -83,12 +85,17 @@ export function ReadinessPage() {
                 triage table
               </Link>
             </li>
+            <li>
+              Grounded signals: {sum.groundedFindingCount} open · contradictions{" "}
+              {sum.contradictionCount} · prose-unsupported {sum.proseUnsupportedCount}
+            </li>
             <li>Open redaction flags: {openRedaction.length}</li>
             <li>
               Drafting workspace:{" "}
               <Link to="/drafts" className="text-ink underline">
                 /drafts
-              </Link>
+              </Link>{" "}
+              (proof graph + grounded review)
             </li>
           </ul>
         </Card>

@@ -21,10 +21,16 @@ import {
 import {
   computeReadinessScore,
   filterReviewIssues,
+  mergeRequirementProofMaps,
   mergeSupplementalIssues,
   type ReviewFilters,
 } from "@/lib/review-utils";
-import type { ReviewIssue, ReviewIssueStatus } from "@/types";
+import type {
+  GroundedProseReviewResult,
+  RequirementSupportSummary,
+  ReviewIssue,
+  ReviewIssueStatus,
+} from "@/types";
 import { ReviewContext, type IssueOverride } from "./review-context";
 
 const OVERRIDE_KEY = "bidapp-review-overrides-v1";
@@ -68,7 +74,8 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
   const { requirements } = useRequirements();
   const { evidenceItems, links } = useEvidence();
   const { submissionItems, discussionItems, redactionFlags } = useControl();
-  const { sections, versions, getActiveVersion } = useDrafting();
+  const { sections, versions, getActiveVersion, getSelectedBundle } =
+    useDrafting();
   const { vendors } = useVendors();
   const { options: architectureOptions } = useArchitecture();
 
@@ -90,11 +97,24 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
     const activeDraftBySection: Record<string, ReturnType<typeof getActiveVersion>> =
       {};
     let combined = "";
+    const proofMaps: Record<string, RequirementSupportSummary>[] = [];
+    const groundedProseBySectionId: Record<
+      string,
+      GroundedProseReviewResult | null
+    > = {};
     for (const sec of sections) {
       const v = getActiveVersion(sec.id);
       activeDraftBySection[sec.id] = v;
       if (v?.content) combined += `\n\n${v.content}`;
+      const bundle = getSelectedBundle(sec.id)?.payload;
+      if (bundle?.requirementSupport) {
+        proofMaps.push(bundle.requirementSupport);
+      }
+      groundedProseBySectionId[sec.id] =
+        v?.metadata.groundedProseReview ?? null;
     }
+    const requirementProofById =
+      proofMaps.length > 0 ? mergeRequirementProofMaps(proofMaps) : undefined;
     return {
       projectId,
       requirements,
@@ -110,6 +130,8 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
       vendors,
       architectureOptions,
       combinedDraftText: combined,
+      requirementProofById,
+      groundedProseBySectionId,
     };
   }, [
     projectId,
@@ -124,6 +146,7 @@ export function ReviewProvider({ children }: { children: ReactNode }) {
     vendors,
     architectureOptions,
     getActiveVersion,
+    getSelectedBundle,
   ]);
 
   useEffect(() => {

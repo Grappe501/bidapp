@@ -785,7 +785,16 @@ export const DRAFT_SECTION_TYPES: DraftSectionType[] = [
 export type ReviewIssueType =
   | "Missing Requirement Coverage"
   | "Weak Evidence Support"
+  | "Weak Requirement Proof"
+  | "Requirement Not Addressed in Section"
   | "Unsupported Claim"
+  | "Draft Contradiction"
+  | "Low Confidence Draft"
+  | "Over-Reliance on Vendor Claims"
+  | "Missing Mitigation Proof"
+  | "Technical Density Risk"
+  | "Weak Metrics Presence"
+  | "Weak Differentiation Support"
   | "Submission Gap"
   | "Page Limit Risk"
   | "Scoring Weakness"
@@ -795,6 +804,18 @@ export type ReviewIssueType =
   | "Vendor Validation Gap"
   | "Architecture Risk"
   | "Other";
+
+/** Optional traceability for grounded rule output (BP-007 upgrade). */
+export type ReviewIssueGroundedContext = {
+  requirementId?: string;
+  requirementTitle?: string;
+  proofLevel?: RequirementProofSupportLevel;
+  evidenceSummary?: string;
+  proseReviewNote?: string;
+  claimExcerpt?: string;
+  conflictsWith?: string;
+  sourceType?: string;
+};
 
 export type ReviewSeverity = "Low" | "Moderate" | "High" | "Critical";
 
@@ -830,6 +851,7 @@ export type ReviewIssue = {
   createdAt: string;
   updatedAt: string;
   resolutionNotes?: string;
+  groundedContext?: ReviewIssueGroundedContext;
 };
 
 export type ReadinessScore = {
@@ -845,7 +867,16 @@ export type ReadinessScore = {
 export const REVIEW_ISSUE_TYPES: ReviewIssueType[] = [
   "Missing Requirement Coverage",
   "Weak Evidence Support",
+  "Weak Requirement Proof",
+  "Requirement Not Addressed in Section",
   "Unsupported Claim",
+  "Draft Contradiction",
+  "Low Confidence Draft",
+  "Over-Reliance on Vendor Claims",
+  "Missing Mitigation Proof",
+  "Technical Density Risk",
+  "Weak Metrics Presence",
+  "Weak Differentiation Support",
   "Submission Gap",
   "Page Limit Risk",
   "Scoring Weakness",

@@ -33,9 +33,9 @@ export function ReviewDashboardPage() {
               Review command center
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">
-              Red-team pass on {MOCK_PROJECT.bidNumber}: coverage, grounding,
-              submission, contract posture, and discussion readiness — without
-              panic UI.
+              Red-team pass on {MOCK_PROJECT.bidNumber}: proof graph, grounded
+              prose review, coverage, submission, contract posture, and discussion
+              readiness — without panic UI.
             </p>
           </div>
           <Button type="button" variant="secondary" onClick={runReview}>
@@ -48,6 +48,34 @@ export function ReviewDashboardPage() {
           title="Executive snapshot"
           subtitle="Active findings are Open or In review. Resolved and dismissed items stay auditable from the issues table."
         />
+
+        <Card className="border-sky-200/60 bg-sky-50/30 p-4">
+          <h2 className="text-sm font-semibold text-ink">Grounded intelligence</h2>
+          <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+            Signals from proof-graph bundles attached in drafting and{" "}
+            <code className="rounded bg-white/80 px-1">groundedProseReview</code> on
+            active versions. Run sync proof graph → rebuild bundle → grounded review on
+            draft sections for full fidelity.
+          </p>
+          <ul className="mt-3 grid gap-2 text-xs text-ink-muted sm:grid-cols-2">
+            <li>
+              <span className="font-medium text-ink">Weak proof issues:</span>{" "}
+              {act.filter((i) => i.issueType === "Weak Requirement Proof").length}
+            </li>
+            <li>
+              <span className="font-medium text-ink">Prose unsupported:</span>{" "}
+              {s.proseUnsupportedCount}
+            </li>
+            <li>
+              <span className="font-medium text-ink">Contradictions:</span>{" "}
+              {s.contradictionCount}
+            </li>
+            <li>
+              <span className="font-medium text-ink">Low-confidence sections:</span>{" "}
+              {act.filter((i) => i.issueType === "Low Confidence Draft").length}
+            </li>
+          </ul>
+        </Card>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Card className="p-4">

@@ -5,17 +5,18 @@ import type {
   DraftSection,
   DraftVersion,
   EvidenceItem,
+  GroundedProseReviewResult,
   RedactionFlag,
   Requirement,
   RequirementEvidenceLink,
-  SubmissionItem,
-  Vendor,
-} from "@/types";
-import type {
+  RequirementSupportSummary,
   ReviewEntityType,
   ReviewIssue,
+  ReviewIssueGroundedContext,
   ReviewIssueType,
   ReviewSeverity,
+  SubmissionItem,
+  Vendor,
 } from "@/types";
 import { computeRequirementSupportLevel, linksForRequirement } from "@/lib/evidence-utils";
 import { SECTION_FOCUS } from "@/lib/drafting-utils";
@@ -37,6 +38,13 @@ export type BidReviewSnapshot = {
   architectureOptions: ArchitectureOption[];
   /** Combined draft text for heuristic scans */
   combinedDraftText: string;
+  /** Merged proof-graph support per requirement (from drafting bundles). */
+  requirementProofById?: Record<string, RequirementSupportSummary>;
+  /** sectionId -> grounded prose review on active draft version */
+  groundedProseBySectionId?: Record<
+    string,
+    GroundedProseReviewResult | null | undefined
+  >;
 };
 
 const SUBMISSION_OK = new Set(["Ready", "Validated", "Submitted"]);
@@ -55,6 +63,7 @@ function issue(
   entityType: ReviewEntityType,
   entityId: string,
   suggestedFix: string,
+  groundedContext?: ReviewIssueGroundedContext,
 ): ReviewIssue {
   const t = isoNow();
   return {
@@ -70,6 +79,7 @@ function issue(
     suggestedFix,
     createdAt: t,
     updatedAt: t,
+    groundedContext,
   };
 }
 
@@ -87,6 +97,260 @@ function hasModeratePlusSupport(links: RequirementEvidenceLink[]): boolean {
   return level === "Moderate" || level === "Strong";
 }
 
+function reqTitle(req: Requirement, max = 72): string {
+  return req.title.length > max ? `${req.title.slice(0, max - 1)}…` : req.title;
+}
+
+const CONTRACT_SENSITIVE_RE =
+  /\b(sla|security|hipaa|phi|pii|breach|compliance|certif|contract|binding|warrant|indemnif|penalt|delivery|deadline|availability|uptime|integration|interface|api)\b/i;
+
+function proseClaimSeverity(text: string, reason: string): ReviewSeverity {
+  const blob = `${text} ${reason}`;
+  if (CONTRACT_SENSITIVE_RE.test(blob)) {
+    return "High";
+  }
+  if (blob.length > 120 && /\b(all|every|full|complete|guarantee)\b/i.test(blob)) {
+    return "Moderate";
+  }
+  return "Moderate";
+}
+
+function contradictionSeverity(text: string, conflicts: string): ReviewSeverity {
+  const blob = `${text} ${conflicts}`.toLowerCase();
+  if (
+    /\b(architecture|core\s+platform|enterprise\s+integration)\b/.test(blob) &&
+    /\b(commit|guarantee|warrant|contractual)\b/.test(blob)
+  ) {
+    return "Critical";
+  }
+  if (
+    /\b(now|live|production|deployed|operational)\b/.test(blob) &&
+    /\b(plan|phase|roadmap|pending|future)\b/.test(blob)
+  ) {
+    return "High";
+  }
+  if (CONTRACT_SENSITIVE_RE.test(blob)) return "High";
+  if (/\b(statewide|enterprise|all\s+members)\b/i.test(blob)) return "High";
+  return "Moderate";
+}
+
+/** Grounded prose + proof-graph rules (BP-007 upgrade). */
+function collectGroundedProseAndProofIssues(
+  snapshot: BidReviewSnapshot,
+): ReviewIssue[] {
+  const out: ReviewIssue[] = [];
+  const { projectId } = snapshot;
+  const reqById = new Map(snapshot.requirements.map((r) => [r.id, r]));
+
+  for (const sec of snapshot.draftSections) {
+    const pr = snapshot.groundedProseBySectionId?.[sec.id];
+    if (!pr) continue;
+
+    const partialN = pr.requirement_findings.filter(
+      (x) => x.status === "partially_addressed",
+    ).length;
+
+    for (const f of pr.requirement_findings) {
+      const rmeta = reqById.get(f.requirement_id);
+      const gctx: ReviewIssueGroundedContext = {
+        requirementId: f.requirement_id,
+        requirementTitle: rmeta?.title,
+        proofLevel: f.support_level,
+        proseReviewNote: f.notes,
+      };
+      if (f.status === "not_addressed") {
+        const sev: ReviewSeverity =
+          rmeta?.mandatory && rmeta.riskLevel === "Critical"
+            ? "Critical"
+            : rmeta?.mandatory
+              ? "High"
+              : "Moderate";
+        out.push(
+          issue(
+            `rev:prose-not-addressed:${sec.id}:${f.requirement_id}`,
+            projectId,
+            "Requirement Not Addressed in Section",
+            sev,
+            `Draft does not address: ${rmeta?.title?.slice(0, 64) ?? f.requirement_id}`,
+            f.notes || "Grounded prose review marked this requirement as not addressed in the section text.",
+            "draft_section",
+            sec.id,
+            "Add explicit coverage tied to this requirement or document a deliberate scope boundary.",
+            gctx,
+          ),
+        );
+      } else if (
+        f.status === "partially_addressed" &&
+        rmeta?.riskLevel === "Critical"
+      ) {
+        out.push(
+          issue(
+            `rev:prose-partial-critical:${sec.id}:${f.requirement_id}`,
+            projectId,
+            "Requirement Not Addressed in Section",
+            "High",
+            `Only partial coverage for critical requirement: ${reqTitle(rmeta, 56)}`,
+            f.notes ||
+              "Critical requirement should be fully addressed for evaluators and protest defense.",
+            "draft_section",
+            sec.id,
+            "Expand prose with mitigation, metrics, or evidence-backed proof for this requirement.",
+            gctx,
+          ),
+        );
+      }
+    }
+
+    pr.unsupported_claims.forEach((u, idx) => {
+      const sev = proseClaimSeverity(u.text, u.reason);
+      out.push(
+        issue(
+          `rev:prose-unsupported:${sec.id}:${idx}`,
+          projectId,
+          "Unsupported Claim",
+          sev,
+          `Unsupported claim (${sec.sectionType})`,
+          u.reason || u.text.slice(0, 220),
+          "draft_section",
+          sec.id,
+          u.suggested_fix || "Qualify, cite verified evidence, or remove until grounded.",
+          {
+            claimExcerpt: u.text.slice(0, 280),
+            proseReviewNote: u.reason,
+          },
+        ),
+      );
+    });
+
+    pr.contradictions.forEach((c, idx) => {
+      const sev = contradictionSeverity(c.text, c.conflicts_with);
+      out.push(
+        issue(
+          `rev:prose-contradiction:${sec.id}:${idx}`,
+          projectId,
+          "Draft Contradiction",
+          sev,
+          `Possible mismatch: ${sec.sectionType}`,
+          c.explanation || `${c.text.slice(0, 120)} ↔ ${c.conflicts_with.slice(0, 120)}`,
+          "draft_section",
+          sec.id,
+          "Reconcile draft language with vendor facts, architecture, or requirement proof before submission.",
+          {
+            claimExcerpt: c.text.slice(0, 280),
+            conflictsWith: c.conflicts_with,
+            sourceType: c.source_type,
+            proseReviewNote: c.explanation,
+          },
+        ),
+      );
+    });
+
+    if (
+      partialN >= 3 &&
+      (sec.sectionType === "Solution" ||
+        sec.sectionType === "Executive Summary")
+    ) {
+      out.push(
+        issue(
+          `rev:prose-weak-diff:${sec.id}`,
+          projectId,
+          "Weak Differentiation Support",
+          "Moderate",
+          `Many requirements only partially addressed in ${sec.sectionType}`,
+          `${partialN} requirement(s) marked partially addressed — evaluators may read the volume as generic.`,
+          "draft_section",
+          sec.id,
+          "Strengthen criterion-specific proof and reduce boilerplate so scored themes read distinct.",
+        ),
+      );
+    }
+
+    if (pr.confidence === "low") {
+      const hasOther =
+        pr.unsupported_claims.length > 0 ||
+        pr.contradictions.length > 0 ||
+        partialN > 0;
+      if (hasOther || sec.status === "Approved") {
+        out.push(
+          issue(
+            `rev:prose-low-confidence:${sec.id}`,
+            projectId,
+            "Low Confidence Draft",
+            "Moderate",
+            `Low model confidence in grounded review: ${sec.sectionType}`,
+            "Grounded prose review reported low confidence — treat scoring posture as fragile until claims are verified.",
+            "draft_section",
+            sec.id,
+            "Re-run review after proof graph and bundle updates; tighten unsupported language.",
+          ),
+        );
+      }
+    }
+
+    if (sec.sectionType === "Solution" && pr.technical_density === "high") {
+      out.push(
+        issue(
+          `rev:prose-tech-density:${sec.id}`,
+          projectId,
+          "Technical Density Risk",
+          "Moderate",
+          "Solution may be too technical for evaluator scoring",
+          "Grounded review flagged high technical density — Solution scoring favors clarity and criterion fit.",
+          "draft_section",
+          sec.id,
+          "Lead with outcomes and evaluation hooks; push deep stack detail to appendices if allowed.",
+        ),
+      );
+    }
+
+    if (sec.sectionType === "Experience" && pr.metrics_presence === "weak") {
+      out.push(
+        issue(
+          `rev:prose-metrics:${sec.id}`,
+          projectId,
+          "Weak Metrics Presence",
+          "Moderate",
+          "Experience section may lack scored metrics",
+          "Grounded review flagged weak metrics presence — past-performance scoring is evidence- and numbers-driven.",
+          "draft_section",
+          sec.id,
+          "Add traceable metrics and references aligned to linked evidence.",
+        ),
+      );
+    }
+
+    if (sec.sectionType === "Risk") {
+      const mitWeak = pr.improvement_actions.some((a) =>
+        /mitigat|proof|evidence|gap/i.test(a),
+      );
+      const findingGap = pr.requirement_findings.some(
+        (f) =>
+          f.status !== "fully_addressed" &&
+          /risk|mitigat|transition|implement/i.test(
+            (reqById.get(f.requirement_id)?.title ?? "") + f.notes,
+          ),
+      );
+      if (mitWeak || findingGap) {
+        out.push(
+          issue(
+            `rev:prose-risk-mit:${sec.id}`,
+            projectId,
+            "Missing Mitigation Proof",
+            "High",
+            "Risk volume may under-prove mitigations",
+            "Grounded review suggests mitigation or transition proof is thin relative to requirements.",
+            "draft_section",
+            sec.id,
+            "Pair each material risk with mitigation, owner, and documented proof.",
+          ),
+        );
+      }
+    }
+  }
+
+  return out;
+}
+
 /** Deterministic rule scan — no AI. */
 export function runReviewRules(snapshot: BidReviewSnapshot): ReviewIssue[] {
   const out: ReviewIssue[] = [];
@@ -95,29 +359,146 @@ export function runReviewRules(snapshot: BidReviewSnapshot): ReviewIssue[] {
   for (const req of snapshot.requirements) {
     const links = linksForRequirement(snapshot.evidenceLinks, req.id);
     const support = computeRequirementSupportLevel(links);
+    const proof = snapshot.requirementProofById?.[req.id];
 
-    if (links.length === 0) {
+    if (proof) {
+      if (proof.level === "none") {
+        out.push(
+          issue(
+            `rev:proof-none:${req.id}`,
+            projectId,
+            "Weak Requirement Proof",
+            req.mandatory ? "High" : "Moderate",
+            `No proof-graph support: ${reqTitle(req)}`,
+            "Requirement has proof level “none” in the merged bundle — link evidence and run build proof graph.",
+            "requirement",
+            req.id,
+            "Attach verified or vendor-labeled evidence, sync the proof graph, and qualify draft claims.",
+            {
+              requirementId: req.id,
+              requirementTitle: req.title,
+              proofLevel: proof.level,
+            },
+          ),
+        );
+      } else if (proof.level === "weak") {
+        out.push(
+          issue(
+            `rev:proof-weak:${req.id}`,
+            projectId,
+            "Weak Requirement Proof",
+            req.mandatory ? "High" : "Moderate",
+            `Weak proof support: ${reqTitle(req)}`,
+            "Proof graph shows only weak support — evaluators may challenge scoring claims.",
+            "requirement",
+            req.id,
+            "Strengthen verified evidence links or narrow claims until support improves.",
+            {
+              requirementId: req.id,
+              requirementTitle: req.title,
+              proofLevel: proof.level,
+            },
+          ),
+        );
+      } else if (
+        proof.validation_mix.verified === 0 &&
+        proof.validation_mix.vendor_claim > 0 &&
+        proof.level !== "strong"
+      ) {
+        out.push(
+          issue(
+            `rev:proof-vendor-only:${req.id}`,
+            projectId,
+            "Over-Reliance on Vendor Claims",
+            req.mandatory ? "High" : "Moderate",
+            `Vendor-claim-only proof: ${reqTitle(req, 56)}`,
+            "Linked proof rows are vendor-claim weighted without verified artifacts.",
+            "requirement",
+            req.id,
+            "Obtain verified documentation or qualify operational promises in draft language.",
+            {
+              requirementId: req.id,
+              requirementTitle: req.title,
+              proofLevel: proof.level,
+              evidenceSummary: `V${proof.validation_mix.verified} VC${proof.validation_mix.vendor_claim} U${proof.validation_mix.unverified}`,
+            },
+          ),
+        );
+      }
+
+      if (
+        req.mandatory &&
+        req.riskLevel === "Critical" &&
+        (proof.level === "weak" || proof.level === "partial")
+      ) {
+        out.push(
+          issue(
+            `rev:proof-critical-req:${req.id}`,
+            projectId,
+            "Weak Requirement Proof",
+            "High",
+            `Critical requirement with limited proof: ${reqTitle(req, 56)}`,
+            `Proof level is ${proof.level}; critical obligations need defensible documentation.`,
+            "requirement",
+            req.id,
+            "Prioritize verified evidence and explicit mitigation narrative for this requirement.",
+            {
+              requirementId: req.id,
+              requirementTitle: req.title,
+              proofLevel: proof.level,
+            },
+          ),
+        );
+      }
+
+      for (const sec of snapshot.draftSections) {
+        const v = snapshot.activeDraftBySection[sec.id];
+        if (!v?.metadata.requirementCoverageIds.includes(req.id)) continue;
+        if (proof.level === "none" || proof.level === "weak") {
+          out.push(
+            issue(
+              `rev:draft-claim-weak-proof:${sec.id}:${req.id}`,
+              projectId,
+              "Weak Requirement Proof",
+              req.mandatory ? "High" : "Moderate",
+              `Draft claims coverage with thin proof: ${reqTitle(req, 48)}`,
+              `Section metadata lists requirement coverage, but proof graph support is ${proof.level}.`,
+              "draft_section",
+              sec.id,
+              "Either strengthen evidence and proof graph or soften draft claims for this requirement.",
+              {
+                requirementId: req.id,
+                requirementTitle: req.title,
+                proofLevel: proof.level,
+              },
+            ),
+          );
+        }
+      }
+    }
+
+    if (!proof && links.length === 0) {
       out.push(
         issue(
           `rev:req-no-evidence:${req.id}`,
           projectId,
           "Missing Requirement Coverage",
           req.mandatory ? "High" : "Moderate",
-          `No evidence linked: ${req.title.slice(0, 72)}`,
+          `No evidence linked: ${reqTitle(req)}`,
           `Requirement ${req.id} has zero linked evidence. Evaluators expect traceable support for scored criteria.`,
           "requirement",
           req.id,
           "Link at least one evidence item with documented support strength, or record an explicit waiver rationale in notes.",
         ),
       );
-    } else if (support === "None" || support === "Weak") {
+    } else if (!proof && (support === "None" || support === "Weak")) {
       out.push(
         issue(
           `rev:req-weak-support:${req.id}`,
           projectId,
           "Weak Evidence Support",
           req.mandatory ? "High" : "Moderate",
-          `Weak / none support: ${req.title.slice(0, 72)}`,
+          `Weak / none support: ${reqTitle(req)}`,
           `Linked evidence exists but strongest link is ${support}. Mandatory and high-risk items should target Moderate+ where possible.`,
           "requirement",
           req.id,
@@ -490,6 +871,8 @@ export function runReviewRules(snapshot: BidReviewSnapshot): ReviewIssue[] {
       );
     }
   }
+
+  out.push(...collectGroundedProseAndProofIssues(snapshot));
 
   return out;
 }

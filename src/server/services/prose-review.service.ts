@@ -1,3 +1,7 @@
+/**
+ * Grounded prose review output is consumed by the BP-007 review engine
+ * (`review-rules-engine` + readiness scoring) via {@link GroundedProseReviewResult} on draft metadata.
+ */
 import type {
   DraftSectionType,
   GroundingBundlePayload,

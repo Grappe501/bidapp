@@ -1088,7 +1088,7 @@ export const SUBMISSION_PACKAGE_ITEM_SPECS: SubmissionPackageItemSpec[] = [
   },
   {
     id: "rfp-requirements",
-    packageItemLabel: "Minimum RFP Requirements",
+    packageItemLabel: "S000000479 Minimum RFP Requirements",
     category: "Compliance",
     required: true,
     match: (a) => a.id === "out-req-matrix",
@@ -1140,11 +1140,29 @@ export const SUBMISSION_PACKAGE_ITEM_SPECS: SubmissionPackageItemSpec[] = [
     id: "redacted-copy",
     packageItemLabel: "Redacted copy (if applicable)",
     category: "Disclosure",
-    required: true,
+    required: false,
     match: (a) =>
       a.artifactType === "Redacted Copy" ||
       (a.sourceEntityType === "submission_item" &&
         /redact/i.test(a.title)),
+  },
+  {
+    id: "eo-98-04",
+    packageItemLabel: "EO 98-04 Contract and Grant Disclosure Form",
+    category: "Pre-award",
+    required: false,
+    match: (a) =>
+      a.sourceEntityType === "submission_item" &&
+      /eo\s*98|98-04|grant.*disclos/i.test(a.title),
+  },
+  {
+    id: "vpat",
+    packageItemLabel: "VPAT (if applicable)",
+    category: "If applicable",
+    required: false,
+    match: (a) =>
+      a.sourceEntityType === "submission_item" &&
+      /vpat|voluntary.*product|accessibility/i.test(a.title),
   },
 ];
 

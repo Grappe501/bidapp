@@ -7,6 +7,8 @@ import { ClientReadinessStrip } from "@/components/output/ClientReadinessStrip";
 import { ClientRecommendationCard } from "@/components/output/ClientRecommendationCard";
 import { ClientReviewDraftStatus } from "@/components/output/ClientReviewDraftStatus";
 import { ClientReviewSummaryCard } from "@/components/output/ClientReviewSummaryCard";
+import { ClientEvaluatorBrief } from "@/components/output/ClientEvaluatorBrief";
+import { TechnicalProposalPacketStatus } from "@/components/output/TechnicalProposalPacketStatus";
 import { WhyWinsCard } from "@/components/output/WhyWinsCard";
 import { ClientRiskSnapshot } from "@/components/output/ClientRiskSnapshot";
 import { OutputSubNav } from "@/components/output/OutputSubNav";
@@ -27,7 +29,14 @@ import {
 import { copyTextToClipboard } from "@/lib/output-utils";
 
 export function ClientReviewPage() {
-  const { project, readiness, reviewIssues, reviewSnapshot } = useOutput();
+  const {
+    project,
+    readiness,
+    reviewIssues,
+    reviewSnapshot,
+    evaluatorSimulation,
+    technicalProposalPacketCompliance,
+  } = useOutput();
   const { options } = useArchitecture();
   const { submissionItems } = useControl();
 
@@ -203,6 +212,13 @@ export function ClientReviewPage() {
         />
 
         <WhyWinsCard bidNumber={project.bidNumber} />
+
+        <ClientEvaluatorBrief result={evaluatorSimulation} />
+
+        <TechnicalProposalPacketStatus
+          compliance={technicalProposalPacketCompliance}
+          compact
+        />
 
         <ClientRecommendationCard option={recommended} />
 

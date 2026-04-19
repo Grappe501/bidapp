@@ -64,4 +64,22 @@ export const MOCK_SUBMISSION_ITEMS: SubmissionItem[] = [
     owner: "Architecture lead",
     notes: "State form aligning recommended stack with solicitation options language.",
   },
+  {
+    id: "sub-009",
+    name: "EO 98-04 Contract and Grant Disclosure Form",
+    required: false,
+    phase: "Proposal",
+    status: "Not Started",
+    owner: "Legal",
+    notes: "Pre-award disclosure — required before award per packet.",
+  },
+  {
+    id: "sub-010",
+    name: "VPAT / accessibility documentation",
+    required: false,
+    phase: "Proposal",
+    status: "Not Started",
+    owner: "IT / Compliance",
+    notes: "If applicable per solicitation.",
+  },
 ];

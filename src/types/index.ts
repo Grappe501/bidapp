@@ -1,3 +1,14 @@
+import type { TechnicalProposalPacketCompliance } from "./technical-proposal-packet";
+
+export type {
+  ArbuyAttachmentCategory,
+  ArbuySolicitationAttachment,
+  ArbuySolicitationCompliance,
+  ArbuySolicitationHeader,
+  ArbuySolicitationItem,
+  ArbuySolicitationModel,
+} from "./arbuy-solicitation";
+
 export type ProjectStatus = "Active" | "In Review" | "Drafting" | "Finalizing";
 
 export type FileCategory =
@@ -699,6 +710,8 @@ export type GroundingBundlePayload = {
   contract?: import("./contract-model").GroundingBundleContract;
   /** Structured price sheet model + RFP service coverage + contract checks (when built server-side). */
   pricing?: import("./pricing-model").GroundingBundlePricing;
+  /** Official ARBuy solicitation header, required attachments, and quote lines (when registered for bid). */
+  arbuy?: import("./arbuy-solicitation").ArbuySolicitationModel;
 };
 
 export type GroundedProseReviewClarity = "strong" | "moderate" | "weak";
@@ -905,6 +918,70 @@ export type ReadinessScore = {
   scoring_alignment: number;
   contract_readiness: number;
   discussion_readiness: number;
+};
+
+/** Arkansas-style technical + cost scoring mirror (700 technical + 300 cost = 1,000). */
+export type EvaluatorSectionKey =
+  | "Experience"
+  | "Solution"
+  | "Risk"
+  | "Interview"
+  | "Cost";
+
+export type EvaluatorConfidence = "high" | "medium" | "low";
+
+export type EvaluatorSectionScore = {
+  section: EvaluatorSectionKey;
+  /** 0–10 interpretive scale (maps to RFP-style reliability bands, not a prediction). */
+  rawScore: number;
+  weightedScore: number;
+  confidence: EvaluatorConfidence;
+  rationale: string[];
+  pointLossDrivers: string[];
+  upgradeActions: string[];
+};
+
+export type EvaluatorSimulationResult = {
+  technical: {
+    experience: EvaluatorSectionScore;
+    solution: EvaluatorSectionScore;
+    risk: EvaluatorSectionScore;
+    interview: EvaluatorSectionScore;
+    totalTechnicalScore: number;
+  };
+  cost: EvaluatorSectionScore;
+  grandTotalScore: number;
+  overallAssessment: "strong" | "competitive" | "fragile" | "not_ready";
+  topPointLossDrivers: string[];
+  topUpgradeActions: string[];
+};
+
+export type FinalReadinessOverallState =
+  | "ready_to_submit"
+  | "ready_with_risk"
+  | "not_ready"
+  | "blocked";
+
+/** Hard submission gate — distinct from composite readiness scores. */
+export type FinalReadinessGate = {
+  overallState: FinalReadinessOverallState;
+  requiredArtifactsComplete: boolean;
+  pricingReady: boolean;
+  contractReady: boolean;
+  groundedReviewReady: boolean;
+  unsupportedClaimsResolved: boolean;
+  criticalRisksAddressed: boolean;
+  evaluatorScoreViable: boolean;
+  redactionReady: boolean;
+  blockerCount: number;
+  blockers: string[];
+  warnings: string[];
+  requiredActionsBeforeSubmit: string[];
+  submissionRecommendation: string;
+  /** S000000479 Technical Proposal Packet compliance (null for other bids). */
+  technicalProposalPacket: TechnicalProposalPacketCompliance | null;
+  /** ARBuy solicitation completeness (null when no canonical ARBuy profile for bid). */
+  arbuySolicitation: import("./arbuy-solicitation").ArbuySolicitationCompliance | null;
 };
 
 export const REVIEW_ISSUE_TYPES: ReviewIssueType[] = [
@@ -1325,3 +1402,8 @@ export type {
   PricingItem,
   PricingModel,
 } from "./pricing-model";
+
+export type {
+  TechnicalProposalPacketCompliance,
+  TechnicalProposalPacketModel,
+} from "./technical-proposal-packet";

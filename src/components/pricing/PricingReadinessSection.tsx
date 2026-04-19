@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { Card } from "@/components/ui/Card";
+import { S000000479_BID_NUMBER } from "@/data/canonical-rfp-s000000479";
 import {
   buildPricingLayerForProject,
+  computeArbuyQuoteStructureAlignment,
   computePricingHealth,
 } from "@/lib/pricing-structure";
 import { cn } from "@/lib/utils";
@@ -36,11 +38,16 @@ type PricingReadinessSectionProps = {
 };
 
 export function PricingReadinessSection({ project, files }: PricingReadinessSectionProps) {
-  const { layer, health } = useMemo(() => {
+  const { layer, health, arbuyAlign } = useMemo(() => {
     const layerInner = buildPricingLayerForProject(project.bidNumber, files);
+    const align =
+      project.bidNumber === S000000479_BID_NUMBER
+        ? computeArbuyQuoteStructureAlignment(project.bidNumber, layerInner)
+        : null;
     return {
       layer: layerInner,
       health: computePricingHealth(layerInner),
+      arbuyAlign: align,
     };
   }, [project.bidNumber, files]);
 
@@ -82,6 +89,24 @@ export function PricingReadinessSection({ project, files }: PricingReadinessSect
             <Row label="RFP coverage" ok={health.rfpCoverage} />
             <Row label="Contract compliant" ok={health.contractCompliant} />
             <Row label="Ready" ok={health.ready} />
+            {arbuyAlign ? (
+              <>
+                <Row
+                  label="ARBuy item structure loaded"
+                  ok={arbuyAlign.itemStructureLoaded}
+                />
+                <Row
+                  label="Line count vs ARBuy grid"
+                  ok={
+                    arbuyAlign.pricingLineCount === arbuyAlign.arbuyQuoteLineCount
+                  }
+                />
+                <Row
+                  label="Line-item price support"
+                  ok={arbuyAlign.lineItemPriceSupportAttached}
+                />
+              </>
+            ) : null}
           </div>
         </div>
         <div className="space-y-2 text-[11px] leading-relaxed text-ink-muted">
@@ -113,6 +138,11 @@ export function PricingReadinessSection({ project, files }: PricingReadinessSect
                 <li key={n.slice(0, 48)}>{n}</li>
               ))}
             </ul>
+          ) : null}
+          {arbuyAlign ? (
+            <p className="text-[11px] leading-relaxed text-ink-muted">
+              {arbuyAlign.notes.join(" ")}
+            </p>
           ) : null}
         </div>
       </div>

@@ -7,8 +7,10 @@ import {
   artifactsWithRedactionPseudo,
   assembleOutputBundles,
   buildBundlePayload,
+  buildSubmissionPackageChecklistRows,
   computeOutputSummary,
   computePackagingCompleteness,
+  computeSubmissionPackageSummaryStats,
   copyTextToClipboard,
   formatChecklistExport,
   formatReadinessExport,
@@ -16,11 +18,16 @@ import {
   summarizeRedactionPackaging,
   type OutputGatherInput,
 } from "@/lib/output-utils";
+import { computeEvaluatorSimulation } from "@/lib/evaluator-simulation";
+import { computeFinalReadinessGate } from "@/lib/final-readiness-gate";
+import { computeArbuySubmissionCompliance } from "@/lib/arbuy-solicitation";
+import { buildPricingLayerForProject } from "@/lib/pricing-structure";
+import { computeTechnicalProposalPacketCompliance } from "@/lib/technical-proposal-packet";
 import type { PackagingCompleteness } from "@/types";
 import { OutputContext } from "./output-context";
 
 export function OutputProvider({ children }: { children: ReactNode }) {
-  const { project } = useWorkspace();
+  const { project, files } = useWorkspace();
   const { submissionItems, redactionFlags, discussionItems } = useControl();
   const { sections, getActiveVersion } = useDrafting();
   const { allIssues, readiness, snapshot } = useReview();
@@ -89,6 +96,91 @@ export function OutputProvider({ children }: { children: ReactNode }) {
     [redactionFlags, submissionItems, artifacts],
   );
 
+  const checklistRows = useMemo(
+    () => buildSubmissionPackageChecklistRows(artifacts, submissionItems),
+    [artifacts, submissionItems],
+  );
+
+  const submissionPackageStats = useMemo(
+    () => computeSubmissionPackageSummaryStats(checklistRows),
+    [checklistRows],
+  );
+
+  const pricingLayer = useMemo(
+    () => buildPricingLayerForProject(project.bidNumber, files),
+    [project.bidNumber, files],
+  );
+
+  const evaluatorSimulation = useMemo(
+    () =>
+      computeEvaluatorSimulation({
+        snapshot,
+        issues: allIssues,
+        readiness,
+        pricingLayer,
+        bidNumber: project.bidNumber,
+      }),
+    [snapshot, allIssues, readiness, pricingLayer, project.bidNumber],
+  );
+
+  const technicalProposalPacketCompliance = useMemo(
+    () =>
+      computeTechnicalProposalPacketCompliance({
+        bidNumber: project.bidNumber,
+        checklistStats: submissionPackageStats,
+        checklistRows,
+        snapshot,
+        activeDraftContentBySectionId: gatherInput.activeDraftContentBySectionId,
+      }),
+    [
+      project.bidNumber,
+      submissionPackageStats,
+      checklistRows,
+      snapshot,
+      gatherInput.activeDraftContentBySectionId,
+    ],
+  );
+
+  const arbuySolicitationCompliance = useMemo(
+    () =>
+      computeArbuySubmissionCompliance({
+        bidNumber: project.bidNumber,
+        files,
+        pricingLayer,
+      }),
+    [project.bidNumber, files, pricingLayer],
+  );
+
+  const finalReadinessGate = useMemo(
+    () =>
+      computeFinalReadinessGate({
+        bidNumber: project.bidNumber,
+        readiness,
+        reviewIssues: allIssues,
+        snapshot,
+        redactionSummary,
+        checklistStats: submissionPackageStats,
+        checklistRows,
+        pricingLayer,
+        evaluator: evaluatorSimulation,
+        technicalProposalPacket: technicalProposalPacketCompliance,
+        arbuySolicitation: arbuySolicitationCompliance,
+      }),
+    [
+      project.bidNumber,
+      readiness,
+      allIssues,
+      snapshot,
+      redactionSummary,
+      submissionPackageStats,
+      checklistRows,
+      pricingLayer,
+      evaluatorSimulation,
+      technicalProposalPacketCompliance,
+      arbuySolicitationCompliance,
+    ],
+  );
+
   const copySectionPlainText = useCallback(
     async (sectionId: string) => {
       const v = getActiveVersion(sectionId);
@@ -130,6 +222,11 @@ export function OutputProvider({ children }: { children: ReactNode }) {
       readiness,
       reviewIssues: allIssues,
       reviewSnapshot: snapshot,
+      evaluatorSimulation,
+      finalReadinessGate,
+      technicalProposalPacketCompliance,
+      arbuySolicitationCompliance,
+      submissionPackageStats,
       copySectionPlainText,
       copyChecklistSummary,
       copyReadinessSummary,
@@ -145,6 +242,11 @@ export function OutputProvider({ children }: { children: ReactNode }) {
       readiness,
       allIssues,
       snapshot,
+      evaluatorSimulation,
+      finalReadinessGate,
+      technicalProposalPacketCompliance,
+      arbuySolicitationCompliance,
+      submissionPackageStats,
       copySectionPlainText,
       copyChecklistSummary,
       copyReadinessSummary,

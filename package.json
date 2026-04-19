@@ -11,6 +11,7 @@
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",
     "ingest:price-sheet": "tsx scripts/ingest-s479-price-sheet.ts",
+    "ingest:technical-proposal-packet": "tsx scripts/ingest-s479-technical-proposal-packet.ts",
     "check:server-aliases": "tsx scripts/check-server-aliases.ts",
     "check:private-deploy-env": "tsx scripts/check-private-deploy-env.ts",
     "check:netlify-prod-env": "tsx scripts/check-netlify-prod-env.ts",
@@ -19,6 +20,7 @@
   "dependencies": {
     "@netlify/functions": "^3.0.4",
     "cheerio": "^1.2.0",
+    "mammoth": "^1.12.0",
     "openai": "^4.77.0",
     "pg": "^8.13.1",
     "react": "^19.0.0",

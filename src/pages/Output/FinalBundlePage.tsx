@@ -1,16 +1,19 @@
 import { useMemo } from "react";
 import { ExportActionBar } from "@/components/output/ExportActionBar";
+import { EvaluatorScorecard } from "@/components/review/EvaluatorScorecard";
 import { FinalBlockerList } from "@/components/output/FinalBlockerList";
-import { FinalDecisionGate } from "@/components/output/FinalDecisionGate";
 import { FinalReadinessActionPanel } from "@/components/output/FinalReadinessActionPanel";
+import { FinalReadinessGateCard } from "@/components/output/FinalReadinessGateCard";
 import { FinalReadinessSummaryStrip } from "@/components/output/FinalReadinessSummaryStrip";
 import { OutputSubNav } from "@/components/output/OutputSubNav";
+import { SubmitBlockerMatrix } from "@/components/output/SubmitBlockerMatrix";
+import { ArbuySolicitationStatus } from "@/components/output/ArbuySolicitationStatus";
+import { TechnicalProposalPacketStatus } from "@/components/output/TechnicalProposalPacketStatus";
 import { useOutput } from "@/context/useOutput";
-import { activeIssues } from "@/lib/review-utils";
+import type { FinalDecisionGate } from "@/lib/output-utils";
 import {
   buildFinalReadinessBlockers,
   buildFinalReadinessNextActions,
-  computeFinalDecisionGate,
   computeRedactionReadinessScore,
 } from "@/lib/output-utils";
 
@@ -18,41 +21,17 @@ export function FinalBundlePage() {
   const {
     readiness,
     reviewIssues,
-    summary,
     redactionSummary,
     copyReadinessSummary,
     bundles,
     copyBundleJson,
     artifacts,
     reviewSnapshot,
+    evaluatorSimulation,
+    finalReadinessGate,
+    technicalProposalPacketCompliance,
+    arbuySolicitationCompliance,
   } = useOutput();
-
-  const act = activeIssues(reviewIssues);
-  const critical = act.filter((i) => i.severity === "Critical");
-
-  const clientSignOffReady =
-    critical.length === 0 && readiness.overall >= 68 && summary.outputBlockers <= 2;
-
-  const submissionAssemblyReady =
-    summary.outputBlockers === 0 &&
-    redactionSummary.unresolvedCount === 0 &&
-    redactionSummary.redactedCopyArtifactReady;
-
-  const gate = useMemo(
-    () =>
-      computeFinalDecisionGate({
-        criticalIssueCount: critical.length,
-        clientSignOffReady,
-        submissionAssemblyReady,
-        readinessOverall: readiness.overall,
-      }),
-    [
-      critical.length,
-      clientSignOffReady,
-      submissionAssemblyReady,
-      readiness.overall,
-    ],
-  );
 
   const blockers = useMemo(
     () =>
@@ -65,10 +44,25 @@ export function FinalBundlePage() {
     [artifacts, reviewIssues, redactionSummary, reviewSnapshot],
   );
 
-  const nextActions = useMemo(
-    () => buildFinalReadinessNextActions({ gate, blockers, redactionSummary }),
-    [gate, blockers, redactionSummary],
-  );
+  const nextActions = useMemo(() => {
+    const pseudoGate: FinalDecisionGate = {
+      state:
+        finalReadinessGate.overallState === "ready_to_submit"
+          ? "ready_submission_assembly"
+          : finalReadinessGate.overallState === "blocked"
+            ? "blocked"
+            : finalReadinessGate.overallState === "ready_with_risk"
+              ? "ready_client_signoff"
+              : "not_ready",
+      headline: finalReadinessGate.submissionRecommendation,
+      subline: "",
+    };
+    return buildFinalReadinessNextActions({
+      gate: pseudoGate,
+      blockers,
+      redactionSummary,
+    });
+  }, [finalReadinessGate, blockers, redactionSummary]);
 
   const redactionReadiness = useMemo(
     () => computeRedactionReadinessScore(redactionSummary),
@@ -95,7 +89,15 @@ export function FinalBundlePage() {
           </p>
         </header>
 
-        <FinalDecisionGate gate={gate} />
+        <FinalReadinessGateCard gate={finalReadinessGate} />
+
+        <TechnicalProposalPacketStatus compliance={technicalProposalPacketCompliance} />
+
+        <ArbuySolicitationStatus compliance={arbuySolicitationCompliance} />
+
+        <EvaluatorScorecard result={evaluatorSimulation} />
+
+        <SubmitBlockerMatrix blockers={finalReadinessGate.blockers} />
 
         <FinalReadinessSummaryStrip
           readiness={readiness}

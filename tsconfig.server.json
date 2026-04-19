@@ -37,6 +37,8 @@
     "src/data/canonical-executive-summary-s000000479.ts",
     "src/types/pricing-model.ts",
     "src/data/canonical-rfp-s000000479.ts",
+    "src/data/canonical-technical-proposal-packet-s000000479.ts",
+    "src/lib/technical-proposal-packet.ts",
     "src/data/canonical-srv1-contract.ts",
     "src/types/rfp-model.ts",
     "src/types/contract-model.ts",

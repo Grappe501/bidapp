@@ -1,6 +1,8 @@
 import { Link } from "react-router-dom";
 import { BidControlNav } from "@/components/control/BidControlNav";
 import { ContractExposureCard } from "@/components/review/ContractExposureCard";
+import { EvaluatorScorecard } from "@/components/review/EvaluatorScorecard";
+import { TechnicalProposalPacketStatus } from "@/components/output/TechnicalProposalPacketStatus";
 import { ReadinessScoreCard } from "@/components/review/ReadinessScoreCard";
 import { RequirementCoverageAuditCard } from "@/components/review/RequirementCoverageAuditCard";
 import { SubmissionReadinessCard } from "@/components/review/SubmissionReadinessCard";
@@ -8,11 +10,13 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useReview } from "@/context/useReview";
 import { useControl } from "@/context/useControl";
+import { useOutput } from "@/context/useOutput";
 import { useWorkspace } from "@/context/useWorkspace";
 import { activeIssues, issueSummary } from "@/lib/review-utils";
 
 export function ReadinessPage() {
   const { project } = useWorkspace();
+  const { evaluatorSimulation, technicalProposalPacketCompliance } = useOutput();
   const { readiness, allIssues, snapshot, runReview } = useReview();
   const { redactionFlags } = useControl();
   const act = activeIssues(allIssues);
@@ -76,6 +80,10 @@ export function ReadinessPage() {
             explanation="Core post-award documents moved past Not Started."
           />
         </div>
+
+        <EvaluatorScorecard result={evaluatorSimulation} />
+
+        <TechnicalProposalPacketStatus compliance={technicalProposalPacketCompliance} />
 
         <Card className="space-y-2 border-zinc-400/20 p-4">
           <h2 className="text-sm font-semibold text-ink">Executive checks</h2>

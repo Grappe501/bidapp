@@ -1,4 +1,5 @@
 import { CANONICAL_PRICING_S000000479 } from "../data/canonical-pricing-s000000479";
+import { getCanonicalArbuyModel } from "../data/canonical-arbuy-s000000479";
 import { formatPricingCompactNarrativeAppendix } from "../data/pricing-proposal-language-mapping";
 import { S000000479_BID_NUMBER } from "../data/canonical-rfp-s000000479";
 import type {
@@ -248,4 +249,61 @@ export function formatPricingSummaryExport(layer: GroundingBundlePricing): strin
   return (
     formatPricingNumericSummaryExport(layer) + formatPricingCompactNarrativeAppendix()
   );
+}
+
+/**
+ * Relates structured pricing lines to the official ARBuy quote grid (counts and readiness only — no unit costs from ARBuy).
+ */
+export function computeArbuyQuoteStructureAlignment(
+  bidNumber: string,
+  layer: GroundingBundlePricing,
+): {
+  itemStructureLoaded: boolean;
+  arbuyQuoteLineCount: number;
+  pricingLineCount: number;
+  lineItemPriceSupportAttached: boolean;
+  quoteStructureReady: boolean;
+  notes: string[];
+} {
+  const arbuy = getCanonicalArbuyModel(bidNumber);
+  const pricingLineCount = layer.model.items.length;
+  const lineItemPriceSupportAttached = pricingLineCount > 0;
+
+  if (!arbuy) {
+    return {
+      itemStructureLoaded: false,
+      arbuyQuoteLineCount: 0,
+      pricingLineCount,
+      lineItemPriceSupportAttached,
+      quoteStructureReady: layer.ready,
+      notes: ["No canonical ARBuy quote grid for this solicitation."],
+    };
+  }
+
+  const arbuyQuoteLineCount = arbuy.items.length;
+  const itemStructureLoaded = true;
+  const notes: string[] = [
+    `Official ARBuy quote lines (structure): ${arbuyQuoteLineCount}.`,
+    `Structured workbook lines: ${pricingLineCount}.`,
+  ];
+
+  if (pricingLineCount !== arbuyQuoteLineCount) {
+    notes.push(
+      "Line counts differ — confirm the official price sheet maps workbook rows to ARBuy quote lines (ARBuy metadata does not supply unit costs).",
+    );
+  } else {
+    notes.push("Workbook line count matches ARBuy quote line count.");
+  }
+
+  const quoteStructureReady =
+    lineItemPriceSupportAttached && layer.ready && itemStructureLoaded;
+
+  return {
+    itemStructureLoaded,
+    arbuyQuoteLineCount,
+    pricingLineCount,
+    lineItemPriceSupportAttached,
+    quoteStructureReady,
+    notes,
+  };
 }

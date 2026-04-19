@@ -1,5 +1,8 @@
 import { useMemo } from "react";
 import { ExportActionBar } from "@/components/output/ExportActionBar";
+import { FinalReadinessGateCard } from "@/components/output/FinalReadinessGateCard";
+import { ArbuySolicitationStatus } from "@/components/output/ArbuySolicitationStatus";
+import { TechnicalProposalPacketStatus } from "@/components/output/TechnicalProposalPacketStatus";
 import { OutputSubNav } from "@/components/output/OutputSubNav";
 import { PackageArtifactCard } from "@/components/output/PackageArtifactCard";
 import { PackageChecklist } from "@/components/output/PackageChecklist";
@@ -38,6 +41,9 @@ export function SubmissionPackagePage() {
     bundles,
     copyBundleJson,
     redactionSummary,
+    finalReadinessGate,
+    technicalProposalPacketCompliance,
+    arbuySolicitationCompliance,
   } = useOutput();
 
   const subBundle = bundles.find((b) => b.bundleType === "Submission Package");
@@ -122,6 +128,12 @@ export function SubmissionPackagePage() {
             last structured view before handoff.
           </p>
         </header>
+
+        <FinalReadinessGateCard gate={finalReadinessGate} />
+
+        <TechnicalProposalPacketStatus compliance={technicalProposalPacketCompliance} />
+
+        <ArbuySolicitationStatus compliance={arbuySolicitationCompliance} />
 
         <SubmissionPackageSummary
           bidNumber={project.bidNumber}

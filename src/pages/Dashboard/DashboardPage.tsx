@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { WorkspaceHeroCard } from "@/components/branding/WorkspaceHeroCard";
+import { ArbuyBidIdentityCard } from "@/components/workspace/ArbuyBidIdentityCard";
 import { ContractReadinessSection } from "@/components/contract/ContractReadinessSection";
 import { PricingReadinessSection } from "@/components/pricing/PricingReadinessSection";
 import { RfpReadinessSection } from "@/components/rfp/RfpReadinessSection";
@@ -61,6 +62,8 @@ export function DashboardPage() {
         </div>
 
         <WorkspaceHeroCard />
+
+        <ArbuyBidIdentityCard project={project} />
 
         <RfpReadinessSection project={project} files={files} />
 

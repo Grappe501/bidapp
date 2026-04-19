@@ -46,7 +46,7 @@ export const SECTION_STRATEGY: Record<
   Experience: {
     maxPages: 2,
     focus:
-      "Performance metrics, proven results, traceable evidence; metrics-driven scoring.",
+      "Technical Proposal Packet: repeat Claim of Expertise → Documented Performance blocks; performance metrics and traceable evidence; metrics-driven scoring.",
   },
   Solution: {
     maxPages: 2,
@@ -56,7 +56,7 @@ export const SECTION_STRATEGY: Record<
   Risk: {
     maxPages: 2,
     focus:
-      "Explicit risks with mitigation and proof; interview team must own the same story.",
+      "Technical Proposal Packet: each risk — Risk description → Solution/mitigation → Documented performance or verifiable control; interview team must own the same story.",
   },
   Interview: {
     maxPages: 2,

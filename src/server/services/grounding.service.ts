@@ -20,6 +20,7 @@ import { listFilesByProject } from "../repositories/file.repo";
 import { buildProjectGroundingBundleContract } from "../../lib/contract-narrative";
 import { buildProjectGroundingBundleRfp } from "../../lib/rfp-narrative";
 import { buildPricingLayerForProject } from "../../lib/pricing-structure";
+import { resolveArbuyModelForBidNumber } from "../../lib/arbuy-solicitation";
 import { selectVendorFactsForGroundingBundle } from "../lib/grounding-quality-utils";
 import type { DbRequirement } from "../repositories/requirement.repo";
 import type { DbEvidenceItem } from "../repositories/evidence.repo";
@@ -263,6 +264,14 @@ export async function buildAndStoreGroundingBundle(input: {
     }
     if (base.pricing.notes.length > 0) {
       base.validationNotes.push(...base.pricing.notes.slice(0, 4));
+    }
+
+    const arbuy = resolveArbuyModelForBidNumber(project.bidNumber);
+    if (arbuy) {
+      base.arbuy = arbuy;
+      base.validationNotes.push(
+        "ARBuy solicitation metadata and official quote line structure (UNSPSC) attached — align portal identity, electronic submission, attachments, and price sheet naming.",
+      );
     }
   }
 

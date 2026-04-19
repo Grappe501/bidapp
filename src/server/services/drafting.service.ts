@@ -1,3 +1,4 @@
+import { formatTechnicalProposalPacketBlockForPrompt } from "../../data/canonical-technical-proposal-packet-s000000479";
 import { formatCanonicalExecutiveSummaryForPrompt } from "../../data/canonical-executive-summary-s000000479";
 import { formatCanonicalInterviewSectionForPrompt } from "../../data/canonical-interview-section-s000000479";
 import {
@@ -6,6 +7,7 @@ import {
 } from "../../data/canonical-risk-section-s000000479";
 import { formatCanonicalSolutionSectionForPrompt } from "../../data/canonical-solution-section-s000000479";
 import { formatPricingNarrativeMappingForPrompt } from "../../data/pricing-proposal-language-mapping";
+import { formatArbuySolicitationBlockForPrompt } from "../../lib/arbuy-solicitation";
 import type { GroundingBundlePayload } from "../../types";
 import { defaultParseModel, getOpenAI } from "./openai-client";
 import type { DraftSectionType } from "../../types";
@@ -15,6 +17,7 @@ import {
   scoringForSectionType,
 } from "../lib/drafting-constants";
 import { getGroundingBundle } from "../repositories/grounding.repo";
+import { draftTextContainsExternalLinks } from "../../lib/technical-proposal-packet";
 
 export type DraftMetadata = {
   wordCount: number;
@@ -86,6 +89,14 @@ function validateGrounding(grounding: GroundingBundlePayload): void {
     throw new Error(
       "Grounding bundle is empty — add requirements, evidence, chunks, or facts.",
     );
+  }
+  const sol = String(grounding.rfp?.core?.solicitationNumber ?? "").trim();
+  if (sol === S000000479_BID_NUMBER) {
+    if (!grounding.arbuy?.header?.solicitationNumber?.trim()) {
+      throw new Error(
+        "ARBuy solicitation grounding is required — rebuild the grounding bundle so official procurement metadata and quote lines are attached.",
+      );
+    }
   }
 }
 
@@ -250,6 +261,11 @@ CONTRACT: Stub profile — keep scope and performance claims conservative until 
 `
         : "";
 
+  const technicalPacketBlock =
+    solicitationId === S000000479_BID_NUMBER
+      ? `\n\n${formatTechnicalProposalPacketBlockForPrompt()}\n`
+      : "";
+
   const system = `You are a proposal drafter for a scored government procurement (1000-point model). Output valid JSON only.
 
 STRICT RULES:
@@ -258,7 +274,7 @@ STRICT RULES:
 - Label inference explicitly in prose only when necessary: "Inferred:" or "Vendor states:" — never present inference as verified fact.
 - Do not invent metrics, contracts, or agency commitments.
 - Respect page limit (~${pageLimit} pages at ~${WORDS_PER_PAGE} words/page).
-- Address scoring emphasis for this section type.
+${solicitationId === S000000479_BID_NUMBER ? "- TECHNICAL PROPOSAL PACKET (S000000479): Do not include hyperlinks, URLs, http(s)://, or www. in proposal body text — the state packet disallows external links in the technical proposal.\n" : ""}- Address scoring emphasis for this section type.
 - Surface gaps: if something is missing from inputs, say what is unsupported rather than fabricating.
 - Where evidence.validationStatus is Unverified or Pending, do not state associated claims as adjudicated fact; qualify or route to unsupported_claim_flags.
 - The metadata.unsupported_claim_flags array must list any substantive claim in your prose that lacks firm grounding in the inputs.
@@ -266,7 +282,11 @@ ${isCanonicalS000000479Solution ? "- For this solicitation, a canonical Solution
 ${isCanonicalS000000479Risk ? "- For this solicitation, a canonical Risk Management Plan exemplar may appear in the user message: use it for risk→mitigation→outcome structure and evaluator-facing clarity (~2 pages). Do not treat exemplar text as verified fact; align all claims to the grounding bundle." : ""}
 ${isCanonicalS000000479Interview ? "- For this solicitation, a canonical Interview / oral-defense exemplar may appear in the user message: use it for Q&A-ready structure and confidence under the Interview score (~30%). Do not treat exemplar text as verified fact; align all claims to Solution/Risk volumes, structured pricing, and the grounding bundle." : ""}
 ${isCanonicalS000000479ExecutiveSummary ? "- For this solicitation, a canonical Executive Summary exemplar may appear in the user message: use it for single-page tone, alignment across volumes, and immediate evaluator confidence. Do not paste dollar amounts from exemplar unless they appear in structured pricing JSON; do not treat exemplar text as verified fact." : ""}
+${solicitationId === S000000479_BID_NUMBER && input.sectionType === "Experience" ? "- EXPERIENCE VOLUME: Structure content in repeating blocks — Claim of Expertise (what you assert) followed by Documented Performance (evidence-backed outcomes, references, metrics). Each thread should be scannable by evaluators." : ""}
+${solicitationId === S000000479_BID_NUMBER && input.sectionType === "Risk" ? "- RISK VOLUME: For each material risk use Risk description → Solution/mitigation → Documented performance or verifiable control. Align mitigations to evidence; do not leave unmanaged residual risk." : ""}
+${solicitationId === S000000479_BID_NUMBER && input.sectionType === "Solution" ? "- SOLUTION VOLUME: Non-technical, criterion-driven narrative within the page cap; avoid link-based citations — describe sources in prose." : ""}
 ${contractSystemAddendum}
+${technicalPacketBlock}
 Return shape:
 {"content": string (proposal prose with \\n\\n between paragraphs), "metadata": {"word_count": number, "estimated_pages": number, "requirement_coverage_ids": string[], "missing_requirement_ids": string[], "risk_flags": string[], "unsupported_claim_flags": string[]}}`;
 
@@ -328,6 +348,11 @@ Return shape:
     });
   }
 
+  let arbuyBlock = "";
+  if (input.grounding.arbuy) {
+    arbuyBlock = formatArbuySolicitationBlockForPrompt(input.grounding.arbuy);
+  }
+
   let contractBlock = "";
   const ctr = input.grounding.contract;
   if (ctr) {
@@ -372,11 +397,17 @@ Return shape:
     canonicalExecutiveSummaryBlock = formatCanonicalExecutiveSummaryForPrompt();
   }
 
-  const userParts = [
+  const userParts: string[] = [
+    ...(solicitationId === S000000479_BID_NUMBER
+      ? [
+          "TECHNICAL PROPOSAL PACKET: This section must conform to the state Technical Proposal Packet (see system message) — section name, page cap, and drafting patterns are binding.",
+        ]
+      : []),
     `SECTION TYPE: ${input.sectionType}`,
     `PAGE LIMIT: ${pageLimit} pages (hard budget for this section)`,
     `SECTION STRATEGY / FOCUS: ${constraintRules}`,
     rfpBlock ? `${rfpBlock}\n` : "",
+    arbuyBlock ? `${arbuyBlock}\n` : "",
     contractBlock ? `${contractBlock}\n` : "",
     pricingBlock ? `${pricingBlock}\n` : "",
     pricingNarrativeMappingBlock ? `${pricingNarrativeMappingBlock}\n` : "",
@@ -432,6 +463,15 @@ Return shape:
       : {};
 
   const metadata = normalizeMetadata(metaRaw, content, pageLimit, allReqIds);
+
+  if (
+    solicitationId === S000000479_BID_NUMBER &&
+    draftTextContainsExternalLinks(content)
+  ) {
+    metadata.riskFlags.push(
+      "Technical Proposal Packet: proposal text must not contain external links or URLs — remove http(s):// and www. references.",
+    );
+  }
 
   return { content, metadata };
 }

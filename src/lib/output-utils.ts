@@ -984,14 +984,19 @@ export function formatReadinessExport(
 export function buildBundlePayload(
   bundle: OutputBundle,
   artifacts: OutputArtifact[],
+  vendorIntelligenceAppendix?: Record<string, unknown> | null,
 ): Record<string, unknown> {
   const map = Object.fromEntries(artifacts.map((a) => [a.id, a]));
-  return {
+  const base: Record<string, unknown> = {
     bundle,
     artifacts: bundle.artifactIds
       .map((id) => map[id])
       .filter(Boolean),
   };
+  if (vendorIntelligenceAppendix && Object.keys(vendorIntelligenceAppendix).length > 0) {
+    base.vendorIntelligence = vendorIntelligenceAppendix;
+  }
+  return base;
 }
 
 export async function copyTextToClipboard(text: string): Promise<boolean> {

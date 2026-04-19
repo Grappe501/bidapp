@@ -52,6 +52,7 @@ export function FinalReadinessGateCard({ gate }: { gate: FinalReadinessGate }) {
         {gate.arbuySolicitation?.applicable ? (
           <GateBool label="ARBuy solicitation" ok={gate.arbuySolicitation.ready} />
         ) : null}
+        <GateBool label="Vendor / stack decision" ok={gate.vendorStrategyViable} />
         <div className="bg-white px-4 py-3">
           <p className="text-xs font-semibold text-ink">Hard blockers</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">

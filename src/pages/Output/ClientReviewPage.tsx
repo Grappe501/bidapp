@@ -11,6 +11,8 @@ import { ClientEvaluatorBrief } from "@/components/output/ClientEvaluatorBrief";
 import { TechnicalProposalPacketStatus } from "@/components/output/TechnicalProposalPacketStatus";
 import { WhyWinsCard } from "@/components/output/WhyWinsCard";
 import { ClientRiskSnapshot } from "@/components/output/ClientRiskSnapshot";
+import { ClientCompetitorSummarySection } from "@/components/vendors/ClientCompetitorSummarySection";
+import { ClientVendorIntelligenceSection } from "@/components/vendors/ClientVendorIntelligenceSection";
 import { OutputSubNav } from "@/components/output/OutputSubNav";
 import { Button } from "@/components/ui/Button";
 import { useArchitecture } from "@/context/useArchitecture";
@@ -36,6 +38,7 @@ export function ClientReviewPage() {
     reviewSnapshot,
     evaluatorSimulation,
     technicalProposalPacketCompliance,
+    competitorAwareSimulation,
   } = useOutput();
   const { options } = useArchitecture();
   const { submissionItems } = useControl();
@@ -49,8 +52,20 @@ export function ClientReviewPage() {
     const core = recommended.components
       .filter((c) => !c.optional)
       .map((c) => `${c.vendorName} (${c.role})`);
-    return `Malone-led orchestration; proposed core stack: ${core.join("; ")}.`;
-  }, [recommended]);
+    const base = `Malone-led orchestration; proposed core stack: ${core.join("; ")}.`;
+    const sim = competitorAwareSimulation;
+    if (
+      sim?.recommendedVendorId &&
+      sim.entries.length > 0 &&
+      sim.recommendationConfidence
+    ) {
+      const lead = sim.entries.find((e) => e.vendorId === sim.recommendedVendorId);
+      if (lead) {
+        return `${base} Evidence-weighted competitor comparison favors ${lead.vendorName} (${sim.recommendationConfidence} confidence) — validate against intelligence rows before lock.`;
+      }
+    }
+    return base;
+  }, [recommended, competitorAwareSimulation]);
 
   const watchouts = useMemo(
     () => buildClientWatchouts(reviewIssues, recommended, 3),
@@ -212,6 +227,10 @@ export function ClientReviewPage() {
         />
 
         <WhyWinsCard bidNumber={project.bidNumber} />
+
+        <ClientVendorIntelligenceSection />
+
+        <ClientCompetitorSummarySection />
 
         <ClientEvaluatorBrief result={evaluatorSimulation} />
 

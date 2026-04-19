@@ -12,12 +12,26 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+function normalizeUrlForKey(url: string): string {
+  try {
+    const u = new URL(url);
+    u.hash = "";
+    let s = u.href;
+    if (s.endsWith("/") && u.pathname !== "/") s = s.slice(0, -1);
+    return s;
+  } catch {
+    return url.trim();
+  }
+}
+
 export async function ingestUrlToSource(input: {
   url: string;
   projectId: string;
   companyProfileId?: string | null;
   classification?: string | null;
   title?: string | null;
+  /** Stored on intelligence_sources.metadata (e.g. vendorId for research ingest). */
+  metadata?: Record<string, unknown>;
 }): Promise<{ sourceId: string; textLength: number; factId?: string }> {
   const res = await fetch(input.url, {
     headers: {
@@ -41,9 +55,11 @@ export async function ingestUrlToSource(input: {
     companyProfileId: input.companyProfileId ?? null,
     sourceType: "url",
     url: input.url,
+    urlNormalized: normalizeUrlForKey(input.url),
     title: input.title ?? input.url,
     rawText: capped,
     classification: input.classification ?? null,
+    metadata: input.metadata,
     validationStatus: "Pending Validation",
     fetchedAt: new Date().toISOString(),
   });

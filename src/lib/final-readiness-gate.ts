@@ -11,6 +11,7 @@ import type {
   ReviewIssue,
   TechnicalProposalPacketCompliance,
 } from "@/types";
+import type { VendorDecisionAssessment } from "@/lib/vendor-decision-gate";
 import type { GroundingBundlePricing } from "@/types/pricing-model";
 import type {
   SubmissionPackageChecklistRow,
@@ -60,6 +61,8 @@ export function computeFinalReadinessGate(input: {
   evaluator: EvaluatorSimulationResult;
   technicalProposalPacket: TechnicalProposalPacketCompliance | null;
   arbuySolicitation: ArbuySolicitationCompliance | null;
+  /** When set, vendor/stack decision quality can block or downgrade readiness. */
+  vendorDecision?: VendorDecisionAssessment | null;
 }): FinalReadinessGate {
   const {
     bidNumber,
@@ -73,6 +76,7 @@ export function computeFinalReadinessGate(input: {
     evaluator,
     technicalProposalPacket,
     arbuySolicitation,
+    vendorDecision: vd,
   } = input;
 
   const act = activeIssues(reviewIssues);
@@ -114,6 +118,21 @@ export function computeFinalReadinessGate(input: {
   const blockers: string[] = [];
   const warnings: string[] = [];
   const actions: string[] = [];
+
+  const vendorStrategyViable = vd ? vd.vendorStrategyViable : true;
+  const vendorDecisionBlockers = vd?.blockers ?? [];
+  const vendorDecisionWarnings = vd?.warnings ?? [];
+
+  if (vendorDecisionBlockers.length > 0) {
+    for (const b of vendorDecisionBlockers) {
+      if (!blockers.includes(b)) blockers.push(b);
+    }
+  }
+  if (vendorDecisionWarnings.length > 0) {
+    for (const w of vendorDecisionWarnings) {
+      if (!warnings.includes(w)) warnings.push(w);
+    }
+  }
 
   if (criticalOpen) {
     blockers.push("Critical review findings are still open — disposition before submission.");
@@ -227,6 +246,8 @@ export function computeFinalReadinessGate(input: {
   const arbuyHardStop =
     arbuySolicitation?.applicable === true && !arbuySolicitation.ready;
 
+  const vendorHardStop = vendorDecisionBlockers.length > 0;
+
   const hardStop =
     criticalOpen ||
     checklistStats.missingItems > 0 ||
@@ -234,20 +255,23 @@ export function computeFinalReadinessGate(input: {
     !unsupportedClaimsResolved ||
     (bidNumber === S000000479_BID_NUMBER && !pricingLayer.contractCompliant) ||
     packetHardStop ||
-    arbuyHardStop;
+    arbuyHardStop ||
+    vendorHardStop;
 
   if (
     hardStop ||
     !groundedReviewReady ||
     checklistStats.blockedItems > 0 ||
     !evaluatorScoreViable ||
-    !criticalRisksAddressed
+    !criticalRisksAddressed ||
+    !vendorStrategyViable
   ) {
     overallState =
       criticalOpen ||
       checklistStats.missingItems > 0 ||
       !pricingReady ||
-      packetHardStop
+      packetHardStop ||
+      vendorHardStop
         ? "blocked"
         : "not_ready";
   } else if (
@@ -318,5 +342,8 @@ export function computeFinalReadinessGate(input: {
     submissionRecommendation,
     technicalProposalPacket,
     arbuySolicitation,
+    vendorStrategyViable,
+    vendorDecisionBlockers,
+    vendorDecisionWarnings,
   };
 }

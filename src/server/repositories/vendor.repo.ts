@@ -152,6 +152,12 @@ export async function listVendorsByProject(projectId: string): Promise<DbVendor[
   return r.rows.map((row: Record<string, unknown>) => mapVendor(row));
 }
 
+export async function getVendorById(id: string): Promise<DbVendor | null> {
+  const r = await query(`SELECT * FROM vendors WHERE id = $1`, [id]);
+  if (r.rowCount === 0) return null;
+  return mapVendor(r.rows[0] as Record<string, unknown>);
+}
+
 export async function findVendorIdByProjectAndName(
   projectId: string,
   name: string,
@@ -188,6 +194,51 @@ export async function createVendorClaim(input: {
       input.confidence ?? "",
       input.claimCategory ?? "other",
     ],
+  );
+}
+
+export type DbVendorClaimRow = {
+  id: string;
+  vendorId: string;
+  sourceId: string | null;
+  claimText: string;
+  validationStatus: string;
+  credibility: string;
+  confidence: string;
+  claimCategory: string;
+};
+
+function mapVendorClaimRow(row: Record<string, unknown>): DbVendorClaimRow {
+  return {
+    id: String(row.id),
+    vendorId: String(row.vendor_id),
+    sourceId: row.source_id == null ? null : String(row.source_id),
+    claimText: String(row.claim_text),
+    validationStatus: String(row.validation_status),
+    credibility: String(row.credibility ?? ""),
+    confidence: String(row.confidence ?? ""),
+    claimCategory: String(row.claim_category ?? "other"),
+  };
+}
+
+export async function listVendorClaimsByVendorId(
+  vendorId: string,
+  limit = 120,
+): Promise<DbVendorClaimRow[]> {
+  const r = await query(
+    `SELECT * FROM vendor_claims WHERE vendor_id = $1 ORDER BY created_at DESC LIMIT $2`,
+    [vendorId, limit],
+  );
+  return r.rows.map((row: Record<string, unknown>) => mapVendorClaimRow(row));
+}
+
+export async function updateVendorFitScore(input: {
+  vendorId: string;
+  fitScore: number;
+}): Promise<void> {
+  await query(
+    `UPDATE vendors SET fit_score = $2, updated_at = now() WHERE id = $1`,
+    [input.vendorId, input.fitScore],
   );
 }
 

@@ -640,6 +640,46 @@ export type RequirementSupportSummary = {
   validation_mix: RequirementSupportValidationMix;
 };
 
+/** Vendor-scoped grounding slice (fit matrix, claims, facts, interview, integration). */
+export type GroundingBundleVendorIntelligence = {
+  vendorId: string;
+  vendorName: string;
+  fitDimensions: Array<{
+    dimensionKey: string;
+    score: number;
+    confidence: string;
+    rationale: string;
+    sourceIds: string[];
+  }>;
+  vendorClaims: Array<{
+    id: string;
+    claimText: string;
+    validationStatus: string;
+    credibility: string;
+    confidence: string;
+    claimCategory: string;
+    sourceId: string | null;
+  }>;
+  intelligenceFacts: Array<{
+    id: string;
+    factType: string;
+    factText: string;
+    credibility: string;
+    confidence: string;
+    sourceId: string;
+  }>;
+  interviewQuestions: Array<{
+    question: string;
+    category: string;
+    priority: string;
+  }>;
+  integrationRequirements: Array<{
+    requirementKey: string;
+    status: string;
+    evidence: string;
+  }>;
+};
+
 export type GroundingBundlePayload = {
   bundleType: GroundingBundleType;
   title: string;
@@ -712,6 +752,12 @@ export type GroundingBundlePayload = {
   pricing?: import("./pricing-model").GroundingBundlePricing;
   /** Official ARBuy solicitation header, required attachments, and quote lines (when registered for bid). */
   arbuy?: import("./arbuy-solicitation").ArbuySolicitationModel;
+  /** When target_entity_id is a vendor, populated from DB for Solution/Risk/Interview/vendor_recommendation bundles. */
+  vendorIntelligence?: GroundingBundleVendorIntelligence;
+  /** Comparative recommendation / point-loss narrative for selected vendor posture (optional). */
+  competitorComparisonContext?: GroundingBundleCompetitorContext;
+  /** Automatic adaptation to recommended architecture + resolved vendor (Solution/Risk/Interview, etc.). */
+  proposalAdaptation?: GroundingBundleProposalAdaptation;
 };
 
 export type GroundedProseReviewClarity = "strong" | "moderate" | "weak";
@@ -956,6 +1002,108 @@ export type EvaluatorSimulationResult = {
   topUpgradeActions: string[];
 };
 
+/** Comparative bid decision support — interpretive scores for THIS solicitation. */
+export type HeatmapCellStatus = "met" | "partial" | "gap" | "unknown";
+
+export type CompetitorHeatmapMatrix = {
+  rows: Array<{
+    id: string;
+    label: string;
+    cells: Record<string, HeatmapCellStatus>;
+  }>;
+};
+
+export type CompetitorComparisonEntry = {
+  vendorId: string;
+  vendorName: string;
+  /** 0–100 composite; not a guarantee of evaluation outcome. */
+  overallScore: number;
+  confidence: EvaluatorConfidence;
+  technicalFitScore: number;
+  integrationScore: number;
+  deliveryScore: number;
+  riskScore: number;
+  complianceScore: number;
+  commercialScore?: number;
+  /**
+   * Approximate directional impact on technical volumes (± rough points on 0–100 interpretive scale).
+   * Not precise prediction — use for comparison only.
+   */
+  evaluatorBidScoreImpact: {
+    experienceImpact: number;
+    solutionImpact: number;
+    riskImpact: number;
+    interviewImpact: number;
+  };
+  topAdvantages: string[];
+  topDisadvantages: string[];
+  criticalGaps: string[];
+  integrationBurdens: string[];
+  mustAskQuestions: string[];
+  heatmap: Record<string, HeatmapCellStatus>;
+};
+
+export type CompetitorRecommendationConfidence =
+  | "high"
+  | "medium"
+  | "low"
+  | "provisional";
+
+export type CompetitorAwareSimulationResult = {
+  projectId: string;
+  architectureOptionId?: string;
+  comparedVendorIds: string[];
+  entries: CompetitorComparisonEntry[];
+  heatmapMatrix: CompetitorHeatmapMatrix;
+  recommendedVendorId?: string;
+  recommendedRationale: string[];
+  recommendationConfidence: CompetitorRecommendationConfidence;
+  decisionRisks: string[];
+  pointLossComparisons: string[];
+  scenarioNotes: string[];
+  competitorInterviewQuestions: string[];
+  generatedAt: string;
+  honestyNote: string;
+};
+
+/** Auto-selected proposal posture: architecture + effective vendor + drafting directive. */
+export type GroundingBundleProposalAdaptation = {
+  generatedAt: string;
+  architectureOptionId?: string;
+  architectureOptionName: string;
+  effectiveVendorId: string;
+  effectiveVendorName: string;
+  source:
+    | "target_override"
+    | "competitor_recommendation"
+    | "architecture_stack"
+    | "none";
+  /** Section-specific guidance for Solution / Risk / Interview / etc. */
+  strategicDirective: string;
+};
+
+/** Trimmed slice for OpenAI grounding — never replaces vendorIntelligence rows. */
+export type GroundingBundleCompetitorContext = {
+  generatedAt: string;
+  bidNumber?: string;
+  selectedVendorId?: string;
+  recommendationConfidence: CompetitorRecommendationConfidence;
+  recommendedVendorId?: string;
+  recommendedRationale: string[];
+  decisionRisks: string[];
+  pointLossComparisons: string[];
+  scenarioNotes: string[];
+  competitorInterviewQuestions: string[];
+  entriesSummary: Array<{
+    vendorId: string;
+    vendorName: string;
+    overallScore: number;
+    confidence: string;
+    evaluatorBidScoreImpact: CompetitorComparisonEntry["evaluatorBidScoreImpact"];
+  }>;
+  honestyNote: string;
+};
+
 export type FinalReadinessOverallState =
   | "ready_to_submit"
   | "ready_with_risk"
@@ -982,6 +1130,10 @@ export type FinalReadinessGate = {
   technicalProposalPacket: TechnicalProposalPacketCompliance | null;
   /** ARBuy solicitation completeness (null when no canonical ARBuy profile for bid). */
   arbuySolicitation: import("./arbuy-solicitation").ArbuySolicitationCompliance | null;
+  /** Vendor/stack decision quality (from competitor simulation). */
+  vendorStrategyViable: boolean;
+  vendorDecisionBlockers: string[];
+  vendorDecisionWarnings: string[];
 };
 
 export const REVIEW_ISSUE_TYPES: ReviewIssueType[] = [

@@ -9,7 +9,13 @@ function connectionString(): string {
   if (!url || url.trim() === "") {
     throw new Error("DATABASE_URL is not set");
   }
-  return url;
+  const u = url.trim();
+  if (!/^postgres(ql)?:\/\//i.test(u)) {
+    throw new Error(
+      "DATABASE_URL must start with postgresql:// or postgres:// (copy the full connection URI from Neon).",
+    );
+  }
+  return u;
 }
 
 /**

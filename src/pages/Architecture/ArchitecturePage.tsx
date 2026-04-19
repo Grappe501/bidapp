@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ArchitectureCompetitorStrip } from "@/components/architecture/ArchitectureCompetitorStrip";
 import { ArchitectureOptionCard } from "@/components/architecture/ArchitectureOptionCard";
 import { ArchitectureOptionDetail } from "@/components/architecture/ArchitectureOptionDetail";
 import { useArchitecture } from "@/context/useArchitecture";
@@ -43,6 +44,8 @@ export function ArchitecturePage() {
             explicit before drafting.
           </p>
         </div>
+
+        <ArchitectureCompetitorStrip options={sorted} />
 
         <div className="grid gap-8 lg:grid-cols-12">
           <div className="space-y-3 lg:col-span-4">

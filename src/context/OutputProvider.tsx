@@ -1,5 +1,7 @@
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useArchitecture } from "@/context/useArchitecture";
 import { useControl } from "@/context/useControl";
+import { useVendors } from "@/context/useVendors";
 import { useWorkspace } from "@/context/useWorkspace";
 import { useDrafting } from "@/context/useDrafting";
 import { useReview } from "@/context/useReview";
@@ -18,16 +20,20 @@ import {
   summarizeRedactionPackaging,
   type OutputGatherInput,
 } from "@/lib/output-utils";
+import { postCompetitorSimulation, postVendorIntelligenceExport } from "@/lib/functions-api";
+import { assessVendorDecisionForReadiness } from "@/lib/vendor-decision-gate";
 import { computeEvaluatorSimulation } from "@/lib/evaluator-simulation";
 import { computeFinalReadinessGate } from "@/lib/final-readiness-gate";
 import { computeArbuySubmissionCompliance } from "@/lib/arbuy-solicitation";
 import { buildPricingLayerForProject } from "@/lib/pricing-structure";
 import { computeTechnicalProposalPacketCompliance } from "@/lib/technical-proposal-packet";
-import type { PackagingCompleteness } from "@/types";
+import type { CompetitorAwareSimulationResult, PackagingCompleteness } from "@/types";
 import { OutputContext } from "./output-context";
 
 export function OutputProvider({ children }: { children: ReactNode }) {
   const { project, files } = useWorkspace();
+  const { vendors } = useVendors();
+  const { options: architectureOptions } = useArchitecture();
   const { submissionItems, redactionFlags, discussionItems } = useControl();
   const { sections, getActiveVersion } = useDrafting();
   const { allIssues, readiness, snapshot } = useReview();
@@ -151,6 +157,40 @@ export function OutputProvider({ children }: { children: ReactNode }) {
     [project.bidNumber, files, pricingLayer],
   );
 
+  const [competitorAwareSimulation, setCompetitorAwareSimulation] =
+    useState<CompetitorAwareSimulationResult | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const pid = project.id?.trim();
+    if (!pid || vendors.length < 1) {
+      setCompetitorAwareSimulation(null);
+      return;
+    }
+    const rec =
+      architectureOptions.find((o) => o.recommended) ?? architectureOptions[0];
+    const ids = vendors.slice(0, 10).map((v) => v.id);
+    void postCompetitorSimulation({
+      projectId: pid,
+      comparedVendorIds: ids,
+      architectureOptionId: rec?.id ?? null,
+    })
+      .then((r) => {
+        if (!cancelled) setCompetitorAwareSimulation(r);
+      })
+      .catch(() => {
+        if (!cancelled) setCompetitorAwareSimulation(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [project.id, vendors, architectureOptions]);
+
+  const vendorDecision = useMemo(
+    () => assessVendorDecisionForReadiness(competitorAwareSimulation),
+    [competitorAwareSimulation],
+  );
+
   const finalReadinessGate = useMemo(
     () =>
       computeFinalReadinessGate({
@@ -165,6 +205,7 @@ export function OutputProvider({ children }: { children: ReactNode }) {
         evaluator: evaluatorSimulation,
         technicalProposalPacket: technicalProposalPacketCompliance,
         arbuySolicitation: arbuySolicitationCompliance,
+        vendorDecision,
       }),
     [
       project.bidNumber,
@@ -178,6 +219,7 @@ export function OutputProvider({ children }: { children: ReactNode }) {
       evaluatorSimulation,
       technicalProposalPacketCompliance,
       arbuySolicitationCompliance,
+      vendorDecision,
     ],
   );
 
@@ -205,10 +247,28 @@ export function OutputProvider({ children }: { children: ReactNode }) {
     async (bundleId: string) => {
       const bundle = bundles.find((b) => b.id === bundleId);
       if (!bundle) return false;
-      const payload = buildBundlePayload(bundle, mergedArtifacts);
+      let vendorAppendix: Record<string, unknown> | null = null;
+      if (bundle.bundleType === "Final Readiness Bundle") {
+        try {
+          const exp = await postVendorIntelligenceExport(project.id);
+          vendorAppendix = {
+            vendors: exp.vendors,
+            vendorComparisonNote: exp.vendorComparisonNote,
+            vendorJustification:
+              "Selection and trade-offs must cite vendor_claims and intelligence_facts rows — do not treat this export as new evidence.",
+          };
+        } catch {
+          vendorAppendix = null;
+        }
+      }
+      const payload = buildBundlePayload(
+        bundle,
+        mergedArtifacts,
+        vendorAppendix,
+      );
       return copyTextToClipboard(JSON.stringify(payload, null, 2));
     },
-    [bundles, mergedArtifacts],
+    [bundles, mergedArtifacts, project.id],
   );
 
   const value = useMemo(
@@ -223,6 +283,7 @@ export function OutputProvider({ children }: { children: ReactNode }) {
       reviewIssues: allIssues,
       reviewSnapshot: snapshot,
       evaluatorSimulation,
+      competitorAwareSimulation,
       finalReadinessGate,
       technicalProposalPacketCompliance,
       arbuySolicitationCompliance,
@@ -243,6 +304,7 @@ export function OutputProvider({ children }: { children: ReactNode }) {
       allIssues,
       snapshot,
       evaluatorSimulation,
+      competitorAwareSimulation,
       finalReadinessGate,
       technicalProposalPacketCompliance,
       arbuySolicitationCompliance,

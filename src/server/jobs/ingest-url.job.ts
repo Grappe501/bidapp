@@ -6,6 +6,7 @@ export async function runIngestUrlJob(input: {
   companyProfileId?: string | null;
   classification?: string | null;
   title?: string | null;
+  metadata?: Record<string, unknown>;
 }): Promise<{ sourceId: string; textLength: number; factId?: string }> {
   return ingestUrlToSource(input);
 }

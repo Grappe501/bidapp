@@ -846,8 +846,24 @@ export function getGroundingBundleStats(
   const gapCount = payload.gaps.length;
   const architectureOptionCount = payload.architectureOptions.length;
   const validationNoteCount = payload.validationNotes.length;
+  const vi = payload.vendorIntelligence;
+  const viCount = vi
+    ? vi.fitDimensions.length +
+      vi.vendorClaims.length +
+      vi.intelligenceFacts.length +
+      vi.interviewQuestions.length +
+      vi.integrationRequirements.length
+    : 0;
+  const ccCount = payload.competitorComparisonContext ? 1 : 0;
+  const paCount = payload.proposalAdaptation ? 1 : 0;
   const groundingItemTotal =
-    requirementCount + evidenceCount + vendorFactCount + chunkCount;
+    requirementCount +
+    evidenceCount +
+    vendorFactCount +
+    chunkCount +
+    viCount +
+    ccCount +
+    paCount;
   return {
     requirementCount,
     evidenceCount,

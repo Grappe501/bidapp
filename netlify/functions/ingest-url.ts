@@ -17,6 +17,7 @@ type Body = {
   companyProfileId?: string | null;
   classification?: string | null;
   title?: string | null;
+  metadata?: Record<string, unknown>;
 };
 
 export const handler: Handler = async (event) => {
@@ -38,6 +39,7 @@ export const handler: Handler = async (event) => {
       companyProfileId: body.companyProfileId,
       classification: body.classification,
       title: body.title,
+      metadata: body.metadata,
     });
     return jsonResponse(200, result, event);
   } catch (e) {

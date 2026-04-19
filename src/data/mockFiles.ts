@@ -196,7 +196,8 @@ export const MOCK_FILES: FileRecord[] = [
     tags: ["S479", "disclosure", "solicitation"],
     noteCount: 0,
     linkedItemCount: 0,
-    description: "ARBuy-posted Contract and Grant Disclosure form.",
+    description:
+      "ARBuy Contract and Grant Disclosure (EO 98-04); run npm run ingest:contract-grant-disclosure with the .pdf path to load full text and chunks into the database.",
   },
   {
     id: "file-016",

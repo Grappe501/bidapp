@@ -3,7 +3,10 @@
  * Use relative imports for anything under `src/server` and `netlify/functions`.
  */
 import type {
+  CompetitorAwareSimulationResult,
+  GroundingBundleCompetitorContext,
   GroundingBundlePayload,
+  GroundingBundleProposalAdaptation,
   GroundingBundleType,
   KnowledgeProvenanceKind,
   RetrievalQueryType,
@@ -12,7 +15,10 @@ import { emptyGroundingPayload, summarizeGaps } from "../../lib/grounding-utils"
 import { retrieveChunks } from "./retrieval.service";
 import { listRequirementsByProject } from "../repositories/requirement.repo";
 import { listEvidenceByProject } from "../repositories/evidence.repo";
-import { listArchitectureOptionsByProject } from "../repositories/architecture.repo";
+import {
+  listArchitectureComponentsByOptionId,
+  listArchitectureOptionsByProject,
+} from "../repositories/architecture.repo";
 import { listFactsByProject } from "../repositories/intelligence.repo";
 import { insertGroundingBundle } from "../repositories/grounding.repo";
 import { getProject } from "../repositories/project.repo";
@@ -22,9 +28,85 @@ import { buildProjectGroundingBundleRfp } from "../../lib/rfp-narrative";
 import { buildPricingLayerForProject } from "../../lib/pricing-structure";
 import { resolveArbuyModelForBidNumber } from "../../lib/arbuy-solicitation";
 import { selectVendorFactsForGroundingBundle } from "../lib/grounding-quality-utils";
+import {
+  defaultComparedVendorIdsForProject,
+  runCompetitorAwareSimulation,
+  toGroundingCompetitorContext,
+} from "./competitor-aware-simulation.service";
+import { loadVendorIntelligenceForBundle } from "./vendor-grounding.service";
 import type { DbRequirement } from "../repositories/requirement.repo";
 import type { DbEvidenceItem } from "../repositories/evidence.repo";
 import { buildRequirementSupportMapForRequirements } from "./proof-graph.service";
+
+const ADAPT_BUNDLE_TYPES: ReadonlySet<GroundingBundleType> = new Set([
+  "Solution",
+  "Risk",
+  "Interview",
+  "vendor_recommendation",
+  "architecture_narrative",
+  "Executive Summary",
+]);
+
+function buildStrategicDirective(input: {
+  bundleType: GroundingBundleType;
+  architectureName: string;
+  effectiveVendorName: string;
+  source: GroundingBundleProposalAdaptation["source"];
+  competitor?: GroundingBundleCompetitorContext;
+}): string {
+  const { bundleType, architectureName, effectiveVendorName, source, competitor } =
+    input;
+  const conf = competitor?.recommendationConfidence ?? "provisional";
+  const lines: string[] = [
+    `Primary implementation posture for this solicitation: architecture "${architectureName}" with vendor "${effectiveVendorName}" (selection source: ${source}).`,
+    `Center solution, risk, and interview language on ${effectiveVendorName} within ${architectureName}; do not advocate alternate stacks unless the grounding explicitly compares them.`,
+  ];
+  if (conf === "provisional" || conf === "low") {
+    lines.push(
+      `Recommendation confidence is ${conf} — qualify claims, avoid definitive superiority language, and surface unresolved gaps as interview or mitigation items.`,
+    );
+  }
+  if (competitor?.pointLossComparisons?.length) {
+    lines.push(
+      `Address competitive weaknesses honestly: ${competitor.pointLossComparisons.slice(0, 2).join(" · ")}`,
+    );
+  }
+  switch (bundleType) {
+    case "Solution":
+      lines.push(
+        `Solution: emphasize ${effectiveVendorName}-specific capabilities evidenced in vendor intelligence rows, integration paths, and burden-of-proof for unverified integrations.`,
+      );
+      break;
+    case "Risk":
+      lines.push(
+        `Risk: tie mitigations to ${effectiveVendorName} integration rows and competitor decision risks; add contingency where proof gaps remain.`,
+      );
+      break;
+    case "Interview":
+      lines.push(
+        `Interview: prioritize unanswered or must-ask questions from vendor intelligence and competitor context; rehearse defenses when confidence is provisional.`,
+      );
+      break;
+    case "Executive Summary":
+      lines.push(
+        `Executive summary: state the stack (${architectureName} / ${effectiveVendorName}) with evidence-backed differentiators only.`,
+      );
+      break;
+    case "vendor_recommendation":
+      lines.push(
+        `Vendor recommendation: frame selection using competitor comparison and evidence rows only.`,
+      );
+      break;
+    case "architecture_narrative":
+      lines.push(
+        `Architecture: describe components and interfaces for ${architectureName} consistent with ${effectiveVendorName}'s role in the stack.`,
+      );
+      break;
+    default:
+      break;
+  }
+  return lines.join("\n");
+}
 
 const RETRIEVAL_BY_BUNDLE: Record<
   GroundingBundleType,
@@ -271,6 +353,113 @@ export async function buildAndStoreGroundingBundle(input: {
       base.arbuy = arbuy;
       base.validationNotes.push(
         "ARBuy solicitation metadata and official quote line structure (UNSPSC) attached — align portal identity, electronic submission, attachments, and price sheet naming.",
+      );
+    }
+  }
+
+  const ve = input.targetEntityId?.trim();
+  const adaptBundle = ADAPT_BUNDLE_TYPES.has(input.bundleType);
+
+  const archOpt = arch.find((o) => o.recommended) ?? arch[0];
+  const archOptId = archOpt?.id ?? null;
+
+  let sim: CompetitorAwareSimulationResult | null = null;
+  let competitorCtx: GroundingBundleCompetitorContext | undefined;
+
+  const compared = await defaultComparedVendorIdsForProject(input.projectId);
+  const wantCompetitor = compared.length > 0 && (adaptBundle || Boolean(ve));
+
+  if (wantCompetitor) {
+    try {
+      sim = await runCompetitorAwareSimulation({
+        projectId: input.projectId,
+        comparedVendorIds: compared,
+        architectureOptionId: archOptId,
+      });
+      const selectedForCtx =
+        ve ?? sim.recommendedVendorId ?? sim.entries[0]?.vendorId;
+      if (selectedForCtx) {
+        competitorCtx = toGroundingCompetitorContext({
+          simulation: sim,
+          selectedVendorId: selectedForCtx,
+          bidNumber: project?.bidNumber,
+        });
+      }
+    } catch {
+      base.validationNotes.push(
+        "Competitor comparison could not be computed — run compare from vendor workspace if needed.",
+      );
+    }
+  }
+
+  let effectiveVendorId: string | null = null;
+  let source: GroundingBundleProposalAdaptation["source"] = "none";
+
+  if (ve) {
+    effectiveVendorId = ve;
+    source = "target_override";
+  } else if (adaptBundle) {
+    if (sim && sim.entries.length > 0) {
+      const sorted = [...sim.entries].sort((a, b) => b.overallScore - a.overallScore);
+      effectiveVendorId =
+        sim.recommendedVendorId ?? sorted[0]?.vendorId ?? null;
+      source = "competitor_recommendation";
+    }
+    if (!effectiveVendorId && archOptId) {
+      const comps = await listArchitectureComponentsByOptionId(archOptId);
+      const vid = comps.find((c) => c.vendorId)?.vendorId ?? null;
+      if (vid) {
+        effectiveVendorId = vid;
+        source = "architecture_stack";
+      }
+    }
+  }
+
+  if (effectiveVendorId) {
+    const vi = await loadVendorIntelligenceForBundle({
+      projectId: input.projectId,
+      vendorId: effectiveVendorId,
+    });
+    if (vi) {
+      base.vendorIntelligence = vi;
+      const fc = vi.fitDimensions.length;
+      const cc = vi.vendorClaims.length;
+      base.validationNotes.push(
+        fc + cc > 0
+          ? `Vendor intelligence attached (${vi.vendorName}): ${fc} fit dimension(s), ${cc} claim row(s), ${vi.intelligenceFacts.length} sourced fact(s), ${vi.interviewQuestions.length} interview question(s).`
+          : `Vendor intelligence slice is sparse for ${vi.vendorName} — run vendor research and compute fit before scored claims.`,
+      );
+      if (vi.integrationRequirements.some((r) => r.status === "unknown")) {
+        base.gaps.push(
+          "One or more integration requirement rows are unknown — confirm with vendor.",
+        );
+      }
+    }
+    if (competitorCtx) {
+      base.competitorComparisonContext = competitorCtx;
+      base.validationNotes.push(
+        "Competitor-aware comparison context attached — interpretive only; cite evidence rows, not model scores.",
+      );
+    }
+    if (adaptBundle && archOpt && base.vendorIntelligence) {
+      const vi = base.vendorIntelligence;
+      base.proposalAdaptation = {
+        generatedAt: new Date().toISOString(),
+        architectureOptionId: archOpt.id,
+        architectureOptionName: archOpt.name,
+        effectiveVendorId,
+        effectiveVendorName: vi.vendorName,
+        source,
+        strategicDirective: buildStrategicDirective({
+          bundleType: input.bundleType,
+          architectureName: archOpt.name,
+          effectiveVendorName: vi.vendorName,
+          source,
+          competitor: base.competitorComparisonContext,
+        }),
+      };
+      base.validationNotes.push(
+        `Proposal adaptation: drafting stack locked to ${archOpt.name} / ${vi.vendorName} (${source}).`,
       );
     }
   }

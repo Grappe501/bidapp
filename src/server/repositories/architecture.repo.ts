@@ -145,6 +145,35 @@ export async function listArchitectureComponentsByOptionId(
   });
 }
 
+export async function listArchitectureComponentsByVendorInProject(input: {
+  projectId: string;
+  vendorId: string;
+}): Promise<Array<DbArchitectureComponent & { optionName: string }>> {
+  const r = await query(
+    `SELECT c.*, o.name AS option_name
+     FROM architecture_components c
+     INNER JOIN architecture_options o ON o.id = c.architecture_option_id
+     WHERE o.project_id = $1 AND c.vendor_id = $2
+     ORDER BY o.name, c.created_at`,
+    [input.projectId, input.vendorId],
+  );
+  return r.rows.map((row: Record<string, unknown>) => {
+    const x = row as Record<string, unknown>;
+    return {
+      id: String(x.id),
+      architectureOptionId: String(x.architecture_option_id),
+      vendorId: x.vendor_id == null ? null : String(x.vendor_id),
+      vendorName: String(x.vendor_name),
+      role: String(x.role),
+      responsibilitySummary: String(x.responsibility_summary),
+      optional: Boolean(x.optional_layer),
+      createdAt: new Date(String(x.created_at)).toISOString(),
+      updatedAt: new Date(String(x.updated_at)).toISOString(),
+      optionName: String(x.option_name),
+    };
+  });
+}
+
 export async function listArchitectureOptionsByProject(
   projectId: string,
 ): Promise<DbArchitectureOption[]> {

@@ -79,12 +79,26 @@ function validateGrounding(grounding: GroundingBundlePayload): void {
       "Contract structure (SRV-1) grounding is required — rebuild the grounding bundle for enforceable proposal language.",
     );
   }
+  const vi = grounding.vendorIntelligence;
+  const viN =
+    vi != null
+      ? vi.fitDimensions.length +
+        vi.vendorClaims.length +
+        vi.intelligenceFacts.length +
+        vi.interviewQuestions.length +
+        vi.integrationRequirements.length
+      : 0;
+  const ccN = grounding.competitorComparisonContext ? 1 : 0;
+  const paN = grounding.proposalAdaptation ? 1 : 0;
   const n =
     (grounding.requirements?.length ?? 0) +
     (grounding.evidence?.length ?? 0) +
     (grounding.retrievedChunks?.length ?? 0) +
     (grounding.vendorFacts?.length ?? 0) +
-    (grounding.architectureOptions?.length ?? 0);
+    (grounding.architectureOptions?.length ?? 0) +
+    viN +
+    ccN +
+    paN;
   if (n === 0) {
     throw new Error(
       "Grounding bundle is empty — add requirements, evidence, chunks, or facts.",
@@ -425,6 +439,12 @@ Return shape:
     `REQUIREMENTS:\n${JSON.stringify(reqList, null, 0)}`,
     `EVIDENCE:\n${JSON.stringify(evList, null, 0)}`,
     `VENDOR / INTEL FACTS:\n${JSON.stringify(facts, null, 0)}`,
+    input.grounding.vendorIntelligence
+      ? `VENDOR INTELLIGENCE (fit, claims, facts, interview, integration — cite only these rows; no new vendor facts):\n${JSON.stringify(input.grounding.vendorIntelligence, null, 0)}`
+      : "",
+    input.grounding.competitorComparisonContext
+      ? `COMPETITOR / BID COMPARISON (interpretive — scores are not predictions; use for selection rationale, mitigations, and gap honesty only):\n${JSON.stringify(input.grounding.competitorComparisonContext, null, 0)}`
+      : "",
     `ARCHITECTURE OPTIONS:\n${JSON.stringify(arch, null, 0)}`,
     `RETRIEVED SOURCE EXCERPTS:\n${JSON.stringify(chunkHints, null, 0)}`,
     `VALIDATION NOTES FROM BUNDLE:\n${input.grounding.validationNotes.join("\n") || "(none)"}`,
@@ -433,10 +453,14 @@ Return shape:
   if (input.generationModeLabel?.trim()) {
     userParts.push(`REQUESTED GENERATION MODE: ${input.generationModeLabel.trim()}`);
   }
-  if (input.strategicDirective?.trim()) {
-    userParts.push(
-      `GENERATION STRATEGY (apply throughout):\n${input.strategicDirective.trim()}`,
-    );
+  const mergedStrategy = [
+    input.grounding.proposalAdaptation?.strategicDirective?.trim(),
+    input.strategicDirective?.trim(),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  if (mergedStrategy) {
+    userParts.push(`GENERATION STRATEGY (apply throughout):\n${mergedStrategy}`);
   }
 
   if (input.tone) {

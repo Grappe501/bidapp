@@ -13,7 +13,8 @@ export type AiParseMode =
   | "extract_evidence"
   | "extract_submission_items"
   | "extract_company_facts"
-  | "extract_vendor_claims";
+  | "extract_vendor_claims"
+  | "extract_vendor_research_facets";
 
 async function runStructuredJsonCompletion(input: {
   system: string;
@@ -58,6 +59,9 @@ function buildPrompts(mode: AiParseMode, truncated: string): {
   } else if (mode === "extract_vendor_claims") {
     system += ` Return shape: {"entities":[{"claimText","credibility":"operational"|"marketing"|"inferred","confidence":"high"|"medium"|"low","claimCategory":"capability"|"integration"|"staffing"|"compliance"|"delivery"|"reporting"|"technology"|"other","modelConfidence":0-1,"provenanceKind":"Vendor Claim"|"Inferred Conclusion"}]}. Classify conservatively: marketing fluff → marketing/low; concrete capabilities with specifics → operational/medium or high only when clearly supported by the text.`;
     user = `Extract vendor positioning statements or claims grounded in this source:\n\n${truncated}`;
+  } else if (mode === "extract_vendor_research_facets") {
+    system += ` Return shape: {"facets":[{"bucket":"performance"|"integration_surface"|"risk","factText","confidence":"high"|"medium"|"low"}]}. Only include statements directly supported by the supplied text; omit bucket if nothing defensible.`;
+    user = `From this vendor-related page text, extract performance characteristics, integration or API touchpoints, and risks or dependencies:\n\n${truncated}`;
   } else {
     throw new Error(`Unknown parse mode: ${mode}`);
   }
@@ -293,6 +297,10 @@ export async function extractEntitiesForMode(
   const truncated = text.slice(0, 120_000);
   const { system, user } = buildPrompts(mode, truncated);
   const raw = await runStructuredJsonCompletion({ system, user });
+  if (mode === "extract_vendor_research_facets") {
+    const obj = raw as { facets?: unknown[] };
+    return Array.isArray(obj.facets) ? obj.facets : [];
+  }
   const obj = raw as { entities?: unknown[] };
   const entities = Array.isArray(obj.entities) ? obj.entities : [];
   if (mode === "extract_vendor_claims") {

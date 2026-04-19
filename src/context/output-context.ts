@@ -3,6 +3,7 @@ import type { BidReviewSnapshot } from "@/lib/review-rules-engine";
 import type { OutputSummary } from "@/lib/output-utils";
 import type {
   ArbuySolicitationCompliance,
+  CompetitorAwareSimulationResult,
   EvaluatorSimulationResult,
   FinalReadinessGate,
   OutputArtifact,
@@ -27,6 +28,8 @@ export type OutputContextValue = {
   reviewIssues: ReviewIssue[];
   reviewSnapshot: BidReviewSnapshot;
   evaluatorSimulation: EvaluatorSimulationResult;
+  /** Latest competitor-aware simulation for this project (UI + readiness gate). */
+  competitorAwareSimulation: CompetitorAwareSimulationResult | null;
   finalReadinessGate: FinalReadinessGate;
   technicalProposalPacketCompliance: TechnicalProposalPacketCompliance;
   arbuySolicitationCompliance: ArbuySolicitationCompliance | null;

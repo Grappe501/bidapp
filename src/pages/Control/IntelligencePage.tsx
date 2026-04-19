@@ -8,6 +8,8 @@ import {
   IntelligenceIngestHistory,
   IntelligenceIngestPanel,
 } from "@/components/intelligence/IntelligenceIngestPanel";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useIntelligence } from "@/context/useIntelligence";
 import { useWorkspace } from "@/context/useWorkspace";
@@ -37,6 +39,18 @@ export function IntelligencePage() {
           Arkansas DHS is the evaluation authority. Buyer context comes from your
           solicitation library and requirements — vendor rows are for partner
           positioning, not agency profiling.
+        </Card>
+
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-indigo-200/60 bg-indigo-50/40 px-4 py-3 text-sm text-slate-800">
+          <p>
+            Compare shortlisted vendors against this solicitation (evidence-backed
+            competitiveness, not generic ratings).
+          </p>
+          <Link to="/vendors/compare">
+            <Button type="button" variant="secondary" className="text-xs">
+              Competitor comparison
+            </Button>
+          </Link>
         </Card>
 
         <RfpExpectationsPanel project={project} />

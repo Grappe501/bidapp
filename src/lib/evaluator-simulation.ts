@@ -1,3 +1,8 @@
+/**
+ * Evaluator-style mirror (700 technical + 300 cost). Complementary to competitor-aware
+ * vendor simulation (`postCompetitorSimulation` / `runCompetitorAwareSimulation`) —
+ * that layer compares vendors for this bid; this layer scores draft/evidence posture.
+ */
 import type { BidReviewSnapshot } from "@/lib/review-rules-engine";
 import { activeIssues } from "@/lib/review-utils";
 import type {

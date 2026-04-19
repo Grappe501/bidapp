@@ -11,6 +11,8 @@ import type {
   GroundedProseReviewResult,
   GroundingBundlePayload,
   GroundingBundleType,
+  GroundingBundleVendorIntelligence,
+  CompetitorAwareSimulationResult,
   Project,
   Requirement,
   RequirementEvidenceLink,
@@ -124,12 +126,47 @@ export async function postLoadProjectWorkspace(
   });
 }
 
+export async function postVendorIntelligence(input: {
+  projectId: string;
+  vendorId: string;
+  action:
+    | "runResearch"
+    | "computeFit"
+    | "computeScore"
+    | "generateInterview"
+    | "getSnapshot";
+}): Promise<unknown> {
+  return postFunctionJson("vendor-intelligence", input);
+}
+
+export async function postVendorIntelligenceExport(projectId: string): Promise<{
+  vendors: GroundingBundleVendorIntelligence[];
+  vendorComparisonNote: string | null;
+}> {
+  return postFunctionJson("vendor-intelligence", {
+    projectId,
+    action: "exportProject",
+  });
+}
+
+export async function postCompetitorSimulation(input: {
+  projectId: string;
+  comparedVendorIds: string[];
+  architectureOptionId?: string | null;
+}): Promise<CompetitorAwareSimulationResult> {
+  return postFunctionJson<CompetitorAwareSimulationResult>(
+    "competitor-simulation",
+    input,
+  );
+}
+
 export async function postIngestUrl(input: {
   url: string;
   projectId: string;
   companyProfileId?: string | null;
   classification?: string | null;
   title?: string | null;
+  metadata?: Record<string, unknown>;
 }): Promise<{ sourceId: string; textLength: number; factId?: string } | null> {
   const base = functionsBase();
   if (!base) return null;
@@ -152,6 +189,7 @@ export async function postIngestUrl(input: {
     return null;
   }
 }
+
 
 export async function postEmbedFile(
   fileId: string,

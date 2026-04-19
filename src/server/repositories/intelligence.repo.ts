@@ -718,3 +718,40 @@ export async function countEnrichmentRunsByProject(
   );
   return Number(r.rows[0]?.c ?? 0);
 }
+
+/** Intelligence sources tagged with `metadata.vendorId` (vendor research ingest). */
+export async function listIntelligenceSourcesByVendorId(input: {
+  projectId: string;
+  vendorId: string;
+}): Promise<DbIntelligenceSource[]> {
+  const r = await query(
+    `SELECT * FROM intelligence_sources
+     WHERE project_id = $1
+       AND metadata->>'vendorId' = $2
+     ORDER BY updated_at DESC`,
+    [input.projectId, input.vendorId],
+  );
+  return r.rows.map((row: Record<string, unknown>) =>
+    mapIntelligenceSourceRow(row),
+  );
+}
+
+/** Facts tied to vendor-tagged sources (provenance via join). */
+export async function listIntelligenceFactsForVendor(input: {
+  projectId: string;
+  vendorId: string;
+  limit?: number;
+}): Promise<DbIntelligenceFact[]> {
+  const lim = input.limit ?? 80;
+  const r = await query(
+    `SELECT f.* FROM intelligence_facts f
+     INNER JOIN intelligence_sources s ON s.id = f.source_id
+     WHERE f.project_id = $1 AND s.metadata->>'vendorId' = $2
+     ORDER BY f.created_at DESC
+     LIMIT $3`,
+    [input.projectId, input.vendorId, lim],
+  );
+  return r.rows.map((row: Record<string, unknown>) =>
+    mapIntelligenceFactRow(row),
+  );
+}

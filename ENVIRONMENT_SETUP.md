@@ -28,7 +28,7 @@ npm install
    - **`DATABASE_URL`** — Neon dashboard → copy the full connection string with the **real** password (`sslmode=require`).
    - **`OPENAI_API_KEY`** — required on the **function runtime** for embed / parse / enrich / generate when those code paths run.
    - **`VITE_FUNCTIONS_BASE_URL`** — e.g. `http://localhost:8888` when using `netlify dev`, or your deployed site URL (same origin as the SPA or the URL the UI uses to call functions).
-   - **`VITE_DEFAULT_PROJECT_ID`** — after seed, use the deterministic id in `.env.example` for the bundled S000000479 seed, or run `SELECT id, bid_number FROM projects;` and paste your row’s `id`.
+   - **`VITE_DEFAULT_PROJECT_ID`** — after seed, run `npm run db:print-project-id` (or `SELECT id, bid_number FROM projects;`) and paste the **S000000479** row’s `id` into `.env` (never commit real ids).
    - **`ALLOWED_ORIGIN`** — comma-separated list of **exact** browser origins allowed to call Netlify functions (e.g. `https://your-site.netlify.app` or `http://localhost:8888`). **Not** `*` in production-style setups.
    - **`INTERNAL_API_KEY`** — shared secret; browser sends `x-api-key` (see `VITE_INTERNAL_API_KEY` below). **Required** when `STRICT_DB_MODE=true`.
    - **`STRICT_DB_MODE`** — when `true`, functions enforce: `INTERNAL_API_KEY`, non-empty `ALLOWED_ORIGIN`, and stricter company/profile scoping. Use for **private/internal** deploys.

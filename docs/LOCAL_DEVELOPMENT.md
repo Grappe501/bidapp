@@ -31,7 +31,7 @@ Edit `.env` and set at least:
 | `PGSSLMODE` | `disable` | Helps `pg` against local Postgres without SSL |
 | `OPENAI_API_KEY` | *(your key)* | Server-side; never commit |
 | `VITE_FUNCTIONS_BASE_URL` | `http://localhost:8888` | URL where **Netlify dev** serves the SPA + functions |
-| `VITE_DEFAULT_PROJECT_ID` | `c4dcdda2-5902-45f4-b937-2647809c3a19` | Deterministic id for the bundled **S000000479** seed (see below) |
+| `VITE_DEFAULT_PROJECT_ID` | *(from `npm run db:print-project-id` after seed)* | Must match the **S000000479** row in `projects` (see below) |
 | `ALLOWED_ORIGIN` | `http://localhost:8888` | Must match the browser origin you use |
 | `INTERNAL_API_KEY` | *(any long random string)* | Same value as `VITE_INTERNAL_API_KEY` if you enable strict client mode |
 | `STRICT_DB_MODE` | `false` | Simplest local setup; set `true` only if you mirror production rules |

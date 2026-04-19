@@ -19,6 +19,7 @@ import {
   upsertVendorFitDimension,
   upsertVendorIntegrationRequirement,
 } from "../repositories/vendor-intelligence.repo";
+import { mergeInterviewEvidenceIntoFitDimensions } from "./vendor-interview-merge.service";
 
 function norm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
@@ -199,5 +200,16 @@ export async function computeVendorFit(input: {
     .filter((r) => r.status === "gap" || r.status === "unknown")
     .map((r) => r.requirementKey);
 
-  return { dimensions, advantages, disadvantages, integrationGaps };
+  await mergeInterviewEvidenceIntoFitDimensions(input.vendorId);
+
+  const dimensionsAfterInterview = await listVendorFitDimensionsByVendor(
+    input.vendorId,
+  );
+
+  return {
+    dimensions: dimensionsAfterInterview,
+    advantages,
+    disadvantages,
+    integrationGaps,
+  };
 }

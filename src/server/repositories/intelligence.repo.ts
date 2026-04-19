@@ -372,6 +372,86 @@ export async function upsertIntelligenceSourceWebsiteScrape(
   return mapIntelligenceSourceRow(r.rows[0] as Record<string, unknown>);
 }
 
+/** Vendor-owned public page crawl — deduped per project + vendor + normalized URL. */
+export async function upsertVendorSitePageSource(input: {
+  projectId: string;
+  vendorId: string;
+  crawlRunId: string;
+  url: string;
+  urlNormalized: string;
+  title: string | null;
+  rawText: string;
+  pageType: string;
+  crawlDepth: number;
+  keptReason: string;
+  priorityScore: number;
+}): Promise<DbIntelligenceSource> {
+  const r0 = await query(
+    `SELECT id FROM intelligence_sources WHERE project_id = $1
+     AND source_type = 'vendor_site_page'
+     AND url_normalized = $2
+     AND COALESCE(metadata->>'vendorId','') = $3`,
+    [input.projectId, input.urlNormalized, input.vendorId],
+  );
+  const meta: Record<string, unknown> = {
+    vendorId: input.vendorId,
+    crawlRunId: input.crawlRunId,
+    pageType: input.pageType,
+    crawlDepth: input.crawlDepth,
+    keptReason: input.keptReason,
+    priorityScore: input.priorityScore,
+  };
+  if (r0.rows.length > 0) {
+    const id = String((r0.rows[0] as Record<string, unknown>).id);
+    await query(
+      `UPDATE intelligence_sources SET
+        url = $2,
+        title = $3,
+        raw_text = $4,
+        classification = $5,
+        metadata = metadata || $6::jsonb,
+        fetched_at = now(),
+        updated_at = now()
+      WHERE id = $1`,
+      [
+        id,
+        input.url,
+        input.title,
+        input.rawText,
+        input.pageType,
+        JSON.stringify(meta),
+      ],
+    );
+    const r = await query(`SELECT * FROM intelligence_sources WHERE id = $1`, [id]);
+    return mapIntelligenceSourceRow(r.rows[0] as Record<string, unknown>);
+  }
+  return createIntelligenceSource({
+    projectId: input.projectId,
+    companyProfileId: null,
+    sourceType: "vendor_site_page",
+    url: input.url,
+    urlNormalized: input.urlNormalized,
+    title: input.title,
+    rawText: input.rawText,
+    classification: input.pageType,
+    metadata: meta,
+    fetchedAt: new Date().toISOString(),
+  });
+}
+
+export async function countVendorSiteSourcesForVendor(input: {
+  projectId: string;
+  vendorId: string;
+}): Promise<number> {
+  const r = await query(
+    `SELECT COUNT(*)::int AS c FROM intelligence_sources
+     WHERE project_id = $1 AND source_type = 'vendor_site_page'
+       AND COALESCE(metadata->>'vendorId','') = $2`,
+    [input.projectId, input.vendorId],
+  );
+  return Number((r.rows[0] as Record<string, unknown>).c ?? 0);
+}
+
 export async function deleteIntelligenceFactsBySourceAndFactTypes(input: {
   sourceId: string;
   factTypes: string[];

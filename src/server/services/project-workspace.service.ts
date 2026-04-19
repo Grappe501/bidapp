@@ -142,6 +142,11 @@ function mapVendor(v: DbVendor): Vendor {
     notes: v.notes,
     capabilities: v.capabilities,
     sourceFileIds: v.sourceFileIds,
+    websiteUrl: v.websiteUrl,
+    vendorDomain: v.vendorDomain,
+    websiteLastCrawledAt: v.websiteLastCrawledAt,
+    websiteCrawlStatus: v.websiteCrawlStatus,
+    websiteCrawlError: v.websiteCrawlError,
     createdAt: v.createdAt,
     updatedAt: v.updatedAt,
   };

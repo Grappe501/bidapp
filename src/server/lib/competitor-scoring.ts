@@ -81,6 +81,12 @@ export type VendorScoreInput = {
   integrationRows: Array<{ requirementKey: string; status: string; evidence: string }>;
   inArchitectureOption: boolean;
   mandatoryReqOverlapRatio: number;
+  /** From structured interview capture — adjusts confidence and narrative, not verified proof. */
+  interviewReadiness?: {
+    unresolvedP1: number;
+    avgAnswerQuality: number | null;
+    lowQualityCount: number;
+  };
 };
 
 export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorComparisonEntry {
@@ -109,11 +115,20 @@ export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorC
   const unknownInt = input.integrationRows.filter((r) => r.status === "unknown")
     .length;
 
-  const conf = evidenceQuality({
+  let conf = evidenceQuality({
     operationalClaimShare: opShare,
     verifiedFactCount: verifiedFacts,
     unknownIntegrationCount: unknownInt,
   });
+
+  const ir = input.interviewReadiness;
+  if (ir) {
+    if (ir.unresolvedP1 >= 2) conf = conf === "high" ? "medium" : "low";
+    if (ir.avgAnswerQuality != null && ir.avgAnswerQuality >= 3.8 && ir.unresolvedP1 === 0) {
+      conf = conf === "low" ? "medium" : conf === "medium" ? "high" : conf;
+    }
+    if (ir.lowQualityCount >= 4) conf = "low";
+  }
 
   const complianceScore = clamp(input.mandatoryReqOverlapRatio * 100, 10, 100);
   const commercialHint = /pric|cost|fee|contract/i.test(input.corpus) ? 62 : 45;
@@ -128,6 +143,18 @@ export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorC
   if (conf === "low") overall = overall * 0.92;
   if (conf === "high") overall = Math.min(100, overall * 1.02);
   if (input.inArchitectureOption) overall = Math.min(100, overall + 4);
+
+  if (ir) {
+    if (ir.unresolvedP1 >= 1) overall = Math.max(10, overall - ir.unresolvedP1 * 2);
+    if (ir.avgAnswerQuality != null) {
+      overall = clamp(
+        Math.round(overall + (ir.avgAnswerQuality - 2.5) * 1.8),
+        18,
+        100,
+      );
+    }
+    if (ir.lowQualityCount >= 3) overall = Math.max(10, overall - 3);
+  }
 
   overall = clamp(Math.round(overall), 18, 100);
 
@@ -162,6 +189,24 @@ export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorC
   }
   if (unverifiedRatio > 0.45)
     topDisadvantages.push("High share of low-confidence vendor claims — treat as marketing until proven.");
+  if (ir && ir.unresolvedP1 > 0) {
+    topDisadvantages.push(
+      `${ir.unresolvedP1} unresolved P1 interview item(s) — recommendation stays provisional until must-know items are captured.`,
+    );
+    mustAskQuestions.push(
+      `Close P1 interview gaps for ${input.vendorName} (${ir.unresolvedP1} open) before treating Solution/Risk language as locked.`,
+    );
+  }
+  if (ir && ir.avgAnswerQuality != null && ir.avgAnswerQuality >= 4 && ir.unresolvedP1 === 0) {
+    topAdvantages.push(
+      "Structured interview answers show stronger specificity — improves defensibility vs claim-only posture.",
+    );
+  }
+  if (ir && ir.lowQualityCount >= 3) {
+    topDisadvantages.push(
+      "Multiple low-scoring interview answers — treat vendor assertions cautiously until clarified.",
+    );
+  }
   for (const r of input.integrationRows) {
     if (r.status === "gap" || r.status === "unknown")
       integrationBurdens.push(`${r.requirementKey}: ${r.status} — ${r.evidence.slice(0, 120)}`);
@@ -185,6 +230,13 @@ export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorC
   return {
     vendorId: input.vendorId,
     vendorName: input.vendorName,
+    interviewReadiness: ir
+      ? {
+          unresolvedP1: ir.unresolvedP1,
+          avgAnswerQuality: ir.avgAnswerQuality,
+          lowQualityCount: ir.lowQualityCount,
+        }
+      : undefined,
     overallScore: overall,
     confidence: conf,
     technicalFitScore: Math.round(technicalFitScore),

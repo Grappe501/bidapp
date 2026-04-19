@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { VendorInterviewWorkspace } from "@/components/vendors/VendorInterviewWorkspace";
+import { VendorWebsitePanel } from "@/components/vendors/VendorWebsitePanel";
 import { VendorCapabilityList } from "@/components/vendors/VendorCapabilityList";
 import { VendorMetadataCard } from "@/components/vendors/VendorMetadataCard";
 import { VendorRiskList } from "@/components/vendors/VendorRiskList";
@@ -31,6 +33,7 @@ function linesToArray(text: string): string[] {
 
 type TabId =
   | "overview"
+  | "website"
   | "evidence"
   | "fit"
   | "integration"
@@ -40,6 +43,7 @@ type TabId =
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
+  { id: "website", label: "Website & research" },
   { id: "evidence", label: "Evidence" },
   { id: "fit", label: "Fit" },
   { id: "integration", label: "Integration" },
@@ -428,6 +432,17 @@ export function VendorDetailPage() {
           </>
         )}
 
+        {tab === "website" && projectId && (
+          <Card className="space-y-3">
+            <h2 className="text-sm font-semibold text-ink">Website & research</h2>
+            <VendorWebsitePanel
+              projectId={projectId}
+              vendor={vendor}
+              onVendorPatch={(patch) => updateVendor(vendor.id, patch)}
+            />
+          </Card>
+        )}
+
         {tab === "evidence" && (
           <Card className="space-y-3">
             <h2 className="text-sm font-semibold text-ink">Claims & sourced facts</h2>
@@ -527,25 +542,14 @@ export function VendorDetailPage() {
           </Card>
         )}
 
-        {tab === "interview" && (
+        {tab === "interview" && projectId && (
           <Card className="space-y-3">
-            <h2 className="text-sm font-semibold text-ink">Interview prep</h2>
-            {!snapshot || snapshot.interviewQuestions.length === 0 ? (
-              <p className="text-sm text-ink-muted">
-                Generate interview questions after fit/scoring to target gaps.
-              </p>
-            ) : (
-              <ul className="space-y-2 text-sm">
-                {snapshot.interviewQuestions.map((q, i) => (
-                  <li key={i} className="rounded border border-border p-2">
-                    <span className="text-xs font-medium text-ink-subtle">
-                      {q.category} · {q.priority}
-                    </span>
-                    <p className="mt-1 text-ink">{q.question}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <h2 className="text-sm font-semibold text-ink">Interview prep & capture</h2>
+            <p className="text-xs text-ink-muted">
+              Questions are ranked P1–P3 and tied to this bid. Save answers to store evidence,
+              run AI normalization/evaluation, and feed scoring and competitor comparison.
+            </p>
+            <VendorInterviewWorkspace projectId={projectId} vendorId={vendor.id} />
           </Card>
         )}
 

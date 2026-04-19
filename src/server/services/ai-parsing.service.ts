@@ -309,6 +309,58 @@ export async function extractEntitiesForMode(
   return entities;
 }
 
+/** Structured extraction for vendor public-site pages (integration hints + risk signals). */
+export async function extractVendorWebSignals(input: {
+  text: string;
+  pageType: string;
+}): Promise<{
+  facts: Array<{
+    factType: string;
+    factText: string;
+    confidence: string;
+    credibility: string;
+  }>;
+  integrationRequirementHints: Array<{
+    requirementKey: string;
+    statusHint: string;
+    evidenceSnippet: string;
+  }>;
+  riskHints: string[];
+}> {
+  const truncated = input.text.slice(0, 100_000);
+  const system =
+    SYSTEM_BASE +
+    ` Return JSON only: {"facts":[{"factType","factText","confidence":"high"|"medium"|"low","credibility":"operational"|"marketing"|"inferred"}],"integration_requirement_hints":[{"requirementKey","statusHint","evidenceSnippet"}],"risk_hints":["string"]}. Only include facts grounded in the text.`;
+  const user = `Vendor website page classification: ${input.pageType}\n\n${truncated}`;
+  const raw = await runStructuredJsonCompletion({ system, user });
+  const o =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const factsRaw = Array.isArray(o.facts) ? o.facts : [];
+  const facts = factsRaw.map((x) => {
+    const r = x as Record<string, unknown>;
+    return {
+      factType: String(r.factType ?? "general"),
+      factText: String(r.factText ?? ""),
+      confidence: String(r.confidence ?? "medium"),
+      credibility: String(r.credibility ?? "operational"),
+    };
+  });
+  const intRaw = Array.isArray(o.integration_requirement_hints)
+    ? o.integration_requirement_hints
+    : [];
+  const integrationRequirementHints = intRaw.map((x) => {
+    const r = x as Record<string, unknown>;
+    return {
+      requirementKey: String(r.requirementKey ?? ""),
+      statusHint: String(r.statusHint ?? ""),
+      evidenceSnippet: String(r.evidenceSnippet ?? ""),
+    };
+  });
+  const riskRaw = Array.isArray(o.risk_hints) ? o.risk_hints : [];
+  const riskHints = riskRaw.map((x) => String(x)).filter(Boolean);
+  return { facts, integrationRequirementHints, riskHints };
+}
+
 function entityConfidence(ent: unknown): number {
   if (typeof ent === "object" && ent !== null && "modelConfidence" in ent) {
     const m = (ent as { modelConfidence: unknown }).modelConfidence;

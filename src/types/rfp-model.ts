@@ -41,6 +41,27 @@ export interface RfpRiskAreas {
   criticalRisks: string[];
 }
 
+/** One row from Table A (tentative schedule) in the official solicitation PDF. */
+export type RfpSolicitationScheduleRow = {
+  activity: string;
+  /** As stated in the RFP (may be a range). */
+  dateDisplay: string;
+  /** True when the RFP marks the date as anticipated / subject to change (*). */
+  tentative?: boolean;
+};
+
+/** Dates and schedule transcribed from the issued RFP — not inferred. */
+export type RfpOfficialMetadata = {
+  solicitationIssued?: string;
+  proposalDueTime?: string;
+  timeZone?: string;
+  /** Procurement contact line (non-sensitive). */
+  procurementContactSummary?: string;
+  scheduleRows: RfpSolicitationScheduleRow[];
+  /** Provenance for auditors and grounding. */
+  sourceAttestation: string;
+};
+
 /** Full structured RFP (solicitation-specific). */
 export type StructuredRfp = {
   core: RfpCore;
@@ -48,6 +69,8 @@ export type StructuredRfp = {
   requirements: RfpRequirements;
   submission: RfpSubmissionRequirements;
   risks: RfpRiskAreas;
+  /** When present, official solicitation dates / Table A (PDF-sourced). */
+  official?: RfpOfficialMetadata;
 };
 
 /**

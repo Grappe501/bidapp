@@ -3,6 +3,7 @@ import {
   listVendorFitDimensionsByVendor,
 } from "../repositories/vendor-intelligence.repo";
 import { updateVendorFitScore } from "../repositories/vendor.repo";
+import { mergeInterviewEvidenceIntoFitDimensions } from "./vendor-interview-merge.service";
 
 function confWeight(c: string): number {
   const x = c.toLowerCase().trim();
@@ -19,6 +20,7 @@ export async function computeVendorScore(vendorId: string): Promise<{
   band: number;
   pillars: Record<string, { weighted: number; weight: number }>;
 }> {
+  await mergeInterviewEvidenceIntoFitDimensions(vendorId);
   const dims = await listVendorFitDimensionsByVendor(vendorId);
   const byKey = Object.fromEntries(dims.map((d) => [d.dimensionKey, d]));
 

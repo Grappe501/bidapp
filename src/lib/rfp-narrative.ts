@@ -16,13 +16,28 @@ function buildNarrativeLayers(s: StructuredRfp): Omit<
   keyof StructuredRfp | "stub"
 > {
   const { requirements: req, evaluation: ev, risks } = s;
+  const scheduleNote = s.official?.scheduleRows?.length
+    ? ` Official solicitation schedule (Central Time; * = tentative in RFP): ${s.official.scheduleRows
+        .map(
+          (r) =>
+            `${r.activity} ${r.dateDisplay}${r.tentative ? "*" : ""}`,
+        )
+        .join("; ")}.`
+    : "";
+
   const requirementsSummary = [
     `Solicitation ${s.core.solicitationNumber}: ${req.facilities} facilities across ${req.locations.join(", ") || "designated locations"}.`,
     `Delivery: ${req.deliveryRequirements.join("; ")}.`,
     `Services: ${req.serviceRequirements.join("; ")}.`,
     `Technology: ${req.techRequirements.join("; ")}.`,
     `Compliance: ${req.complianceRequirements.join("; ")}.`,
-  ].join(" ");
+    s.official?.proposalDueTime
+      ? `Proposal response deadline: ${s.core.dueDate} at ${s.official.proposalDueTime} ${s.official.timeZone ?? ""}.`
+      : "",
+    scheduleNote ?? "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const serviceExpectations = [
     ...req.deliveryRequirements,

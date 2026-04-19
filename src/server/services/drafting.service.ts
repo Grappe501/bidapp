@@ -86,7 +86,8 @@ function validateGrounding(grounding: GroundingBundlePayload): void {
         vi.vendorClaims.length +
         vi.intelligenceFacts.length +
         vi.interviewQuestions.length +
-        vi.integrationRequirements.length
+        vi.integrationRequirements.length +
+        (vi.interviewIntelligence ? 1 : 0)
       : 0;
   const ccN = grounding.competitorComparisonContext ? 1 : 0;
   const paN = grounding.proposalAdaptation ? 1 : 0;
@@ -441,6 +442,9 @@ Return shape:
     `VENDOR / INTEL FACTS:\n${JSON.stringify(facts, null, 0)}`,
     input.grounding.vendorIntelligence
       ? `VENDOR INTELLIGENCE (fit, claims, facts, interview, integration — cite only these rows; no new vendor facts):\n${JSON.stringify(input.grounding.vendorIntelligence, null, 0)}`
+      : "",
+    input.grounding.vendorIntelligence?.interviewIntelligence
+      ? `INTERVIEW INTELLIGENCE (normalized vendor assertions from structured interview capture — qualify; not third-party verified):\n${JSON.stringify(input.grounding.vendorIntelligence.interviewIntelligence, null, 0)}`
       : "",
     input.grounding.competitorComparisonContext
       ? `COMPETITOR / BID COMPARISON (interpretive — scores are not predictions; use for selection rationale, mitigations, and gap honesty only):\n${JSON.stringify(input.grounding.competitorComparisonContext, null, 0)}`

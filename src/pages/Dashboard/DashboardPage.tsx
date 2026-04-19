@@ -11,6 +11,7 @@ import { ActivityCard } from "@/components/workspace/ActivityCard";
 import { CoverageSnapshotCard } from "@/components/workspace/CoverageSnapshotCard";
 import { DeadlineCard } from "@/components/workspace/DeadlineCard";
 import { ProjectSummaryCard } from "@/components/workspace/ProjectSummaryCard";
+import { SolicitationTimelinePanel } from "@/components/workspace/SolicitationTimelinePanel";
 import { FILE_CATEGORIES } from "@/types";
 
 export function DashboardPage() {
@@ -62,6 +63,8 @@ export function DashboardPage() {
         </div>
 
         <WorkspaceHeroCard />
+
+        <SolicitationTimelinePanel project={project} />
 
         <ArbuyBidIdentityCard project={project} />
 

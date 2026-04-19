@@ -1,6 +1,7 @@
 import type {
   CompetitorAwareSimulationResult,
   CompetitorRecommendationConfidence,
+  ProjectInterviewReadiness,
 } from "@/types";
 
 export type VendorDecisionAssessment = {
@@ -17,6 +18,7 @@ export type VendorDecisionAssessment = {
  */
 export function assessVendorDecisionForReadiness(
   sim: CompetitorAwareSimulationResult | null | undefined,
+  projectInterviewReadiness?: ProjectInterviewReadiness | null,
 ): VendorDecisionAssessment {
   if (!sim || sim.entries.length === 0) {
     return {
@@ -81,6 +83,35 @@ export function assessVendorDecisionForReadiness(
   if (sim.decisionRisks.length > 0) {
     for (const r of sim.decisionRisks.slice(0, 3)) {
       if (!warnings.includes(r)) warnings.push(r);
+    }
+  }
+
+  const leadId = sim.recommendedVendorId;
+  if (leadId && projectInterviewReadiness?.vendors?.length) {
+    const row = projectInterviewReadiness.vendors.find((v) => v.vendorId === leadId);
+    if (row && row.p1Total > 0 && row.unresolvedP1 > 0) {
+      warnings.push(
+        `Recommended vendor has ${row.unresolvedP1} unresolved P1 interview item(s) — close must-know questions before locking stack language.`,
+      );
+    }
+    if (row && row.p1Total > 0 && row.p1Unanswered > 0) {
+      warnings.push(
+        `${row.p1Unanswered} P1 interview question(s) still unanswered for the leading vendor.`,
+      );
+    }
+    if (row && row.lowQualityCount >= 4) {
+      warnings.push(
+        "Multiple low-quality interview answers on the leading vendor — treat recommendation as provisional.",
+      );
+    }
+    if (
+      row &&
+      row.p1Total > 0 &&
+      (row.unresolvedP1 >= 4 || row.p1Unanswered >= 3)
+    ) {
+      blockers.push(
+        "Structured interview phase is materially incomplete for the recommended vendor — unresolved P1 items block submission-safe vendor lock.",
+      );
     }
   }
 

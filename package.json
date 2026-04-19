@@ -15,6 +15,7 @@
     "ingest:contract-grant-disclosure": "tsx scripts/ingest-s479-contract-grant-disclosure.ts",
     "check:openai": "tsx scripts/check-openai-api-key.ts",
     "setup:openai-key": "tsx scripts/setup-openai-env-key.ts",
+    "extract:rfp-pdf": "tsx scripts/extract-rfp-pdf-text.ts",
     "check:server-aliases": "tsx scripts/check-server-aliases.ts",
     "check:private-deploy-env": "tsx scripts/check-private-deploy-env.ts",
     "check:netlify-prod-env": "tsx scripts/check-netlify-prod-env.ts",

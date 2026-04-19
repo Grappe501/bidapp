@@ -51,6 +51,7 @@ export type DbVendorResearchRun = {
   runType: string;
   status: string;
   summary: string;
+  stats: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 };
@@ -122,6 +123,7 @@ function mapRun(row: Record<string, unknown>): DbVendorResearchRun {
     runType: String(row.run_type),
     status: String(row.status),
     summary: String(row.summary ?? ""),
+    stats: parseJson(row.stats, {} as Record<string, unknown>),
     createdAt: new Date(String(row.created_at)).toISOString(),
     updatedAt: new Date(String(row.updated_at)).toISOString(),
   };
@@ -295,17 +297,19 @@ export async function insertVendorResearchRun(input: {
   runType: string;
   status: string;
   summary: string;
+  stats?: Record<string, unknown>;
 }): Promise<DbVendorResearchRun> {
   const r = await query(
     `INSERT INTO vendor_research_runs (
-      project_id, vendor_id, run_type, status, summary, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, now()) RETURNING *`,
+      project_id, vendor_id, run_type, status, summary, stats, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, now()) RETURNING *`,
     [
       input.projectId,
       input.vendorId,
       input.runType,
       input.status,
       input.summary,
+      JSON.stringify(input.stats ?? {}),
     ],
   );
   return mapRun(r.rows[0] as Record<string, unknown>);
@@ -315,9 +319,28 @@ export async function updateVendorResearchRun(input: {
   id: string;
   status: string;
   summary: string;
+  stats?: Record<string, unknown>;
 }): Promise<void> {
-  await query(
-    `UPDATE vendor_research_runs SET status = $2, summary = $3, updated_at = now() WHERE id = $1`,
-    [input.id, input.status, input.summary],
+  if (input.stats != null) {
+    await query(
+      `UPDATE vendor_research_runs SET status = $2, summary = $3, stats = $4::jsonb, updated_at = now() WHERE id = $1`,
+      [input.id, input.status, input.summary, JSON.stringify(input.stats)],
+    );
+  } else {
+    await query(
+      `UPDATE vendor_research_runs SET status = $2, summary = $3, updated_at = now() WHERE id = $1`,
+      [input.id, input.status, input.summary],
+    );
+  }
+}
+
+export async function listVendorResearchRunsForVendor(
+  vendorId: string,
+  limit = 20,
+): Promise<DbVendorResearchRun[]> {
+  const r = await query(
+    `SELECT * FROM vendor_research_runs WHERE vendor_id = $1 ORDER BY created_at DESC LIMIT $2`,
+    [vendorId, limit],
   );
+  return r.rows.map((row: Record<string, unknown>) => mapRun(row));
 }

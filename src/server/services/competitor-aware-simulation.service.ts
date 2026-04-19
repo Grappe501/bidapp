@@ -24,6 +24,10 @@ import {
   listVendorFitDimensionsByVendor,
   listVendorIntegrationRequirementsByVendor,
 } from "../repositories/vendor-intelligence.repo";
+import {
+  getInterviewReadinessSummaryForVendor,
+  getProjectInterviewReadinessSummary,
+} from "../repositories/vendor-interview.repo";
 function norm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
 }
@@ -77,7 +81,7 @@ export async function runCompetitorAwareSimulation(input: {
     const v = await getVendorById(vid);
     if (!v || v.projectId !== input.projectId) continue;
 
-    const [dims, claims, facts, integration, archUse] = await Promise.all([
+    const [dims, claims, facts, integration, archUse, interviewIr] = await Promise.all([
       listVendorFitDimensionsByVendor(vid),
       listVendorClaimsByVendorId(vid, 100),
       listIntelligenceFactsForVendor({ projectId: input.projectId, vendorId: vid, limit: 80 }),
@@ -86,6 +90,7 @@ export async function runCompetitorAwareSimulation(input: {
         projectId: input.projectId,
         vendorId: vid,
       }),
+      getInterviewReadinessSummaryForVendor(vid),
     ]);
 
     const fitByKey: Record<
@@ -143,6 +148,11 @@ export async function runCompetitorAwareSimulation(input: {
         })),
         inArchitectureOption,
         mandatoryReqOverlapRatio: ratio,
+        interviewReadiness: {
+          unresolvedP1: interviewIr.unresolvedP1,
+          avgAnswerQuality: interviewIr.avgScore,
+          lowQualityCount: interviewIr.lowQualityCount,
+        },
       }),
     );
   }
@@ -150,6 +160,9 @@ export async function runCompetitorAwareSimulation(input: {
   if (entries.length === 0) {
     const honestyNote =
       "No comparable vendor rows — confirm vendor ids belong to this project.";
+    const projectInterviewReadiness = await getProjectInterviewReadinessSummary(
+      input.projectId,
+    );
     return {
       projectId: input.projectId,
       architectureOptionId: input.architectureOptionId ?? undefined,
@@ -164,6 +177,18 @@ export async function runCompetitorAwareSimulation(input: {
       competitorInterviewQuestions: [],
       generatedAt: new Date().toISOString(),
       honestyNote,
+      projectInterviewReadiness: {
+        vendors: projectInterviewReadiness.vendors.map((x) => ({
+          vendorId: x.vendorId,
+          vendorName: x.vendorName,
+          p1Total: x.summary.p1Total,
+          p1Unanswered: x.summary.p1Unanswered,
+          p1NeedsFollowUp: x.summary.p1NeedsFollowUp,
+          unresolvedP1: x.summary.unresolvedP1,
+          avgScore: x.summary.avgScore,
+          lowQualityCount: x.summary.lowQualityCount,
+        })),
+      },
     };
   }
 
@@ -174,6 +199,10 @@ export async function runCompetitorAwareSimulation(input: {
     architectureOptionName: archOpt?.name,
   });
   const competitorInterviewQuestions = buildCompetitorInterviewQuestions(entries);
+
+  const projectInterviewReadiness = await getProjectInterviewReadinessSummary(
+    input.projectId,
+  );
 
   const honestyNote =
     "Comparative scores are heuristic and solicitation-scoped — they do not predict the evaluation outcome. Unknown proof and vendor-claim-only evidence lower confidence.";
@@ -193,6 +222,18 @@ export async function runCompetitorAwareSimulation(input: {
     competitorInterviewQuestions,
     generatedAt: new Date().toISOString(),
     honestyNote,
+    projectInterviewReadiness: {
+      vendors: projectInterviewReadiness.vendors.map((x) => ({
+        vendorId: x.vendorId,
+        vendorName: x.vendorName,
+        p1Total: x.summary.p1Total,
+        p1Unanswered: x.summary.p1Unanswered,
+        p1NeedsFollowUp: x.summary.p1NeedsFollowUp,
+        unresolvedP1: x.summary.unresolvedP1,
+        avgScore: x.summary.avgScore,
+        lowQualityCount: x.summary.lowQualityCount,
+      })),
+    },
   };
 }
 

@@ -852,7 +852,8 @@ export function getGroundingBundleStats(
       vi.vendorClaims.length +
       vi.intelligenceFacts.length +
       vi.interviewQuestions.length +
-      vi.integrationRequirements.length
+      vi.integrationRequirements.length +
+      (vi.interviewIntelligence ? 1 : 0)
     : 0;
   const ccCount = payload.competitorComparisonContext ? 1 : 0;
   const paCount = payload.proposalAdaptation ? 1 : 0;

@@ -1,4 +1,8 @@
-import type { GroundingBundleVendorIntelligence } from "../../types";
+import type {
+  GroundingBundleVendorIntelligence,
+  GroundingBundleVendorInterviewIntelligence,
+  VendorInterviewNormalizedAnswer,
+} from "../../types";
 import { listVendorsByProject } from "../repositories/vendor.repo";
 import {
   listIntelligenceFactsForVendor,
@@ -7,8 +11,81 @@ import { getVendorById, listVendorClaimsByVendorId } from "../repositories/vendo
 import {
   listVendorFitDimensionsByVendor,
   listVendorIntegrationRequirementsByVendor,
-  listVendorInterviewQuestionsByVendor,
 } from "../repositories/vendor-intelligence.repo";
+import {
+  getInterviewReadinessSummaryForVendor,
+  getVendorInterviewAnswerByQuestion,
+  getVendorInterviewAssessmentByQuestion,
+  listVendorInterviewQuestionsFull,
+} from "../repositories/vendor-interview.repo";
+
+async function buildInterviewIntelligenceBundle(
+  vendorId: string,
+): Promise<GroundingBundleVendorInterviewIntelligence | undefined> {
+  const summary = await getInterviewReadinessSummaryForVendor(vendorId);
+  const questions = await listVendorInterviewQuestionsFull(vendorId);
+  if (questions.length === 0) return undefined;
+
+  const topAnswered: GroundingBundleVendorInterviewIntelligence["topAnsweredQuestions"] =
+    [];
+  const unresolvedP1: string[] = [];
+  const commitments: string[] = [];
+  const strengths: string[] = [];
+  const risks: string[] = [];
+  const maloneDeps: string[] = [];
+  const integCommit: string[] = [];
+  const timelineCommit: string[] = [];
+
+  for (const q of questions) {
+    if (q.priority === "P1" && (q.answerStatus === "unanswered" || q.answerStatus === "needs_follow_up")) {
+      unresolvedP1.push(q.question.slice(0, 240));
+    }
+    const ans = await getVendorInterviewAnswerByQuestion(q.id);
+    const asmt = await getVendorInterviewAssessmentByQuestion(q.id);
+    if (!ans?.answerText.trim() || !asmt) continue;
+    const nj = ans.normalizedJson as unknown as VendorInterviewNormalizedAnswer | undefined;
+    const norm =
+      nj && typeof nj === "object" && "summary" in (nj as object)
+        ? nj
+        : undefined;
+    if (asmt.score0To5 >= 3 && norm?.summary) {
+      topAnswered.push({
+        question: q.question.slice(0, 400),
+        category: q.category,
+        priority: q.priority,
+        summary: norm.summary.slice(0, 800),
+        answerQuality0To5: asmt.score0To5,
+      });
+    }
+    if (norm?.commitments?.length) commitments.push(...norm.commitments.slice(0, 8));
+    if (asmt.score0To5 >= 4) strengths.push(norm?.summary?.slice(0, 200) ?? "");
+    if (asmt.riskFlag || asmt.score0To5 <= 2) {
+      risks.push(asmt.rationale.slice(0, 220));
+    }
+    if (norm?.dependenciesOnMalone?.length) {
+      maloneDeps.push(...norm.dependenciesOnMalone.slice(0, 6));
+    }
+    if (norm?.integrationSignals?.length) {
+      integCommit.push(...norm.integrationSignals.slice(0, 6));
+    }
+    if (norm?.timelineSignals?.length) {
+      timelineCommit.push(...norm.timelineSignals.slice(0, 6));
+    }
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    readinessSummary: summary,
+    topAnsweredQuestions: topAnswered.slice(0, 12),
+    unresolvedP1Questions: unresolvedP1.slice(0, 12),
+    commitments: [...new Set(commitments)].slice(0, 24),
+    strengths: strengths.filter(Boolean).slice(0, 10),
+    risks: [...new Set(risks)].slice(0, 12),
+    maloneDependencies: [...new Set(maloneDeps)].slice(0, 14),
+    integrationCommitments: [...new Set(integCommit)].slice(0, 14),
+    timelineCommitments: [...new Set(timelineCommit)].slice(0, 14),
+  };
+}
 
 export async function loadVendorIntelligenceForBundle(input: {
   projectId: string;
@@ -23,6 +100,7 @@ export async function loadVendorIntelligenceForBundle(input: {
     facts,
     interview,
     integration,
+    interviewIntelligence,
   ] = await Promise.all([
     listVendorFitDimensionsByVendor(input.vendorId),
     listVendorClaimsByVendorId(input.vendorId, 48),
@@ -31,8 +109,9 @@ export async function loadVendorIntelligenceForBundle(input: {
       vendorId: input.vendorId,
       limit: 48,
     }),
-    listVendorInterviewQuestionsByVendor(input.vendorId),
+    listVendorInterviewQuestionsFull(input.vendorId),
     listVendorIntegrationRequirementsByVendor(input.vendorId),
+    buildInterviewIntelligenceBundle(input.vendorId),
   ]);
 
   return {
@@ -63,15 +142,20 @@ export async function loadVendorIntelligenceForBundle(input: {
       sourceId: f.sourceId,
     })),
     interviewQuestions: interview.map((q) => ({
+      id: q.id,
       question: q.question,
       category: q.category,
       priority: q.priority,
+      whyItMatters: q.whyItMatters,
+      riskIfUnanswered: q.riskIfUnanswered,
+      answerStatus: q.answerStatus,
     })),
     integrationRequirements: integration.map((r) => ({
       requirementKey: r.requirementKey,
       status: r.status,
       evidence: r.evidence,
     })),
+    interviewIntelligence,
   };
 }
 

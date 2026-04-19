@@ -19,6 +19,7 @@ import type {
   RetrievalQueryType,
   SubmissionItem,
   Vendor,
+  VendorInterviewReadinessSummary,
 } from "@/types";
 import type { VendorLinkRecommendedAction } from "@/lib/allcare-branding-next-actions";
 
@@ -128,15 +129,46 @@ export async function postLoadProjectWorkspace(
 
 export async function postVendorIntelligence(input: {
   projectId: string;
-  vendorId: string;
+  vendorId?: string;
   action:
     | "runResearch"
     | "computeFit"
     | "computeScore"
     | "generateInterview"
-    | "getSnapshot";
+    | "getSnapshot"
+    | "getInterviewWorkspace"
+    | "getProjectInterviewReadiness"
+    | "saveInterviewAnswer"
+    | "normalizeInterviewAnswer"
+    | "evaluateInterviewAnswer"
+    | "updateInterviewQuestion"
+    | "updateVendorWebsite"
+    | "runVendorWebsiteResearch"
+    | "ingestVendorManualUrl"
+    | "getVendorWebsiteStatus";
+  questionId?: string;
+  patch?: Record<string, unknown>;
+  answer?: Record<string, unknown>;
+  websiteUrl?: string;
+  manualUrl?: string;
+  maxPages?: number;
+  maxDepth?: number;
+  forceRecrawl?: boolean;
 }): Promise<unknown> {
   return postFunctionJson("vendor-intelligence", input);
+}
+
+export async function postProjectInterviewReadiness(projectId: string): Promise<{
+  vendors: Array<{
+    vendorId: string;
+    vendorName: string;
+    summary: VendorInterviewReadinessSummary;
+  }>;
+}> {
+  return postFunctionJson("vendor-intelligence", {
+    projectId,
+    action: "getProjectInterviewReadiness",
+  });
 }
 
 export async function postVendorIntelligenceExport(projectId: string): Promise<{

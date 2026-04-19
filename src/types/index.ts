@@ -349,6 +349,13 @@ export type Vendor = {
   notes: string;
   capabilities: VendorCapability[];
   sourceFileIds: string[];
+  /** Canonical public website for crawl / evidence (normalized https). */
+  websiteUrl?: string;
+  /** Registrable domain for display (no scheme). */
+  vendorDomain?: string;
+  websiteLastCrawledAt?: string | null;
+  websiteCrawlStatus?: string;
+  websiteCrawlError?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -640,6 +647,48 @@ export type RequirementSupportSummary = {
   validation_mix: RequirementSupportValidationMix;
 };
 
+/** Parsed vendor answer — vendor-supplied assertions, not verified third-party proof. */
+export type VendorInterviewNormalizedAnswer = {
+  summary: string;
+  commitments: string[];
+  claims: string[];
+  limitations: string[];
+  dependenciesOnMalone: string[];
+  integrationSignals: string[];
+  pricingSignals: string[];
+  riskSignals: string[];
+  timelineSignals: string[];
+  followUpQuestions: string[];
+  confidence: "high" | "medium" | "low" | "unknown";
+};
+
+/** Structured interview evidence for grounding / OpenAI — derived from answers + assessments. */
+export type GroundingBundleVendorInterviewIntelligence = {
+  generatedAt: string;
+  readinessSummary: {
+    p1Total: number;
+    p1Unanswered: number;
+    p1NeedsFollowUp: number;
+    unresolvedP1: number;
+    avgScore: number | null;
+    lowQualityCount: number;
+  };
+  topAnsweredQuestions: Array<{
+    question: string;
+    category: string;
+    priority: string;
+    summary: string;
+    answerQuality0To5: number;
+  }>;
+  unresolvedP1Questions: string[];
+  commitments: string[];
+  strengths: string[];
+  risks: string[];
+  maloneDependencies: string[];
+  integrationCommitments: string[];
+  timelineCommitments: string[];
+};
+
 /** Vendor-scoped grounding slice (fit matrix, claims, facts, interview, integration). */
 export type GroundingBundleVendorIntelligence = {
   vendorId: string;
@@ -669,15 +718,97 @@ export type GroundingBundleVendorIntelligence = {
     sourceId: string;
   }>;
   interviewQuestions: Array<{
+    id: string;
     question: string;
     category: string;
     priority: string;
+    whyItMatters?: string;
+    riskIfUnanswered?: string;
+    answerStatus?: string;
   }>;
   integrationRequirements: Array<{
     requirementKey: string;
     status: string;
     evidence: string;
   }>;
+  /** Normalized answers + assessment-derived signals for drafting (optional). */
+  interviewIntelligence?: GroundingBundleVendorInterviewIntelligence;
+};
+
+export type VendorInterviewReadinessSummary = {
+  p1Total: number;
+  p1Unanswered: number;
+  p1NeedsFollowUp: number;
+  unresolvedP1: number;
+  avgScore: number | null;
+  lowQualityCount: number;
+};
+
+/** Mirrors DB interview question row for API/UI payloads. */
+export type VendorInterviewQuestionPayload = {
+  id: string;
+  vendorId: string;
+  question: string;
+  category: string;
+  priority: string;
+  linkedGapId: string | null;
+  whyItMatters: string;
+  riskIfUnanswered: string;
+  linkedRequirementKeys: string[];
+  linkedFitDimensionKeys: string[];
+  linkedGapKeys: string[];
+  answerStatus: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorInterviewAnswerPayload = {
+  id: string;
+  vendorId: string;
+  questionId: string;
+  answerText: string;
+  answerSource: string;
+  answeredBy: string;
+  answeredAt: string | null;
+  interviewer: string;
+  normalizedSummary: string;
+  normalizedJson: Record<string, unknown>;
+  confidence: string;
+  validationStatus: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorInterviewAssessmentPayload = {
+  id: string;
+  vendorId: string;
+  questionId: string;
+  answerId: string | null;
+  category: string;
+  score0To5: number;
+  rationale: string;
+  followUpRequired: boolean;
+  riskFlag: boolean;
+  pricingFlag: boolean;
+  integrationFlag: boolean;
+  executionFlag: boolean;
+  sourceFactIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorInterviewWorkspaceRow = {
+  question: VendorInterviewQuestionPayload;
+  answer: VendorInterviewAnswerPayload | null;
+  assessment: VendorInterviewAssessmentPayload | null;
+};
+
+export type VendorInterviewWorkspacePayload = {
+  vendorId: string;
+  vendorName: string;
+  summary: VendorInterviewReadinessSummary;
+  rows: VendorInterviewWorkspaceRow[];
 };
 
 export type GroundingBundlePayload = {
@@ -1016,6 +1147,12 @@ export type CompetitorHeatmapMatrix = {
 export type CompetitorComparisonEntry = {
   vendorId: string;
   vendorName: string;
+  /** Interview capture summary for this vendor (structured evidence phase). */
+  interviewReadiness?: {
+    unresolvedP1: number;
+    avgAnswerQuality: number | null;
+    lowQualityCount: number;
+  };
   /** 0–100 composite; not a guarantee of evaluation outcome. */
   overallScore: number;
   confidence: EvaluatorConfidence;
@@ -1049,6 +1186,19 @@ export type CompetitorRecommendationConfidence =
   | "low"
   | "provisional";
 
+export type ProjectInterviewReadiness = {
+  vendors: Array<{
+    vendorId: string;
+    vendorName: string;
+    p1Total: number;
+    p1Unanswered: number;
+    p1NeedsFollowUp: number;
+    unresolvedP1: number;
+    avgScore: number | null;
+    lowQualityCount: number;
+  }>;
+};
+
 export type CompetitorAwareSimulationResult = {
   projectId: string;
   architectureOptionId?: string;
@@ -1064,6 +1214,8 @@ export type CompetitorAwareSimulationResult = {
   competitorInterviewQuestions: string[];
   generatedAt: string;
   honestyNote: string;
+  /** Per-vendor P1 / quality rollup for readiness and comparative narrative. */
+  projectInterviewReadiness?: ProjectInterviewReadiness;
 };
 
 /** Auto-selected proposal posture: architecture + effective vendor + drafting directive. */

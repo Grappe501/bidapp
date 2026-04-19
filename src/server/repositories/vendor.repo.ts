@@ -27,6 +27,11 @@ export type DbVendor = {
   primaryContactName: string;
   primaryContactEmail: string;
   primaryContactPhone: string;
+  websiteUrl: string;
+  vendorDomain: string;
+  websiteLastCrawledAt: string | null;
+  websiteCrawlStatus: string;
+  websiteCrawlError: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -60,9 +65,45 @@ function mapVendor(r: Record<string, unknown>): DbVendor {
     primaryContactName: String(r.primary_contact_name),
     primaryContactEmail: String(r.primary_contact_email),
     primaryContactPhone: String(r.primary_contact_phone),
+    websiteUrl: String(r.website_url ?? ""),
+    vendorDomain: String(r.vendor_domain ?? ""),
+    websiteLastCrawledAt:
+      r.website_last_crawled_at == null
+        ? null
+        : new Date(String(r.website_last_crawled_at)).toISOString(),
+    websiteCrawlStatus: String(r.website_crawl_status ?? ""),
+    websiteCrawlError: String(r.website_crawl_error ?? ""),
     createdAt: new Date(String(r.created_at)).toISOString(),
     updatedAt: new Date(String(r.updated_at)).toISOString(),
   };
+}
+
+export async function updateVendorWebsiteFields(input: {
+  vendorId: string;
+  websiteUrl: string;
+  vendorDomain: string;
+  websiteLastCrawledAt?: string | null;
+  websiteCrawlStatus?: string;
+  websiteCrawlError?: string;
+}): Promise<void> {
+  await query(
+    `UPDATE vendors SET
+      website_url = $2,
+      vendor_domain = $3,
+      website_last_crawled_at = $4,
+      website_crawl_status = $5,
+      website_crawl_error = $6,
+      updated_at = now()
+    WHERE id = $1`,
+    [
+      input.vendorId,
+      input.websiteUrl,
+      input.vendorDomain,
+      input.websiteLastCrawledAt ?? null,
+      input.websiteCrawlStatus ?? "",
+      input.websiteCrawlError ?? "",
+    ],
+  );
 }
 
 export async function createVendor(input: {

@@ -187,7 +187,11 @@ export function OutputProvider({ children }: { children: ReactNode }) {
   }, [project.id, vendors, architectureOptions]);
 
   const vendorDecision = useMemo(
-    () => assessVendorDecisionForReadiness(competitorAwareSimulation),
+    () =>
+      assessVendorDecisionForReadiness(
+        competitorAwareSimulation,
+        competitorAwareSimulation?.projectInterviewReadiness ?? null,
+      ),
     [competitorAwareSimulation],
   );
 

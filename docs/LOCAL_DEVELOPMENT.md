@@ -13,7 +13,10 @@ Run the app with a real Postgres database, migrations, seed data, and Netlify fu
 
 1. `cp .env.example .env` and fill `DATABASE_URL`, `OPENAI_API_KEY`, and (after seed) `VITE_DEFAULT_PROJECT_ID` from `npm run db:print-project-id`. For local Docker Postgres, set `DATABASE_URL` and `PGSSLMODE=disable` as in the table below. Set `ALLOWED_ORIGIN=http://localhost:8888` and keep `STRICT_DB_MODE=false` unless you need production parity.
 2. **Start Postgres:** `npm run local:postgres` (or `docker compose up -d` from the repo root). Start **Docker Desktop** first on Windows/macOS.
-3. **Migrate + seed:** `npm run local:stack` (same as `docker compose up -d && npm run db:migrate && npm run db:seed`), or `npm run lift:db` if Postgres is already running.
+3. **Migrate + seed:**  
+   - **Local Postgres (Docker):** `npm run local:stack` — requires **Docker Desktop** to be installed and **running** first; if you see `dockerDesktopLinuxEngine` / “pipe” errors, start Docker and retry.  
+   - **Neon or any remote DB** (no Docker): ensure `DATABASE_URL` in `.env` points at your database, then run `npm run lift:db` only (skip `local:stack`).  
+   - If Postgres is already up and you only need migrate + seed: `npm run lift:db`.
 4. **Run the app:** `npm run dev:netlify` (runs `npx netlify-cli dev`). Open **http://localhost:8888** — the SPA and Netlify functions share this origin, so `VITE_FUNCTIONS_BASE_URL` can be unset or `http://localhost:8888`.
 5. If you use **`npm run dev`** (Vite on port 5173) **with** Netlify functions in another terminal, leave `VITE_FUNCTIONS_BASE_URL` unset or set it to `http://localhost:8888` and run `netlify dev` there; the app defaults API calls to that URL when the page is on localhost:5173.
 

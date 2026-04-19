@@ -1,10 +1,12 @@
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
+
 /**
  * Client-visible configuration for DB-first mode.
  * Server secrets (e.g. DATABASE_URL) are not available here — configure those on Netlify.
  */
 export function getMissingClientEnvVars(): string[] {
   const missing: string[] = [];
-  if (!(import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim()) {
+  if (!getNetlifyFunctionsBaseUrl()) {
     missing.push("VITE_FUNCTIONS_BASE_URL");
   }
   if (!(import.meta.env.VITE_DEFAULT_PROJECT_ID ?? "").trim()) {

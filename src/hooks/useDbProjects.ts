@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { dbProjectToProject, fetchDbProjects, type DbProjectRow } from "@/lib/functions-api";
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
 import type { Project } from "@/types";
 
 export function useDbProjects() {
   const projectId = (import.meta.env.VITE_DEFAULT_PROJECT_ID ?? "").trim();
-  const enabled = Boolean(
-    (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim() && projectId,
-  );
+  const enabled = Boolean(getNetlifyFunctionsBaseUrl() && projectId);
   const [rows, setRows] = useState<DbProjectRow[] | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);

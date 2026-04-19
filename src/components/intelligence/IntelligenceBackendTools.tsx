@@ -9,6 +9,7 @@ import {
   postIntelligenceJobStatus,
   postIntelligenceProfileSnapshot,
 } from "@/lib/functions-api";
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
 import { GROUNDING_BUNDLE_TYPES, type GroundingBundleType } from "@/types";
 
 export function IntelligenceBackendTools() {
@@ -20,9 +21,7 @@ export function IntelligenceBackendTools() {
   const [statusText, setStatusText] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const configured = Boolean(
-    (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim(),
-  );
+  const configured = Boolean(getNetlifyFunctionsBaseUrl());
 
   const withBusy = async (fn: () => Promise<void>) => {
     setBusy(true);

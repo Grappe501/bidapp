@@ -6,6 +6,7 @@ import {
   fetchGroundingBundles,
   postBuildGroundingBundle,
 } from "@/lib/functions-api";
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
 import {
   assessGroundingBundleQuality,
   getGroundingBundleStats,
@@ -65,9 +66,7 @@ export function GroundingBundleSelector({
     bundleTypeForSection(sectionType),
   );
 
-  const configured = Boolean(
-    (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim(),
-  );
+  const configured = Boolean(getNetlifyFunctionsBaseUrl());
 
   const refresh = async () => {
     if (!projectId.trim() || !configured) return;

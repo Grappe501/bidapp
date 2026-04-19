@@ -18,6 +18,7 @@ import {
   type EvidenceValidationStatus,
 } from "@/types";
 import { postParseDocumentAi } from "@/lib/functions-api";
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
 
 export function EvidenceDetailPage() {
   const { evidenceId } = useParams<{ evidenceId: string }>();
@@ -138,7 +139,7 @@ export function EvidenceDetailPage() {
             variant="secondary"
             disabled={
               parseBusy ||
-              !(import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim() ||
+              !getNetlifyFunctionsBaseUrl() ||
               !dbProjectId.trim() ||
               !dbFileId.trim()
             }

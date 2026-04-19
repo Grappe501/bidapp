@@ -14,6 +14,7 @@ import {
   type FileSourceType,
 } from "@/types";
 import { postEmbedFile, postParseDocumentAi } from "@/lib/functions-api";
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
 
 export function FileDetailPage() {
   const { fileId } = useParams<{ fileId: string }>();
@@ -145,7 +146,7 @@ export function FileDetailPage() {
               variant="secondary"
               disabled={
                 backendBusy ||
-                !(import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim() ||
+                !getNetlifyFunctionsBaseUrl() ||
                 !dbProjectId.trim() ||
                 !dbFileId.trim()
               }
@@ -176,7 +177,7 @@ export function FileDetailPage() {
               variant="secondary"
               disabled={
                 backendBusy ||
-                !(import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim() ||
+                !getNetlifyFunctionsBaseUrl() ||
                 !dbProjectId.trim() ||
                 !dbFileId.trim()
               }

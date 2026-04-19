@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { postIngestUrl } from "@/lib/functions-api";
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
 import { INTELLIGENCE_CLASSIFICATIONS } from "@/types";
 
 export function DbUrlIngestPanel() {
@@ -18,9 +19,7 @@ export function DbUrlIngestPanel() {
   const [status, setStatus] = useState<"idle" | "ok" | "err">("idle");
   const [message, setMessage] = useState("");
 
-  const configured = Boolean(
-    (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim(),
-  );
+  const configured = Boolean(getNetlifyFunctionsBaseUrl());
 
   return (
     <Card className="space-y-4 border-zinc-300">

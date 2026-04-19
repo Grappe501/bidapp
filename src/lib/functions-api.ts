@@ -28,12 +28,14 @@ import type {
   VendorInterviewReadinessSummary,
 } from "@/types";
 import type { VendorLinkRecommendedAction } from "@/lib/allcare-branding-next-actions";
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
 
 /**
- * Client for `/.netlify/functions/*`. In production, `VITE_FUNCTIONS_BASE_URL` must
- * point at the deployed API origin, CORS must allow the SPA origin via `ALLOWED_ORIGIN`,
- * and `VITE_INTERNAL_API_KEY` must match `INTERNAL_API_KEY` on functions. See
- * `scripts/netlify-deploy-checklist.md`.
+ * Client for `/.netlify/functions/*`. Set `VITE_FUNCTIONS_BASE_URL` when the SPA and
+ * functions differ (e.g. local Vite :5173 + `netlify dev` :8888); otherwise the
+ * browser uses the current origin. CORS: `ALLOWED_ORIGIN` must include the SPA
+ * origin; with strict mode, `VITE_INTERNAL_API_KEY` must match `INTERNAL_API_KEY`.
+ * See `scripts/netlify-deploy-checklist.md`.
  */
 
 export type DbProjectRow = {
@@ -49,7 +51,7 @@ export type DbProjectRow = {
 };
 
 function functionsBase(): string {
-  return (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").replace(/\/$/, "");
+  return getNetlifyFunctionsBaseUrl();
 }
 
 function apiHeaders(): Record<string, string> {

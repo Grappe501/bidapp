@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
 import { postGenerateDraft, postReviewDraftProse } from "@/lib/functions-api";
+import { getNetlifyFunctionsBaseUrl } from "@/lib/netlify-functions-base-url";
 import { useDrafting } from "@/context/useDrafting";
 import {
   assessGroundingBundleQuality,
@@ -104,9 +105,7 @@ export function DraftGeneratorPanel({
     [sectionId],
   );
 
-  const apiConfigured = Boolean(
-    (import.meta.env.VITE_FUNCTIONS_BASE_URL ?? "").trim(),
-  );
+  const apiConfigured = Boolean(getNetlifyFunctionsBaseUrl());
 
   const readiness = useMemo(
     () =>

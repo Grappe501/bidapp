@@ -1,5 +1,7 @@
 # Environment setup
 
+**Full local run (Docker Postgres, migrate, seed, `netlify dev`):** see **`docs/LOCAL_DEVELOPMENT.md`**.
+
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/) LTS (includes `npm`)

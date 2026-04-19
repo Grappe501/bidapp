@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.12.5 — 2026-04-18
+
+- **Local development:** `docker-compose.yml` (Postgres 16), **`docs/LOCAL_DEVELOPMENT.md`** (migrate, seed, `netlify dev`, env matrix), **`npm run db:print-project-id`**, `.env.example` updated with deterministic seed project id and Docker connection notes; **`ENVIRONMENT_SETUP.md`** links to the local guide
+
 ## v0.12.4 — 2026-04-18
 
 - **Agent Malone Briefing Mode:** structured `AgentMaloneBriefing` from live `gatherBidAgentContext` + thread memory + recent action messages; modes (default, executive, strategy, vendor, readiness, drafting, pricing, comparison); landing **Operational briefing** panel with refresh; chat phrases route to briefing via `parseBriefingIntentFromQuestion`; **`POST agent-malone-briefing`** Netlify function; thread `summary_line` updated from briefing headline; quick prompt “Brief me on this thread.”

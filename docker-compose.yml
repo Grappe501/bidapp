@@ -1,0 +1,24 @@
+# Local Postgres for BidApp — optional alternative to Neon.
+# Usage: docker compose up -d
+# Then set DATABASE_URL in .env (see docs/LOCAL_DEVELOPMENT.md).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bidapp-postgres
+    environment:
+      POSTGRES_USER: bidapp
+      POSTGRES_PASSWORD: bidapp_local_dev
+      POSTGRES_DB: bidapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - bidapp_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bidapp -d bidapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  bidapp_pgdata:

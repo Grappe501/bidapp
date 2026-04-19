@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",
+    "db:print-project-id": "tsx scripts/print-seed-project-id.ts",
     "ingest:price-sheet": "tsx scripts/ingest-s479-price-sheet.ts",
     "ingest:technical-proposal-packet": "tsx scripts/ingest-s479-technical-proposal-packet.ts",
     "ingest:contract-grant-disclosure": "tsx scripts/ingest-s479-contract-grant-disclosure.ts",

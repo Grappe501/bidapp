@@ -86,10 +86,13 @@ export function IntelligenceBackendTools() {
         <Button
           type="button"
           variant="secondary"
-          disabled={busy || !companyProfileId.trim()}
+          disabled={busy || !companyProfileId.trim() || !projectId.trim()}
           onClick={() =>
             withBusy(async () => {
-              const r = await postEnrichCompany(companyProfileId.trim());
+              const r = await postEnrichCompany(
+                companyProfileId.trim(),
+                projectId.trim(),
+              );
               setStatusText(
                 `Enrichment run ${r.runId}: ${r.factsCreated} facts, ${r.claimsCreated} vendor claims (from stored sources).`,
               );
@@ -101,11 +104,12 @@ export function IntelligenceBackendTools() {
         <Button
           type="button"
           variant="secondary"
-          disabled={busy || !companyProfileId.trim()}
+          disabled={busy || !companyProfileId.trim() || !projectId.trim()}
           onClick={() =>
             withBusy(async () => {
               const snap = await postIntelligenceProfileSnapshot(
                 companyProfileId.trim(),
+                projectId.trim(),
               );
               setStatusText(
                 `Sources: ${snap.sources.length}; facts: ${snap.facts.length}. ` +

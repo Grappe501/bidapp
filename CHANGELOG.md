@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.10.4 — 2026-04-18
+
+- **Netlify production verification:** `scripts/netlify-deploy-checklist.md` (before/after deploy, rollback triage), `npm run check:netlify-prod-env` for local preflight against required prod-shaped vars
+- **`POST prod-readiness`** Netlify function — API-key gated; returns `database`, `projectCheck`, `openaiConfigured`, `strictDbMode` only (no secrets)
+- **Docs:** `ENVIRONMENT_SETUP.md` and `DEPLOYMENT_PROTOCOL.md` expanded for build-time vs runtime vars, production origin vs dev, preview deploy CORS; `CURRENT_STATE.md` updated; `db-health` / `require-api-key` / `functions-api` cross-links to checklists
+
+## v0.10.3 — 2026-04-18
+
+- **Private deploy readiness:** standardized Netlify **`netlifyRequestPreamble`** (strict posture, CORS, OPTIONS), **`INTERNAL_API_KEY`** checks with consistent **401** JSON, and per-request CORS via **`ALLOWED_ORIGIN`** (comma-separated exact origins; dev fallback when strict mode is off).
+- **Project scoping:** shared **`requireProjectId`** helper; company-scoped functions require **`projectId`** in **`STRICT_DB_MODE`** (`enrich-company`, `intelligence-profile-snapshot`, **`get-branding-profile`** when using `companyProfileId`).
+- **Operational docs:** `scripts/private-deploy-smoke-test.md`, `npm run check:private-deploy-env`, and updates to **`ENVIRONMENT_SETUP.md`**, **`DEPLOYMENT_PROTOCOL.md`**, **`CURRENT_STATE.md`**.
+- **UI:** subtle **Private deploy** banner when **`VITE_STRICT_DB_MODE`**, stricter copy on DB-first and illustrative pages (scoring, runbook, strategy storage), Files page aligned with DB + session uploads.
+
 ## v0.10.2 — 2026-04-18
 
 - Hardened and polished the **output module** (BP-008 upgrade sprint — Day 5): consistent terminology across **output center**, **submission package**, **client review packet**, **redacted packet**, **final readiness bundle**, **blockers**, **readiness**, and **redaction items**; aligned export/copy labels (Markdown vs text vs JSON) and improved clipboard report headers in `output-utils`

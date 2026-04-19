@@ -66,7 +66,7 @@ export function DashboardPage() {
         {functionsEnabled ? (
           <Card className="space-y-2 border-zinc-200 bg-zinc-50/80 px-4 py-3">
             <h2 className="text-sm font-semibold text-ink">
-              Database projects (read-only hook)
+              Database project check (list-projects)
             </h2>
             {dbLoading ? (
               <p className="text-sm text-ink-muted">Loading from Postgres…</p>

@@ -1,5 +1,10 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import {
   getDraftSectionByIdForProject,
   updateDraftVersionNoteLocked,
@@ -10,7 +15,6 @@ import {
 } from "../../src/server/netlify/draft-wire";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -22,18 +26,19 @@ type Body = {
 };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.projectId || !body.versionId) {
-    return jsonResponse(400, { error: "projectId and versionId required" });
+    return jsonResponse(400, { error: "projectId and versionId required" }, event);
   }
   if (body.note === undefined && body.locked === undefined) {
-    return jsonResponse(400, { error: "note and/or locked required" });
+    return jsonResponse(400, { error: "note and/or locked required" }, event);
   }
   try {
     const v = await updateDraftVersionNoteLocked({
@@ -43,15 +48,22 @@ export const handler: Handler = async (event) => {
       locked: body.locked,
     });
     if (!v) {
-      return jsonResponse(400, { error: "could not update version" });
+      return jsonResponse(400, { error: "could not update version" }, event);
     }
     const sec = await getDraftSectionByIdForProject(
       body.projectId,
       v.sectionId,
     );
-    return jsonResponse(200, {
-      version: wireDraftVersion(v),
-      section: sec ? wireDraftSection(sec) : null,
-    });
-  } catch (e) { logServerError("update-draft-version", e); return internalErrorResponse(); }
+    return jsonResponse(
+      200,
+      {
+        version: wireDraftVersion(v),
+        section: sec ? wireDraftSection(sec) : null,
+      },
+      event,
+    );
+  } catch (e) {
+    logServerError("update-draft-version", e);
+    return internalErrorResponse(event);
+  }
 };

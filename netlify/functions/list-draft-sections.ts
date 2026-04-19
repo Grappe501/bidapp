@@ -1,5 +1,10 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import {
   listDraftSectionsByProject,
   listDraftVersionsForProject,
@@ -12,22 +17,22 @@ import {
 } from "../../src/server/netlify/draft-wire";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
 type Body = { projectId: string };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.projectId) {
-    return jsonResponse(400, { error: "projectId required" });
+    return jsonResponse(400, { error: "projectId required" }, event);
   }
   try {
     const dbSections = await listDraftSectionsByProject(body.projectId);
@@ -44,10 +49,17 @@ export const handler: Handler = async (event) => {
     const bundles = await listGroundingBundlesByIds(body.projectId, [
       ...bundleIds,
     ]);
-    return jsonResponse(200, {
-      sections: dbSections.map(wireDraftSection),
-      versions: dbVersions.map(wireDraftVersion),
-      bundles: bundles.map(wireGroundingBundle),
-    });
-  } catch (e) { logServerError("list-draft-sections", e); return internalErrorResponse(); }
+    return jsonResponse(
+      200,
+      {
+        sections: dbSections.map(wireDraftSection),
+        versions: dbVersions.map(wireDraftVersion),
+        bundles: bundles.map(wireGroundingBundle),
+      },
+      event,
+    );
+  } catch (e) {
+    logServerError("list-draft-sections", e);
+    return internalErrorResponse(event);
+  }
 };

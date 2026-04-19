@@ -1,5 +1,10 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import { runBuildGroundingBundleJob } from "../../src/server/jobs/build-grounding-bundle.job";
 import {
   GROUNDING_BUNDLE_TYPES,
@@ -7,7 +12,6 @@ import {
 } from "../../src/types";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -22,18 +26,19 @@ type Body = {
 };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.projectId || !body.bundleType) {
-    return jsonResponse(400, { error: "projectId and bundleType required" });
+    return jsonResponse(400, { error: "projectId and bundleType required" }, event);
   }
   if (!GROUNDING_BUNDLE_TYPES.includes(body.bundleType)) {
-    return jsonResponse(400, { error: "invalid bundleType" });
+    return jsonResponse(400, { error: "invalid bundleType" }, event);
   }
   try {
     const result = await runBuildGroundingBundleJob({
@@ -45,6 +50,9 @@ export const handler: Handler = async (event) => {
       fileId: body.fileId,
       strictGrounding: Boolean(body.strictGrounding),
     });
-    return jsonResponse(200, result);
-  } catch (e) { logServerError("build-grounding-bundle", e); return internalErrorResponse(); }
+    return jsonResponse(200, result, event);
+  } catch (e) {
+    logServerError("build-grounding-bundle", e);
+    return internalErrorResponse(event);
+  }
 };

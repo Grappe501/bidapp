@@ -3,32 +3,33 @@ import { query } from "../../src/server/db/client";
 import {
   assertInternalApiKey,
   logServerError,
+  netlifyRequestPreamble,
 } from "../../src/server/netlify/guards";
-import {
-  getCorsHeaders,
-  jsonResponse,
-  optionsResponse,
-} from "../../src/server/netlify/http";
+import { jsonResponse } from "../../src/server/netlify/http";
 
+/**
+ * Lightweight DB connectivity check (`GET`).
+ * For **Netlify production**, set **`INTERNAL_API_KEY`** so this route is not
+ * anonymously callable. Responses never include connection strings or SQL details.
+ * See `scripts/netlify-deploy-checklist.md` and `ENVIRONMENT_SETUP.md`.
+ */
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
-  if (process.env.STRICT_DB_MODE === "true") {
-    return jsonResponse(404, { error: "Not found" });
-  }
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "GET") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   try {
     await query("SELECT 1 AS ok");
-    return jsonResponse(200, { ok: true, database: "reachable" });
+    return jsonResponse(200, { ok: true, database: "reachable" }, event);
   } catch (e) {
     logServerError("db-health", e);
-    return {
-      statusCode: 503,
-      headers: getCorsHeaders(),
-      body: JSON.stringify({ ok: false, error: "Service unavailable" }),
-    };
+    return jsonResponse(
+      503,
+      { ok: false, error: "Service unavailable" },
+      event,
+    );
   }
 };

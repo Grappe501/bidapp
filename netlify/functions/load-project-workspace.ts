@@ -3,36 +3,36 @@ import {
   assertInternalApiKey,
   internalErrorResponse,
   logServerError,
+  netlifyRequestPreamble,
 } from "../../src/server/netlify/guards";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
+import { requireProjectId } from "../../src/server/netlify/require-project-id";
 import { loadProjectWorkspacePayload } from "../../src/server/services/project-workspace.service";
 
 type Body = { projectId?: string };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
-  const projectId = body?.projectId?.trim();
-  if (!projectId) {
-    return jsonResponse(400, { error: "projectId is required" });
-  }
+  const projectId = requireProjectId(body, event);
+  if (typeof projectId !== "string") return projectId;
   try {
     const payload = await loadProjectWorkspacePayload(projectId);
     if (!payload) {
-      return jsonResponse(404, { error: "Project not found" });
+      return jsonResponse(404, { error: "Project not found" }, event);
     }
-    return jsonResponse(200, payload);
+    return jsonResponse(200, payload, event);
   } catch (e) {
     logServerError("load-project-workspace", e);
-    return internalErrorResponse();
+    return internalErrorResponse(event);
   }
 };

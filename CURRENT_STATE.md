@@ -14,6 +14,8 @@
 - **Phase 9:** Complete — submission workflow, validation gate, runbook, tasks, and audit trail (BP-009).
 - **Phase 10:** Complete — competitive intelligence and win strategy engine (BP-010). System supports the full bid lifecycle plus positioning strategy.
 - **Last packet:** BP-008-DAY-5-POLISH-CONSISTENCY-EXPORT-QA (output layer hardening; BP-008 upgrade sprint complete)
+- **Private deploy hardening (v0.10.3):** Netlify functions use a shared preamble for **`STRICT_DB_MODE`**, **`INTERNAL_API_KEY`**, and **`ALLOWED_ORIGIN`**; CORS no longer defaults to unrestricted `*` in documented production posture. **`list-projects`** remains a **scoped internal helper** (single `projectId` in, zero or one row). **`generate-draft`** structured mode and **`review-draft-prose`** are **stateless LLM** endpoints (no DB project row — still API-key gated). Launch verification: `scripts/private-deploy-smoke-test.md` and `npm run check:private-deploy-env`. This remains suitable for **controlled internal** use (shared secret + origin allowlist), **not** as a public multi-tenant internet service without stronger auth.
+- **Netlify production verification (v0.10.4):** Documented **build vs functions** env split, production origin rules, and project UUID confirmation in **`ENVIRONMENT_SETUP.md`**. Repeatable checklist: **`scripts/netlify-deploy-checklist.md`**. Local preflight: **`npm run check:netlify-prod-env`**. Optional protected **`POST prod-readiness`** function returns DB/project/OpenAI configuration flags without leaking secrets. Post-deploy smoke summarized in the same checklist.
 
 **In place now**
 

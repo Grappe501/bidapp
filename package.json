@@ -1,7 +1,7 @@
 {
   "name": "bid-assembly",
   "private": true,
-  "version": "0.10.2",
+  "version": "0.10.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,6 +11,8 @@
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",
     "check:server-aliases": "tsx scripts/check-server-aliases.ts",
+    "check:private-deploy-env": "tsx scripts/check-private-deploy-env.ts",
+    "check:netlify-prod-env": "tsx scripts/check-netlify-prod-env.ts",
     "typecheck:server": "tsc -p tsconfig.server.json && npm run check:server-aliases"
   },
   "dependencies": {

@@ -1,5 +1,10 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import type { DraftMetadata } from "../../src/types";
 import {
   getDraftSectionByIdForProject,
@@ -12,7 +17,6 @@ import {
 } from "../../src/server/netlify/draft-wire";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -40,22 +44,25 @@ type PatchContentBody = {
 type Body = InsertBody | PatchContentBody;
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.projectId || !body.action) {
-    return jsonResponse(400, { error: "projectId and action required" });
+    return jsonResponse(400, { error: "projectId and action required" }, event);
   }
   try {
     if (body.action === "insert") {
       if (!body.sectionId || body.content === undefined || !body.metadata) {
-        return jsonResponse(400, {
-          error: "insert requires sectionId, content, metadata",
-        });
+        return jsonResponse(
+          400,
+          { error: "insert requires sectionId, content, metadata" },
+          event,
+        );
       }
       const gen =
         body.generationMode ??
@@ -78,19 +85,25 @@ export const handler: Handler = async (event) => {
         body.sectionId,
       );
       if (!sec) {
-        return jsonResponse(500, { error: "section missing after insert" });
+        return internalErrorResponse(event);
       }
-      return jsonResponse(200, {
-        version: wireDraftVersion(v),
-        section: wireDraftSection(sec),
-      });
+      return jsonResponse(
+        200,
+        {
+          version: wireDraftVersion(v),
+          section: wireDraftSection(sec),
+        },
+        event,
+      );
     }
 
     if (body.action === "patch_content") {
       if (!body.versionId || body.content === undefined) {
-        return jsonResponse(400, {
-          error: "patch_content requires versionId and content",
-        });
+        return jsonResponse(
+          400,
+          { error: "patch_content requires versionId and content" },
+          event,
+        );
       }
       const v = await updateDraftVersionContent({
         projectId: body.projectId,
@@ -98,20 +111,29 @@ export const handler: Handler = async (event) => {
         content: body.content,
       });
       if (!v) {
-        return jsonResponse(400, {
-          error: "could not update version (missing or locked)",
-        });
+        return jsonResponse(
+          400,
+          { error: "could not update version (missing or locked)" },
+          event,
+        );
       }
       const sec = await getDraftSectionByIdForProject(
         body.projectId,
         v.sectionId,
       );
-      return jsonResponse(200, {
-        version: wireDraftVersion(v),
-        section: sec ? wireDraftSection(sec) : null,
-      });
+      return jsonResponse(
+        200,
+        {
+          version: wireDraftVersion(v),
+          section: sec ? wireDraftSection(sec) : null,
+        },
+        event,
+      );
     }
 
-    return jsonResponse(400, { error: "invalid action" });
-  } catch (e) { logServerError("save-draft-version", e); return internalErrorResponse(); }
+    return jsonResponse(400, { error: "invalid action" }, event);
+  } catch (e) {
+    logServerError("save-draft-version", e);
+    return internalErrorResponse(event);
+  }
 };

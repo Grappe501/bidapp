@@ -20,6 +20,13 @@ import type {
 } from "@/types";
 import type { VendorLinkRecommendedAction } from "@/lib/allcare-branding-next-actions";
 
+/**
+ * Client for `/.netlify/functions/*`. In production, `VITE_FUNCTIONS_BASE_URL` must
+ * point at the deployed API origin, CORS must allow the SPA origin via `ALLOWED_ORIGIN`,
+ * and `VITE_INTERNAL_API_KEY` must match `INTERNAL_API_KEY` on functions. See
+ * `scripts/netlify-deploy-checklist.md`.
+ */
+
 export type DbProjectRow = {
   id: string;
   title: string;
@@ -187,12 +194,15 @@ export async function postParseDocumentAi(input: {
   return postFunctionJson("parse-document-ai", input);
 }
 
-export async function postEnrichCompany(companyProfileId: string): Promise<{
+export async function postEnrichCompany(
+  companyProfileId: string,
+  projectId: string,
+): Promise<{
   runId: string;
   factsCreated: number;
   claimsCreated: number;
 }> {
-  return postFunctionJson("enrich-company", { companyProfileId });
+  return postFunctionJson("enrich-company", { companyProfileId, projectId });
 }
 
 /** Score breakdown for a vendor resolution candidate (matches ingest meta). */
@@ -427,6 +437,7 @@ export async function postBuildGroundingBundle(input: {
 
 export async function postIntelligenceProfileSnapshot(
   companyProfileId: string,
+  projectId: string,
 ): Promise<{
   profile: {
     id: string;
@@ -454,6 +465,7 @@ export async function postIntelligenceProfileSnapshot(
 }> {
   return postFunctionJson("intelligence-profile-snapshot", {
     companyProfileId,
+    projectId,
   });
 }
 

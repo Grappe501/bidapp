@@ -1,9 +1,13 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import { createProject } from "../../src/server/repositories/project.repo";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -17,11 +21,12 @@ type Body = {
 };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (
@@ -31,7 +36,7 @@ export const handler: Handler = async (event) => {
     !body.dueDate ||
     !body.status
   ) {
-    return jsonResponse(400, { error: "Missing required fields" });
+    return jsonResponse(400, { error: "Missing required fields" }, event);
   }
   try {
     const project = await createProject({
@@ -42,6 +47,9 @@ export const handler: Handler = async (event) => {
       status: body.status,
       shortDescription: body.shortDescription ?? "",
     });
-    return jsonResponse(201, { project });
-  } catch (e) { logServerError("create-project", e); return internalErrorResponse(); }
+    return jsonResponse(201, { project }, event);
+  } catch (e) {
+    logServerError("create-project", e);
+    return internalErrorResponse(event);
+  }
 };

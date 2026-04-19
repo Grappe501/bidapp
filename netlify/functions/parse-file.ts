@@ -1,10 +1,14 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import { runParseFileJob } from "../../src/server/jobs/parse-file.job";
 import { getFileForProject } from "../../src/server/repositories/file.repo";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -16,19 +20,20 @@ type Body = {
 };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.fileId || !body?.projectId?.trim()) {
-    return jsonResponse(400, { error: "fileId and projectId required" });
+    return jsonResponse(400, { error: "fileId and projectId required" }, event);
   }
   const file = await getFileForProject(body.fileId, body.projectId.trim());
   if (!file) {
-    return jsonResponse(404, { error: "File not found for project" });
+    return jsonResponse(404, { error: "File not found for project" }, event);
   }
   try {
     const result = await runParseFileJob({
@@ -36,9 +41,9 @@ export const handler: Handler = async (event) => {
       text: body.text,
       chunkSize: body.chunkSize,
     });
-    return jsonResponse(200, result);
+    return jsonResponse(200, result, event);
   } catch (e) {
     logServerError("parse-file", e);
-    return internalErrorResponse();
+    return internalErrorResponse(event);
   }
 };

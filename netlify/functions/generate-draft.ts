@@ -1,5 +1,10 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import {
   generateDraftFromBundleId,
   generateGroundedDraft,
@@ -8,7 +13,6 @@ import {
 import type { DraftSectionType } from "../../src/types";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -35,40 +39,49 @@ const SECTION_TYPES: DraftSectionType[] = [
   "Architecture Narrative",
 ];
 
+/**
+ * Draft generation: `structured` mode is **stateless** (OpenAI only; no DB row
+ * writes). `bundle` mode is project-scoped and resolves grounding from the DB.
+ */
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.mode) {
-    return jsonResponse(400, { error: "mode required" });
+    return jsonResponse(400, { error: "mode required" }, event);
   }
 
   try {
     if (body.mode === "structured") {
       if (!body.input?.grounding || !body.input?.sectionType) {
-        return jsonResponse(400, {
-          error: "structured mode requires input.grounding and input.sectionType",
-        });
+        return jsonResponse(
+          400,
+          { error: "structured mode requires input.grounding and input.sectionType" },
+          event,
+        );
       }
       if (!SECTION_TYPES.includes(body.input.sectionType)) {
-        return jsonResponse(400, { error: "invalid sectionType" });
+        return jsonResponse(400, { error: "invalid sectionType" }, event);
       }
       const result = await generateGroundedDraft(body.input);
-      return jsonResponse(200, result);
+      return jsonResponse(200, result, event);
     }
 
     if (body.mode === "bundle") {
       if (!body.projectId || !body.bundleId || !body.sectionType) {
-        return jsonResponse(400, {
-          error: "bundle mode requires projectId, bundleId, sectionType",
-        });
+        return jsonResponse(
+          400,
+          { error: "bundle mode requires projectId, bundleId, sectionType" },
+          event,
+        );
       }
       if (!SECTION_TYPES.includes(body.sectionType)) {
-        return jsonResponse(400, { error: "invalid sectionType" });
+        return jsonResponse(400, { error: "invalid sectionType" }, event);
       }
       const result = await generateDraftFromBundleId({
         projectId: body.projectId,
@@ -76,9 +89,12 @@ export const handler: Handler = async (event) => {
         sectionType: body.sectionType,
         tone: body.tone,
       });
-      return jsonResponse(200, result);
+      return jsonResponse(200, result, event);
     }
 
-    return jsonResponse(400, { error: "invalid mode" });
-  } catch (e) { logServerError("generate-draft", e); return internalErrorResponse(); }
+    return jsonResponse(400, { error: "invalid mode" }, event);
+  } catch (e) {
+    logServerError("generate-draft", e);
+    return internalErrorResponse(event);
+  }
 };

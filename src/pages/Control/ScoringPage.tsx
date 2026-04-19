@@ -8,6 +8,7 @@ import {
   MOCK_SECTION_CONSTRAINTS,
   SCORING_TOTAL_POINTS,
 } from "@/data/mockScoringModel";
+import { isStrictDbModeClient } from "@/lib/strict-client-env";
 
 export function ScoringPage() {
   const sorted = [...MOCK_SCORING_CATEGORIES].sort(
@@ -29,6 +30,13 @@ export function ScoringPage() {
             volumes, oral prep, and price. Cost carries the highest weight—treat
             workbook errors as existential risk.
           </p>
+          {isStrictDbModeClient() ? (
+            <p className="mt-3 max-w-3xl rounded-md border border-zinc-200 bg-zinc-50/90 px-3 py-2 text-xs text-ink-muted">
+              The weights and caps below are{" "}
+              <span className="font-medium text-ink">illustrative reference data</span>{" "}
+              for this bid — not loaded from the database.
+            </p>
+          ) : null}
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">

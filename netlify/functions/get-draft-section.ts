@@ -1,5 +1,10 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import {
   ensureDraftSectionsForProject,
   getDraftSectionByIdForProject,
@@ -13,22 +18,22 @@ import {
 } from "../../src/server/netlify/draft-wire";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
 type Body = { projectId: string; sectionId: string };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.projectId || !body.sectionId) {
-    return jsonResponse(400, { error: "projectId and sectionId required" });
+    return jsonResponse(400, { error: "projectId and sectionId required" }, event);
   }
   try {
     await ensureDraftSectionsForProject(body.projectId);
@@ -37,7 +42,7 @@ export const handler: Handler = async (event) => {
       body.sectionId,
     );
     if (!dbSection) {
-      return jsonResponse(404, { error: "section not found" });
+      return jsonResponse(404, { error: "Not found" }, event);
     }
     const dbVersions = await listDraftVersionsForSection(
       body.projectId,
@@ -53,10 +58,17 @@ export const handler: Handler = async (event) => {
     const bundles = await listGroundingBundlesByIds(body.projectId, [
       ...bundleIds,
     ]);
-    return jsonResponse(200, {
-      section: wireDraftSection(dbSection),
-      versions: dbVersions.map(wireDraftVersion),
-      bundles: bundles.map(wireGroundingBundle),
-    });
-  } catch (e) { logServerError("get-draft-section", e); return internalErrorResponse(); }
+    return jsonResponse(
+      200,
+      {
+        section: wireDraftSection(dbSection),
+        versions: dbVersions.map(wireDraftVersion),
+        bundles: bundles.map(wireGroundingBundle),
+      },
+      event,
+    );
+  } catch (e) {
+    logServerError("get-draft-section", e);
+    return internalErrorResponse(event);
+  }
 };

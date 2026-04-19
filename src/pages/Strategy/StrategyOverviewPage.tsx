@@ -27,6 +27,11 @@ export function StrategyOverviewPage() {
             shows up, how they may score, and how Malone + partners should win on
             substance — not noise.
           </p>
+          <p className="mt-2 max-w-3xl text-xs text-ink-subtle">
+            Strategy competitors, themes, and lenses are stored in this browser
+            (localStorage) for this workspace — not synced to Postgres in this
+            release.
+          </p>
         </div>
 
         <CompetitiveSummaryCard summary={strategicSummary} bidNumber={project.bidNumber} />

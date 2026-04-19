@@ -1,5 +1,10 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import {
   duplicateDraftVersion,
   getDraftSectionByIdForProject,
@@ -10,7 +15,6 @@ import {
 } from "../../src/server/netlify/draft-wire";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -22,17 +26,20 @@ type Body = {
 };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.projectId || !body.sectionId || !body.sourceVersionId) {
-    return jsonResponse(400, {
-      error: "projectId, sectionId, and sourceVersionId required",
-    });
+    return jsonResponse(
+      400,
+      { error: "projectId, sectionId, and sourceVersionId required" },
+      event,
+    );
   }
   try {
     const v = await duplicateDraftVersion({
@@ -42,18 +49,25 @@ export const handler: Handler = async (event) => {
       note: body.note ?? null,
     });
     if (!v) {
-      return jsonResponse(400, { error: "could not duplicate version" });
+      return jsonResponse(400, { error: "could not duplicate version" }, event);
     }
     const sec = await getDraftSectionByIdForProject(
       body.projectId,
       body.sectionId,
     );
     if (!sec) {
-      return jsonResponse(500, { error: "section not found" });
+      return jsonResponse(404, { error: "Not found" }, event);
     }
-    return jsonResponse(200, {
-      version: wireDraftVersion(v),
-      section: wireDraftSection(sec),
-    });
-  } catch (e) { logServerError("duplicate-draft-version", e); return internalErrorResponse(); }
+    return jsonResponse(
+      200,
+      {
+        version: wireDraftVersion(v),
+        section: wireDraftSection(sec),
+      },
+      event,
+    );
+  } catch (e) {
+    logServerError("duplicate-draft-version", e);
+    return internalErrorResponse(event);
+  }
 };

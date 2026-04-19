@@ -1,5 +1,10 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import {
   getDraftSectionByIdForProject,
   updateDraftSectionSelectedBundle,
@@ -7,7 +12,6 @@ import {
 import { wireDraftSection } from "../../src/server/netlify/draft-wire";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -18,18 +22,19 @@ type Body = {
 };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.projectId || !body.sectionId) {
-    return jsonResponse(400, { error: "projectId and sectionId required" });
+    return jsonResponse(400, { error: "projectId and sectionId required" }, event);
   }
   if (body.bundleId === undefined) {
-    return jsonResponse(400, { error: "bundleId required (or null)" });
+    return jsonResponse(400, { error: "bundleId required (or null)" }, event);
   }
   try {
     const ok = await updateDraftSectionSelectedBundle({
@@ -38,15 +43,18 @@ export const handler: Handler = async (event) => {
       bundleId: body.bundleId,
     });
     if (!ok) {
-      return jsonResponse(400, { error: "could not update bundle selection" });
+      return jsonResponse(400, { error: "could not update bundle selection" }, event);
     }
     const sec = await getDraftSectionByIdForProject(
       body.projectId,
       body.sectionId,
     );
     if (!sec) {
-      return jsonResponse(500, { error: "section not found" });
+      return jsonResponse(404, { error: "Not found" }, event);
     }
-    return jsonResponse(200, { section: wireDraftSection(sec) });
-  } catch (e) { logServerError("set-draft-section-bundle", e); return internalErrorResponse(); }
+    return jsonResponse(200, { section: wireDraftSection(sec) }, event);
+  } catch (e) {
+    logServerError("set-draft-section-bundle", e);
+    return internalErrorResponse(event);
+  }
 };

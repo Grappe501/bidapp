@@ -8,6 +8,7 @@ import {
   MOCK_SUBMISSION_RUNBOOK_STEPS,
 } from "@/data/mockSubmissionRunbook";
 import { copyTextToClipboard } from "@/lib/output-utils";
+import { isStrictDbModeClient } from "@/lib/strict-client-env";
 
 export function SubmissionRunbookPage() {
   const [msg, setMsg] = useState<string | null>(null);
@@ -42,6 +43,13 @@ export function SubmissionRunbookPage() {
             validation gate at <strong className="font-medium text-ink">PASS</strong>{" "}
             before confirming submission.
           </p>
+          {isStrictDbModeClient() ? (
+            <p className="mt-3 rounded-md border border-zinc-200 bg-zinc-50/90 px-3 py-2 text-xs text-ink-muted">
+              Runbook steps are{" "}
+              <span className="font-medium text-ink">static template copy</span> for
+              this bid — not read from the database.
+            </p>
+          ) : null}
         </div>
 
         <Card className="flex flex-wrap gap-2 p-4">

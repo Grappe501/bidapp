@@ -48,8 +48,8 @@ export function FilesPage() {
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-ink-muted">
             Central record of solicitation materials, partner inputs, and working
-            drafts. Uploads stay in session memory until backend ingestion is
-            introduced.
+            drafts. Rows load from the database for the active project; new uploads
+            are session-only until a file-create API is wired.
           </p>
         </div>
 

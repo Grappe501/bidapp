@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { PrivateDeployBanner } from "@/components/PrivateDeployBanner";
 import { WorkspaceStatusBanner } from "@/components/WorkspaceStatusBanner";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -13,6 +14,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <Sidebar />
       <div className="pl-56">
         <Header />
+        <PrivateDeployBanner />
         <WorkspaceStatusBanner />
         <main className="min-h-[calc(100vh-3.5rem)]">{children}</main>
       </div>

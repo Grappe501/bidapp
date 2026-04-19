@@ -1,9 +1,13 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import { runIngestUrlJob } from "../../src/server/jobs/ingest-url.job";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -16,15 +20,16 @@ type Body = {
 };
 
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.url || !body.projectId) {
-    return jsonResponse(400, { error: "url and projectId required" });
+    return jsonResponse(400, { error: "url and projectId required" }, event);
   }
   try {
     const result = await runIngestUrlJob({
@@ -34,6 +39,9 @@ export const handler: Handler = async (event) => {
       classification: body.classification,
       title: body.title,
     });
-    return jsonResponse(200, result);
-  } catch (e) { logServerError("ingest-url", e); return internalErrorResponse(); }
+    return jsonResponse(200, result, event);
+  } catch (e) {
+    logServerError("ingest-url", e);
+    return internalErrorResponse(event);
+  }
 };

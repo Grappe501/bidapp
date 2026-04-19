@@ -122,9 +122,9 @@ export function RequirementExtractionPage() {
               Requirement extraction
             </h1>
             <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-              Human-in-the-loop intake: run a mock job, review structured
-              candidates, edit fields as needed, then approve into the
-              compliance matrix.
+              Human-in-the-loop intake: run an extraction pass on a selected file,
+              review structured candidates, edit fields as needed, then approve
+              into the compliance matrix.
             </p>
           </div>
           <Link to="/requirements" className="shrink-0">

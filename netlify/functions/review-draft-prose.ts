@@ -1,10 +1,14 @@
 import type { Handler } from "@netlify/functions";
-import { assertInternalApiKey, internalErrorResponse, logServerError } from "../../src/server/netlify/guards";
+import {
+  assertInternalApiKey,
+  internalErrorResponse,
+  logServerError,
+  netlifyRequestPreamble,
+} from "../../src/server/netlify/guards";
 import { runReviewDraftProseJob } from "../../src/server/jobs/review-draft-prose.job";
 import type { DraftSectionType, GroundingBundlePayload } from "../../src/types";
 import {
   jsonResponse,
-  optionsResponse,
   readJson,
 } from "../../src/server/netlify/http";
 
@@ -22,21 +26,28 @@ type Body = {
   grounding: GroundingBundlePayload;
 };
 
+/**
+ * Stateless prose review (OpenAI). **No `projectId`** — not a DB write path.
+ * Still requires API key + CORS when `INTERNAL_API_KEY` / strict mode are set.
+ */
 export const handler: Handler = async (event) => {
-  if (event.httpMethod === "OPTIONS") return optionsResponse();
+  const block = netlifyRequestPreamble(event);
+  if (block) return block;
   const denied = assertInternalApiKey(event);
   if (denied) return denied;
   if (event.httpMethod !== "POST") {
-    return jsonResponse(405, { error: "Method not allowed" });
+    return jsonResponse(405, { error: "Method not allowed" }, event);
   }
   const body = readJson<Body>(event.body);
   if (!body?.sectionType || body.draftText == null || !body.grounding) {
-    return jsonResponse(400, {
-      error: "sectionType, draftText, and grounding required",
-    });
+    return jsonResponse(
+      400,
+      { error: "sectionType, draftText, and grounding required" },
+      event,
+    );
   }
   if (!SECTION_TYPES.includes(body.sectionType)) {
-    return jsonResponse(400, { error: "invalid sectionType" });
+    return jsonResponse(400, { error: "invalid sectionType" }, event);
   }
   try {
     const review = await runReviewDraftProseJob({
@@ -44,6 +55,9 @@ export const handler: Handler = async (event) => {
       draftText: String(body.draftText),
       grounding: body.grounding,
     });
-    return jsonResponse(200, { review });
-  } catch (e) { logServerError("review-draft-prose", e); return internalErrorResponse(); }
+    return jsonResponse(200, { review }, event);
+  } catch (e) {
+    logServerError("review-draft-prose", e);
+    return internalErrorResponse(event);
+  }
 };

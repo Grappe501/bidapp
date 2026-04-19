@@ -1,11 +1,11 @@
-import { S000000479_BID_NUMBER } from "@/data/canonical-rfp-s000000479";
-import { CANONICAL_TECHNICAL_PROPOSAL_PACKET_S000000479 } from "@/data/canonical-technical-proposal-packet-s000000479";
-import type { BidReviewSnapshot } from "@/lib/review-rules-engine";
+import { S000000479_BID_NUMBER } from "../data/canonical-rfp-s000000479";
+import { CANONICAL_TECHNICAL_PROPOSAL_PACKET_S000000479 } from "../data/canonical-technical-proposal-packet-s000000479";
+import type { BidReviewSnapshot } from "./review-rules-engine";
 import type {
   SubmissionPackageChecklistRow,
   SubmissionPackageSummaryStats,
-} from "@/lib/output-utils";
-import type { TechnicalProposalPacketCompliance } from "@/types/technical-proposal-packet";
+} from "./output-utils";
+import type { TechnicalProposalPacketCompliance } from "../types/technical-proposal-packet";
 
 const WORDS_PER_PAGE = 450;
 

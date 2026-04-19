@@ -24,6 +24,7 @@ import { GroundingBundleStatsRow } from "./GroundingBundleStats";
 function bundleTypeForSection(sectionType: DraftSectionType): GroundingBundleType {
   if (sectionType === "Architecture Narrative") return "architecture_narrative";
   if (sectionType === "Executive Summary") return "Executive Summary";
+  if (sectionType === "Interview") return "Interview";
   return sectionType;
 }
 

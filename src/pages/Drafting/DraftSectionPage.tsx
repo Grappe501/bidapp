@@ -286,7 +286,10 @@ export function DraftSectionPage() {
           </Card>
         ) : null}
 
-        <SectionStrategyPanel sectionType={section.sectionType} />
+        <SectionStrategyPanel
+          sectionType={section.sectionType}
+          bidNumber={project.bidNumber}
+        />
 
         <GroundingBundleSelector
           projectId={apiProjectId}

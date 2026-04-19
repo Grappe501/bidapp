@@ -4,6 +4,7 @@ const DEFAULT_SECTIONS = [
   "Experience",
   "Solution",
   "Risk",
+  "Interview",
   "Architecture Narrative",
   "Executive Summary",
   "Interview Prep",

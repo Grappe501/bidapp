@@ -143,28 +143,7 @@ npm run preview
 
 If something still behaves like a static mock, check `VITE_FUNCTIONS_BASE_URL`, `DATABASE_URL`, browser network calls to functions, and page-level copy for strict mode.
 
-## Client demo mode (stakeholder walkthroughs)
-
-**Build-time only** (Vite):
-
-| Variable | Purpose |
-|----------|---------|
-| `VITE_DEMO_MODE` | Set to `true` for polished AllCare shell branding, curated sidebar, and softer operator surfaces |
-| `VITE_DEMO_CLIENT_NAME` | Optional; defaults to **AllCare Pharmacy** — used in the shell and demo banner |
-
-**Behavior when demo mode is on:**
-
-- Header/sidebar show AllCare-first branding (plus logo from branding profile when available).
-- Dashboard adds an executive **command overview** hero; internal DB diagnostic card is hidden.
-- Intelligence emphasizes the **company understanding** view; ingest / scrape / backend tool panels are hidden (operator layout unchanged when demo mode is off).
-- Client review and output centers use calmer, executive-first copy; some internal panels are suppressed.
-- Strict private-deploy banner is hidden during demos to reduce engineering noise (workspace errors still surface, with softer wording).
-
-**Does not:** change APIs, database logic, or create a separate app — presentation only.
-
-**Suggested walkthrough sequence:** `scripts/demo-client-walkthrough.md`
-
-Rebuild after toggling demo flags (`npm run build` / Netlify build).
+**Live AllCare branding** comes from `get-branding-profile` (via `AppBrandingProvider`) when functions are configured — not from separate demo flags. See `scripts/live-workflow-walkthrough.md` for a suggested review path.
 
 ## Posture
 

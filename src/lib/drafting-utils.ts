@@ -30,6 +30,11 @@ export const SECTION_FOCUS: Record<
     focus:
       "Defensible posture: material risks with mitigation, owner, and evidence — consistent with written record and oral defense.",
   },
+  Interview: {
+    maxPages: 2,
+    focus:
+      "Oral defense: operational confidence, pricing justification, and Q&A readiness — same facts as Solution/Risk, no improvisation.",
+  },
   "Executive Summary": {
     maxPages: 1,
     focus: "Disciplined overview; no new unsupported claims.",
@@ -136,6 +141,7 @@ export function scoringCategoriesForSection(
     Experience: ["Experience"],
     Solution: ["Solution"],
     Risk: ["Risk"],
+    Interview: ["Interview", "Cost", "Solution", "Risk"],
     "Executive Summary": [
       "Experience",
       "Solution",
@@ -248,6 +254,13 @@ export function buildConstraintGuidance(input: {
     });
   }
 
+  if (sectionType === "Interview" && missN > 0) {
+    items.push({
+      severity: "attention",
+      message: `Interview: ${missN} uncovered requirement hook(s) — oral narrative should trace to the same scored scope as Solution/Risk.`,
+    });
+  }
+
   if (sectionType === "Architecture Narrative" && missN > 0) {
     items.push({
       severity: "advisory",
@@ -283,6 +296,21 @@ export function buildConstraintGuidance(input: {
           message: `${noneN} requirement(s) in this bundle have no proof-graph evidence — link evidence and run “build proof graph” before treating support as defensible.`,
         });
       }
+    }
+    const pr = bundle.pricing;
+    if (
+      pr &&
+      !pr.ready &&
+      (sectionType === "Solution" ||
+        sectionType === "Risk" ||
+        sectionType === "Interview" ||
+        sectionType === "Executive Summary")
+    ) {
+      items.push({
+        severity: "attention",
+        message:
+          "Pricing model on this bundle is not fully validated (RFP service coverage or contract totals) — qualify cost claims or rebuild bundle after fixing the price sheet.",
+      });
     }
   }
 
@@ -440,6 +468,8 @@ export const SECTION_SCORING_LENS: Record<DraftSectionType, string> = {
     "Evaluators reward clarity, direct fit to requirements, and defensible outcomes — not deep technical tours without scoring linkage.",
   Risk:
     "Evaluators expect credible risks, mitigations, and documented performance — boilerplate undermines trust.",
+  Interview:
+    "Interview panel tests whether oral answers match written volumes, pricing, and contract posture — inconsistency loses points.",
   "Executive Summary":
     "Evaluators skim for coherence, disciplined positioning, and alignment with scored volumes — no new ungrounded facts.",
   "Architecture Narrative":
@@ -458,6 +488,10 @@ export const SECTION_EVALUATOR_TIPS: Record<DraftSectionType, string[]> = {
   Risk: [
     "Pair every material risk with mitigation and residual posture.",
     "Keep oral defense and written narrative aligned.",
+  ],
+  Interview: [
+    "Rehearse answers that map to Solution, Risk, and the price sheet — same numbers and commitments.",
+    "Lead with operational control, then cost justification; never sound surprised by your own pricing.",
   ],
   "Executive Summary": [
     "Mirror the volumes; flag where work is still open.",
@@ -718,6 +752,12 @@ export function draftFeedbackNextSteps(input: {
         title: "Complete risk–mitigation coverage",
         detail: `${n} requirement(s) uncovered — add mitigation, owner, and evidence for each material risk.`,
       });
+    } else if (sectionType === "Interview") {
+      actions.push({
+        priority: 5,
+        title: "Close oral–written alignment gaps",
+        detail: `${n} requirement hook(s) missing — Interview answers should trace to the same scored scope as Solution and Risk.`,
+      });
     } else {
       actions.push({
         priority: 5,
@@ -940,6 +980,38 @@ export function getBundleGenerationReadiness(
   const quality = assessGroundingBundleQuality(payload);
   const warnings: string[] = [];
 
+  if (!payload.rfp?.core?.solicitationNumber?.trim()) {
+    return {
+      canGenerate: false,
+      blockReason:
+        "Structured RFP grounding is missing from this bundle. Rebuild the grounding bundle so solicitation weights and requirements are attached.",
+      warnings: [],
+      quality,
+    };
+  }
+
+  if (payload.rfp.stub) {
+    warnings.push(
+      "Structured RFP is a stub — canonical solicitation weights may be missing; confirm before final volumes.",
+    );
+  }
+
+  if (!payload.contract?.term) {
+    return {
+      canGenerate: false,
+      blockReason:
+        "SRV-1 contract grounding is missing from this bundle. Rebuild the grounding bundle so scope, performance, and pricing discipline are attached.",
+      warnings: [],
+      quality,
+    };
+  }
+
+  if (payload.contract.stub) {
+    warnings.push(
+      "SRV-1 contract structure is a stub — enforceable obligations may be incomplete until canonical contract data is registered.",
+    );
+  }
+
   if (stats.substantiveTotal === 0) {
     return {
       canGenerate: false,
@@ -1001,6 +1073,13 @@ export function getBundleGenerationReadiness(
   } else if (quality.label === "Moderate" && stats.gapCount === 0) {
     warnings.push(
       "Overall bundle strength: Moderate — usable for a first draft; consider more evidence or retrieval.",
+    );
+  }
+
+  const pr = payload.pricing;
+  if (pr && !pr.ready) {
+    warnings.push(
+      "Structured pricing is incomplete or not contract-aligned — Solution/Risk/Executive drafts should avoid firm price totals until the workbook validates.",
     );
   }
 
@@ -1149,6 +1228,17 @@ export function sectionGenerationModes(
         regenInstruction:
           "Rewrite the opening paragraph for evaluator clarity and criterion alignment using only grounded facts.",
       }),
+      genMode({
+        id: "pricing_justification",
+        label: "Emphasize pricing justification",
+        hint: "Map line items to services and value (from bundle pricing model).",
+        requiresEditorContent: true,
+        runKind: "regenerate_full",
+        strategicDirective:
+          "Use the structured pricing model in the grounding bundle to justify rates: tie each major cost bucket to RFP-required services (dispensing, delivery, packaging, billing, integration) without inventing numbers beyond the model.",
+        regenInstruction:
+          "Rewrite to foreground pricing discipline and service-line value using only totals and line items from STRUCTURED PRICING in the bundle.",
+      }),
     ];
   }
 
@@ -1179,6 +1269,17 @@ export function sectionGenerationModes(
           "Restructure so each risk has mitigation, owner, timeline, and proof or flagged gap — interview-consistent.",
       }),
       genMode({
+        id: "cost_risk",
+        label: "Surface cost / margin risk",
+        hint: "Delivery, labor, drug cost, integration — grounded to pricing model.",
+        requiresEditorContent: true,
+        runKind: "regenerate_full",
+        strategicDirective:
+          "Address cost and margin exposure using the bundle’s structured pricing: where variability exists (volume, delivery intensity, staffing), state the risk and mitigation without inventing figures outside the pricing model.",
+        regenInstruction:
+          "Add or sharpen material cost risks tied to annual vs contract totals and service lines from STRUCTURED PRICING; keep interview-defensible.",
+      }),
+      genMode({
         id: "tighten_pages",
         label: "Tighten for page limit",
         hint: "Shorter risk register narrative.",
@@ -1199,6 +1300,57 @@ export function sectionGenerationModes(
           "Opening summarizes risk posture without downplaying material issues.",
         regenInstruction:
           "Rewrite opening paragraph: balanced risk posture, grounded in bundle facts.",
+      }),
+    ];
+  }
+
+  if (sectionType === "Interview") {
+    return [
+      full,
+      regen,
+      genMode({
+        id: "oral_volume_alignment",
+        label: "Align to Solution + Risk volumes",
+        hint: "Same facts as written sections; no drift under oral scoring.",
+        requiresEditorContent: true,
+        runKind: "regenerate_full",
+        strategicDirective:
+          "Interview section must not contradict Solution or Risk; rehearse operational story with grounding-only facts.",
+        regenInstruction:
+          "Rewrite so every major claim maps to the same proof and themes as Solution/Risk — flag gaps honestly.",
+      }),
+      genMode({
+        id: "pricing_oral_defense",
+        label: "Pricing & cost Q&A posture",
+        hint: "Defend integrated model without sounding defensive.",
+        requiresEditorContent: true,
+        runKind: "regenerate_full",
+        strategicDirective:
+          "Defend structured pricing using bundle JSON only; explain emergency delivery, Medicaid billing, and integration as integrated — not add-ons.",
+        regenInstruction:
+          "Refocus on cost stability, transparency, and RFP/contract alignment; no new dollar figures beyond structured pricing.",
+      }),
+      genMode({
+        id: "tighten_pages",
+        label: "Tighten for page limit",
+        hint: "Two-page oral script discipline.",
+        requiresEditorContent: true,
+        runKind: "regenerate_full",
+        strategicDirective:
+          "Fit oral-defense narrative within page cap; prioritize evaluator hot buttons: 24/7, emergency delivery, MatrixCare, billing, risk.",
+        regenInstruction:
+          "Condense while preserving Q&A-ready structure and pricing alignment.",
+      }),
+      genMode({
+        id: "refine_opening",
+        label: "Refine opening only",
+        hint: "Set integrated-partner tone upfront.",
+        requiresEditorContent: true,
+        runKind: "regenerate_paragraph",
+        strategicDirective:
+          "Opening establishes single accountable partner and operational confidence — grounded only.",
+        regenInstruction:
+          "Rewrite opening paragraph for oral presentation clarity.",
       }),
     ];
   }
@@ -1228,6 +1380,17 @@ export function sectionGenerationModes(
           "Strict one-page discipline: highest-value messages only.",
         regenInstruction:
           "Compress to fit one page; preserve only grounded, scored themes.",
+      }),
+      genMode({
+        id: "interview_cost_defense",
+        label: "Interview / cost defense framing",
+        hint: "Oral defense: value, assumptions, and risk — from pricing model.",
+        requiresEditorContent: true,
+        runKind: "regenerate_full",
+        strategicDirective:
+          "Frame executive narrative so an evaluator can defend cost and value in interview: reference annual and contract totals and major line items from structured pricing only; flag gaps honestly.",
+        regenInstruction:
+          "Refocus executive summary for oral defense: 2–3 crisp cost/value themes tied to STRUCTURED PRICING; no new numbers.",
       }),
     ];
   }

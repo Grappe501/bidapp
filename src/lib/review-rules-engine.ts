@@ -248,6 +248,7 @@ function collectGroundedProseAndProofIssues(
     if (
       partialN >= 3 &&
       (sec.sectionType === "Solution" ||
+        sec.sectionType === "Interview" ||
         sec.sectionType === "Executive Summary")
     ) {
       out.push(

@@ -23,6 +23,23 @@
   "include": [
     "src/server/**/*.ts",
     "src/lib/allcare-branding-next-actions.ts",
+    "src/lib/rfp-narrative.ts",
+    "src/lib/contract-narrative.ts",
+    "src/lib/contract-rfp-crosscheck.ts",
+    "src/lib/contract-readiness.ts",
+    "src/lib/contract-pricing-validation.ts",
+    "src/lib/pricing-structure.ts",
+    "src/data/canonical-pricing-s000000479.ts",
+    "src/data/pricing-proposal-language-mapping.ts",
+    "src/data/canonical-solution-section-s000000479.ts",
+    "src/data/canonical-risk-section-s000000479.ts",
+    "src/data/canonical-interview-section-s000000479.ts",
+    "src/data/canonical-executive-summary-s000000479.ts",
+    "src/types/pricing-model.ts",
+    "src/data/canonical-rfp-s000000479.ts",
+    "src/data/canonical-srv1-contract.ts",
+    "src/types/rfp-model.ts",
+    "src/types/contract-model.ts",
     "netlify/functions/**/*.ts",
     "scripts/**/*.ts"
   ]

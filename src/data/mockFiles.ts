@@ -157,4 +157,18 @@ export const MOCK_FILES: FileRecord[] = [
     linkedItemCount: 0,
     description: "Lightweight competitive context for workshop prep.",
   },
+  {
+    id: "file-013",
+    name: "S479 Official Solicitation Price Sheet DHS HDCs - Final.xlsx",
+    category: "Pricing",
+    sourceType: "Public Agency",
+    uploadedAt: "2026-04-11T10:00:00.000Z",
+    fileType: "xlsx",
+    status: "Processed",
+    tags: ["pricing", "official", "S479", "solicitation"],
+    noteCount: 0,
+    linkedItemCount: 0,
+    description:
+      "Official solicitation price sheet; run npm run ingest:price-sheet with the .xlsx path to load tabular text and chunks into the database.",
+  },
 ];

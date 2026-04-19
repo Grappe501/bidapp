@@ -582,6 +582,7 @@ export type GroundingBundleType =
   | "Experience"
   | "Solution"
   | "Risk"
+  | "Interview"
   | "Executive Summary"
   | "vendor_recommendation"
   | "architecture_narrative"
@@ -689,6 +690,15 @@ export type GroundingBundlePayload = {
   assembledAt: string;
   /** Per-requirement proof support (from requirement_evidence_proof / sync). */
   requirementSupport?: Record<string, RequirementSupportSummary>;
+  /**
+   * Structured RFP grounding for this solicitation — required for drafting alignment.
+   * Populated when the grounding bundle is built server-side.
+   */
+  rfp?: import("./rfp-model").GroundingBundleRfp;
+  /** SRV-1 / state contract structure — required with RFP for full drafting alignment. */
+  contract?: import("./contract-model").GroundingBundleContract;
+  /** Structured price sheet model + RFP service coverage + contract checks (when built server-side). */
+  pricing?: import("./pricing-model").GroundingBundlePricing;
 };
 
 export type GroundedProseReviewClarity = "strong" | "moderate" | "weak";
@@ -729,6 +739,7 @@ export const GROUNDING_BUNDLE_TYPES: GroundingBundleType[] = [
   "Experience",
   "Solution",
   "Risk",
+  "Interview",
   "Executive Summary",
   "vendor_recommendation",
   "architecture_narrative",
@@ -741,6 +752,7 @@ export type DraftSectionType =
   | "Experience"
   | "Solution"
   | "Risk"
+  | "Interview"
   | "Executive Summary"
   | "Architecture Narrative";
 
@@ -806,6 +818,7 @@ export const DRAFT_SECTION_TYPES: DraftSectionType[] = [
   "Experience",
   "Solution",
   "Risk",
+  "Interview",
   "Executive Summary",
   "Architecture Narrative",
 ];
@@ -1284,3 +1297,31 @@ export const EVIDENCE_CHARACTERS: EvidenceCharacter[] = [
   "Inferred",
   "Judgment",
 ];
+
+export type {
+  ContractReadiness,
+  ContractStructure,
+  GroundingBundleContract,
+  StructuredPricingValidation,
+} from "./contract-model";
+
+export type {
+  GroundingBundleRfp,
+  RfpCore,
+  RfpDocumentCoverageResult,
+  RfpDocumentSlug,
+  RfpEvaluation,
+  RfpHealthStatus,
+  RfpRequirements,
+  RfpRiskAreas,
+  RfpSubmissionRequirements,
+  StructuredRfp,
+} from "./rfp-model";
+
+export type {
+  GroundingBundlePricing,
+  PricingCategory,
+  PricingHealthStatus,
+  PricingItem,
+  PricingModel,
+} from "./pricing-model";

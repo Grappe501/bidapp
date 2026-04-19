@@ -8,6 +8,7 @@ const SECTION_PRESETS = [
   "Experience",
   "Solution",
   "Risk",
+  "Interview",
   "Architecture Narrative",
   "Executive Summary",
   "Interview Prep",

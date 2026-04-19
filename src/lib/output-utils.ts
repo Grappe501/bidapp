@@ -495,9 +495,14 @@ export function bundleArtifactIds(
 ): string[] {
   const scoredDraft = (a: OutputArtifact) =>
     a.artifactType === "Draft Section" &&
-    ["Experience", "Solution", "Risk", "Executive Summary", "Architecture Narrative"].includes(
-      a.notes,
-    );
+    [
+      "Experience",
+      "Solution",
+      "Risk",
+      "Interview",
+      "Executive Summary",
+      "Architecture Narrative",
+    ].includes(a.notes);
 
   switch (bundleType) {
     case "Submission Package":

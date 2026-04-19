@@ -1,7 +1,6 @@
 import { BrowserRouter } from "react-router-dom";
 import { SystemConfigGate } from "@/components/SystemConfigGate";
 import { AppBrandingProvider } from "@/context/app-branding-context";
-import { DemoModeProvider } from "@/context/demo-mode-context";
 import { ArchitectureProvider } from "@/context/ArchitectureProvider";
 import { ControlProvider } from "@/context/ControlProvider";
 import { DraftingProvider } from "@/context/DraftingProvider";
@@ -24,7 +23,6 @@ export function App() {
       <BrowserRouter>
         <ProjectWorkspaceProvider>
           <AppBrandingProvider>
-            <DemoModeProvider>
               <WorkspaceProvider>
                 <RequirementProvider>
                   <EvidenceProvider>
@@ -52,7 +50,6 @@ export function App() {
                   </EvidenceProvider>
                 </RequirementProvider>
               </WorkspaceProvider>
-            </DemoModeProvider>
           </AppBrandingProvider>
         </ProjectWorkspaceProvider>
       </BrowserRouter>

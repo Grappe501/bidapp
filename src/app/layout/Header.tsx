@@ -1,22 +1,18 @@
 import { useState } from "react";
 import { useAppBranding } from "@/context/app-branding-context";
-import { useDemoMode } from "@/context/demo-mode-context";
+import {
+  LIVE_PRODUCT_NAME,
+  liveClientDisplayName,
+} from "@/lib/branding-utils";
 import { useWorkspace } from "@/context/useWorkspace";
 
 export function Header() {
   const { project } = useWorkspace();
   const { branding, loading } = useAppBranding();
-  const { isDemoMode, demoClientDisplayName } = useDemoMode();
   const [logoFailed, setLogoFailed] = useState(false);
 
-  const clientLabel =
-    branding?.displayName?.trim() ||
-    branding?.appDisplayName?.trim() ||
-    demoClientDisplayName;
-  const subtitle =
-    [project.bidNumber || "S000000479", "Pharmacy Services for DHS HDCs"]
-      .filter(Boolean)
-      .join(" · ") + (loading ? " · Loading profile…" : "");
+  const clientLabel = liveClientDisplayName(branding);
+  const subtitle = `${project.bidNumber || "S000000479"} · Pharmacy Services for DHS HDCs`;
 
   const logoUrl = branding?.logoUrl?.trim() || branding?.brandImageUrl?.trim();
 
@@ -37,23 +33,19 @@ export function Header() {
         )}
         <div className="min-w-0">
           <p className="truncate text-xs font-medium uppercase tracking-wider text-ink-subtle">
-            {isDemoMode ? "AllCare Bid OS" : "Active workspace"}
+            {LIVE_PRODUCT_NAME}
+            {loading ? " · Loading profile…" : ""}
           </p>
-          {isDemoMode ? (
-            <>
-              <p className="truncate text-sm font-semibold text-ink">{clientLabel}</p>
-              <p className="truncate text-[11px] text-ink-muted">{subtitle}</p>
-            </>
-          ) : (
-            <p className="truncate text-sm font-semibold text-ink">{project.title}</p>
-          )}
+          <p className="truncate text-sm font-semibold text-ink">{clientLabel}</p>
+          <p className="truncate text-[11px] text-ink-muted">{subtitle}</p>
         </div>
       </div>
-      {!isDemoMode ? (
-        <div className="hidden shrink-0 sm:block">
-          <p className="truncate text-right text-xs text-ink-muted">{project.bidNumber}</p>
-        </div>
-      ) : null}
+      <div className="hidden shrink-0 text-right sm:block">
+        <p className="truncate text-[10px] font-medium uppercase tracking-wide text-ink-subtle">
+          Private workspace
+        </p>
+        <p className="truncate text-xs text-ink-muted">{project.bidNumber}</p>
+      </div>
     </header>
   );
 }

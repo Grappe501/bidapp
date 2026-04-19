@@ -7,6 +7,7 @@ export function createInitialDraftSections(projectId: string): DraftSection[] {
     "Experience",
     "Solution",
     "Risk",
+    "Interview",
     "Executive Summary",
     "Architecture Narrative",
   ] as const;

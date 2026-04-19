@@ -1,7 +1,7 @@
 {
   "name": "bid-assembly",
   "private": true,
-  "version": "0.11.0",
+  "version": "0.12.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "db:migrate": "tsx scripts/db-migrate.ts",
     "db:seed": "tsx scripts/db-seed.ts",
+    "ingest:price-sheet": "tsx scripts/ingest-s479-price-sheet.ts",
     "check:server-aliases": "tsx scripts/check-server-aliases.ts",
     "check:private-deploy-env": "tsx scripts/check-private-deploy-env.ts",
     "check:netlify-prod-env": "tsx scripts/check-netlify-prod-env.ts",
@@ -22,7 +23,8 @@
     "pg": "^8.13.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.6.0"
+    "react-router-dom": "^7.6.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

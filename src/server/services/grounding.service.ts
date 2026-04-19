@@ -15,6 +15,11 @@ import { listEvidenceByProject } from "../repositories/evidence.repo";
 import { listArchitectureOptionsByProject } from "../repositories/architecture.repo";
 import { listFactsByProject } from "../repositories/intelligence.repo";
 import { insertGroundingBundle } from "../repositories/grounding.repo";
+import { getProject } from "../repositories/project.repo";
+import { listFilesByProject } from "../repositories/file.repo";
+import { buildProjectGroundingBundleContract } from "../../lib/contract-narrative";
+import { buildProjectGroundingBundleRfp } from "../../lib/rfp-narrative";
+import { buildPricingLayerForProject } from "../../lib/pricing-structure";
 import { selectVendorFactsForGroundingBundle } from "../lib/grounding-quality-utils";
 import type { DbRequirement } from "../repositories/requirement.repo";
 import type { DbEvidenceItem } from "../repositories/evidence.repo";
@@ -38,6 +43,11 @@ const RETRIEVAL_BY_BUNDLE: Record<
     queryText:
       "risk mitigation security compliance implementation constraints vulnerabilities",
     queryType: "requirement_support",
+  },
+  Interview: {
+    queryText:
+      "oral presentation interview evaluation Q&A pharmacy service delivery pricing compliance MatrixCare Medicaid emergency delivery",
+    queryType: "draft_grounding",
   },
   "Executive Summary": {
     queryText:
@@ -75,6 +85,7 @@ function pickRequirements(
   if (
     bundleType === "Solution" ||
     bundleType === "architecture_narrative" ||
+    bundleType === "Interview" ||
     bundleType === "Executive Summary"
   ) {
     const mand = all.filter((r) => r.mandatory);
@@ -207,6 +218,52 @@ export async function buildAndStoreGroundingBundle(input: {
     base.validationNotes.push(
       "Grounding bundle quality is weak — sparse operational facts; review before scored claims.",
     );
+  }
+
+  const project = await getProject(input.projectId);
+  if (project) {
+    base.rfp = buildProjectGroundingBundleRfp({
+      bidNumber: project.bidNumber,
+      title: project.title,
+      issuingOrganization: project.issuingOrganization,
+      dueDate: project.dueDate,
+    });
+    base.validationNotes.push(
+      base.rfp.stub
+        ? "Structured RFP layer is a project stub — register canonical solicitation data for scored alignment."
+        : "Structured RFP (official weights & requirements) attached — drafts must align to evaluation priorities.",
+    );
+    base.contract = buildProjectGroundingBundleContract({
+      bidNumber: project.bidNumber,
+      title: project.title,
+      issuingOrganization: project.issuingOrganization,
+      dueDate: project.dueDate,
+    });
+    base.validationNotes.push(
+      base.contract.stub
+        ? "SRV-1 contract structure stub — register canonical contract data for enforceable obligations."
+        : "SRV-1 contract structure attached — scope, performance, pricing discipline, and compliance forms must align.",
+    );
+    if (base.contract.crossCheckWarnings.length > 0) {
+      base.validationNotes.push(
+        `RFP ↔ contract cross-check: ${base.contract.crossCheckWarnings.slice(0, 3).join(" · ")}`,
+      );
+    }
+
+    const dbFiles = await listFilesByProject(input.projectId);
+    base.pricing = buildPricingLayerForProject(project.bidNumber, dbFiles);
+    if (!base.pricing.ready) {
+      base.validationNotes.push(
+        "Pricing layer is not submission-ready — confirm line items, RFP service coverage (dispensing, emergency delivery, packaging, billing, EHR integration), and annual/contract totals.",
+      );
+    } else {
+      base.validationNotes.push(
+        "Structured pricing attached — line items, totals, and required RFP service coverage validated for this solicitation.",
+      );
+    }
+    if (base.pricing.notes.length > 0) {
+      base.validationNotes.push(...base.pricing.notes.slice(0, 4));
+    }
   }
 
   const row = await insertGroundingBundle({

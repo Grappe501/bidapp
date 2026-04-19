@@ -2,7 +2,9 @@ import { BidControlNav } from "@/components/control/BidControlNav";
 import { ContractClauseCard } from "@/components/control/ContractClauseCard";
 import { ContractRiskCard } from "@/components/control/ContractRiskCard";
 import { RedactionPanel } from "@/components/control/RedactionPanel";
+import { Card } from "@/components/ui/Card";
 import { useControl } from "@/context/useControl";
+import { CANONICAL_SRV1_CONTRACT } from "@/data/canonical-srv1-contract";
 import type { ContractClause, ContractRisk } from "@/types";
 
 export function ContractPage() {
@@ -26,6 +28,33 @@ export function ContractPage() {
             contract risk.
           </p>
         </div>
+
+        <Card className="space-y-3 border border-emerald-900/10 bg-emerald-50/30 p-5">
+          <h2 className="text-sm font-semibold text-ink">SRV-1 structured model (system)</h2>
+          <p className="text-xs text-ink-muted">
+            Canonical term: <span className="font-medium text-ink">{CANONICAL_SRV1_CONTRACT.term.baseYears}y</span> base /{" "}
+            <span className="font-medium text-ink">{CANONICAL_SRV1_CONTRACT.term.maxYears}y</span> max · Scope &amp; performance
+            statements required · Payment requires defined rates + calculations.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 text-xs text-ink-muted">
+            <div>
+              <p className="font-medium text-ink">Termination</p>
+              <ul className="mt-1 list-inside list-disc">
+                {CANONICAL_SRV1_CONTRACT.terminationClauses.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-ink">SRV-1 compliance</p>
+              <ul className="mt-1 list-inside list-disc">
+                {CANONICAL_SRV1_CONTRACT.complianceRequirements.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </Card>
 
         <section className="space-y-4">
           <h2 className="text-sm font-semibold text-ink">Binding risk register</h2>

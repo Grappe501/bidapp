@@ -6,6 +6,7 @@ const SECTION_TYPES: DraftSectionType[] = [
   "Experience",
   "Solution",
   "Risk",
+  "Interview",
   "Executive Summary",
   "Architecture Narrative",
 ];

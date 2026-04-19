@@ -9,6 +9,13 @@ import { SubmissionValidationStrip } from "@/components/output/SubmissionValidat
 import { Card } from "@/components/ui/Card";
 import { useControl } from "@/context/useControl";
 import { useOutput } from "@/context/useOutput";
+import { useWorkspace } from "@/context/useWorkspace";
+import { formatPricingFullNarrativeExportAppendix } from "@/data/pricing-proposal-language-mapping";
+import {
+  buildPricingLayerForProject,
+  formatPricingNumericSummaryExport,
+  formatPricingSummaryExport,
+} from "@/lib/pricing-structure";
 import {
   buildSubmissionPackageBlockers,
   buildSubmissionPackageChecklistRows,
@@ -21,6 +28,7 @@ import {
 
 export function SubmissionPackagePage() {
   const { submissionItems } = useControl();
+  const { files } = useWorkspace();
   const {
     project,
     artifacts,
@@ -80,6 +88,22 @@ export function SubmissionPackagePage() {
       ),
     );
 
+  const pricingLayer = useMemo(
+    () => buildPricingLayerForProject(project.bidNumber, files),
+    [project.bidNumber, files],
+  );
+
+  const copyPricingSummary = () =>
+    copyTextToClipboard(formatPricingSummaryExport(pricingLayer));
+
+  const copyFullPricingNarrative = () =>
+    copyTextToClipboard(
+      formatPricingNumericSummaryExport(pricingLayer) +
+        formatPricingFullNarrativeExportAppendix(),
+    );
+
+  const priceArtifact = artifacts.find((a) => a.artifactType === "Price Sheet Support");
+
   return (
     <div className="px-4 py-6 sm:p-8">
       <div className="mx-auto w-full max-w-6xl space-y-8">
@@ -104,6 +128,58 @@ export function SubmissionPackagePage() {
           stats={stats}
           assessment={assessment}
         />
+
+        <Card className="space-y-3 border-zinc-200/90 p-4">
+          <h2 className="text-sm font-semibold text-ink">Pricing summary (structured)</h2>
+          <p className="text-xs leading-relaxed text-ink-muted">
+            Generated from uploaded pricing files (JSON in file description) or the canonical scaffold
+            for this bid. Include the official price sheet file in the package; this block is the
+            structured rollup for assembly and totals cross-check.
+          </p>
+          <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
+            <span>
+              Annual <span className="font-semibold tabular-nums text-ink">${pricingLayer.model.totals.annual.toLocaleString()}</span>
+            </span>
+            <span className="text-ink-subtle">·</span>
+            <span>
+              Contract{" "}
+              <span className="font-semibold tabular-nums text-ink">
+                ${pricingLayer.model.totals.contractTotal.toLocaleString()}
+              </span>
+            </span>
+            <span className="text-ink-subtle">·</span>
+            <span className={pricingLayer.ready ? "text-emerald-900" : "text-amber-900"}>
+              {pricingLayer.ready ? "Aligned & ready" : "Not ready — review dashboard pricing status"}
+            </span>
+          </div>
+          {priceArtifact ? (
+            <p className="text-[11px] text-ink-muted">
+              Price sheet artifact:{" "}
+              <span className="font-medium text-ink">{priceArtifact.title}</span> ({priceArtifact.status})
+            </p>
+          ) : (
+            <p className="text-[11px] text-amber-900">
+              Link a <span className="font-medium">Price Sheet Support</span> artifact in Bid control so
+              the submission package lists the official workbook.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-border bg-surface-raised px-3 py-1.5 text-xs font-medium text-ink hover:bg-zinc-50"
+              onClick={() => void copyPricingSummary()}
+            >
+              Copy pricing summary (text)
+            </button>
+            <button
+              type="button"
+              className="rounded-md border border-border bg-white px-3 py-1.5 text-xs font-medium text-ink-muted hover:bg-zinc-50"
+              onClick={() => void copyFullPricingNarrative()}
+            >
+              Copy summary + full narrative mapping
+            </button>
+          </div>
+        </Card>
 
         <SubmissionValidationStrip current={assessment.state} />
 
@@ -175,7 +251,15 @@ export function SubmissionPackagePage() {
             the submission portal or offline assembly.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {(["Experience", "Solution", "Risk"] as const).map((label) => {
+            {(
+              [
+                "Experience",
+                "Solution",
+                "Risk",
+                "Interview",
+                "Executive Summary",
+              ] as const
+            ).map((label) => {
               const art = packageArtifacts.find(
                 (a) => a.artifactType === "Draft Section" && a.notes === label,
               );

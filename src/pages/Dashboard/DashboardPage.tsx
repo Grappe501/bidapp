@@ -1,7 +1,9 @@
 import { useMemo } from "react";
-import { DashboardDemoHero } from "@/components/dashboard/DashboardDemoHero";
+import { WorkspaceHeroCard } from "@/components/branding/WorkspaceHeroCard";
+import { ContractReadinessSection } from "@/components/contract/ContractReadinessSection";
+import { PricingReadinessSection } from "@/components/pricing/PricingReadinessSection";
+import { RfpReadinessSection } from "@/components/rfp/RfpReadinessSection";
 import { Card } from "@/components/ui/Card";
-import { useDemoMode } from "@/context/demo-mode-context";
 import { useWorkspace } from "@/context/useWorkspace";
 import { useDbProjects } from "@/hooks/useDbProjects";
 import { ActivityCard } from "@/components/workspace/ActivityCard";
@@ -12,7 +14,6 @@ import { FILE_CATEGORIES } from "@/types";
 
 export function DashboardPage() {
   const { project, files } = useWorkspace();
-  const { isDemoMode } = useDemoMode();
   const { projects: dbProjects, loading: dbLoading, error: dbError, functionsEnabled } =
     useDbProjects();
 
@@ -51,16 +52,21 @@ export function DashboardPage() {
       <div className="mx-auto max-w-6xl space-y-8">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            {isDemoMode ? "Command overview" : "Workspace overview"}
+            Bid workspace
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {isDemoMode
-              ? "Executive snapshot for the active solicitation — readiness, direction, and next moves."
-              : "Operational snapshot for the active bid. Requirements and evidence linking follow in the next phase."}
+            Executive snapshot for the active solicitation — readiness, recommended
+            approach, and operational status.
           </p>
         </div>
 
-        <DashboardDemoHero />
+        <WorkspaceHeroCard />
+
+        <RfpReadinessSection project={project} files={files} />
+
+        <PricingReadinessSection project={project} files={files} />
+
+        <ContractReadinessSection />
 
         <ProjectSummaryCard
           project={project}
@@ -69,34 +75,41 @@ export function DashboardPage() {
           processedFiles={processedFiles}
         />
 
-        {functionsEnabled && !isDemoMode ? (
-          <Card className="space-y-2 border-zinc-200 bg-zinc-50/80 px-4 py-3">
-            <h2 className="text-sm font-semibold text-ink">
-              Database project check (list-projects)
-            </h2>
-            {dbLoading ? (
-              <p className="text-sm text-ink-muted">Loading from Postgres…</p>
-            ) : dbError ? (
-              <p className="text-sm text-amber-900/90">{dbError}</p>
-            ) : dbProjects && dbProjects.length > 0 ? (
-              <ul className="list-inside list-disc space-y-1 text-sm text-ink-muted">
-                {dbProjects.map((p) => (
-                  <li key={p.id}>
-                    <span className="font-medium text-ink">{p.bidNumber}</span> —{" "}
-                    {p.title}
-                    <span className="ml-2 text-xs text-ink-subtle">({p.id})</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-ink-muted">
-                No rows yet — run{" "}
-                <code className="rounded bg-zinc-100 px-1">npm run db:migrate</code>{" "}
-                and{" "}
-                <code className="rounded bg-zinc-100 px-1">npm run db:seed</code>.
-              </p>
-            )}
-          </Card>
+        {functionsEnabled ? (
+          <details className="group rounded-lg border border-zinc-200/90 bg-zinc-50/50">
+            <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-ink marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="text-ink-muted group-open:text-ink">
+                Advanced · Database project check
+              </span>
+            </summary>
+            <Card className="space-y-2 border-0 border-t border-zinc-200 bg-transparent px-4 py-3 shadow-none">
+              <h2 className="text-sm font-semibold text-ink">
+                Connected projects (list-projects)
+              </h2>
+              {dbLoading ? (
+                <p className="text-sm text-ink-muted">Loading from Postgres…</p>
+              ) : dbError ? (
+                <p className="text-sm text-amber-900/90">{dbError}</p>
+              ) : dbProjects && dbProjects.length > 0 ? (
+                <ul className="list-inside list-disc space-y-1 text-sm text-ink-muted">
+                  {dbProjects.map((p) => (
+                    <li key={p.id}>
+                      <span className="font-medium text-ink">{p.bidNumber}</span> —{" "}
+                      {p.title}
+                      <span className="ml-2 text-xs text-ink-subtle">({p.id})</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-ink-muted">
+                  No rows yet — run{" "}
+                  <code className="rounded bg-zinc-100 px-1">npm run db:migrate</code>{" "}
+                  and{" "}
+                  <code className="rounded bg-zinc-100 px-1">npm run db:seed</code>.
+                </p>
+              )}
+            </Card>
+          </details>
         ) : null}
 
         <div className="grid gap-6 lg:grid-cols-2">

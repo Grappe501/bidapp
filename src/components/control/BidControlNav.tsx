@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
-const fullLinks: { to: string; label: string }[] = [
+const links: { to: string; label: string }[] = [
   { to: "/control/submission", label: "Submission" },
   { to: "/control/scoring", label: "Scoring" },
   { to: "/control/discussion", label: "Discussion" },
@@ -9,18 +9,7 @@ const fullLinks: { to: string; label: string }[] = [
   { to: "/control/intelligence", label: "Intelligence" },
 ];
 
-const demoIntelligenceLinks: { to: string; label: string }[] = [
-  { to: "/control/intelligence", label: "AllCare profile" },
-];
-
-export function BidControlNav({
-  variant = "full",
-}: {
-  /** Stakeholder demo: only surface company profile under Bid control. */
-  variant?: "full" | "intelligence-only";
-}) {
-  const links = variant === "intelligence-only" ? demoIntelligenceLinks : fullLinks;
-
+export function BidControlNav() {
   return (
     <nav
       className="flex flex-wrap gap-1 rounded-lg border border-border bg-zinc-50/80 p-1"

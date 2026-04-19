@@ -246,6 +246,7 @@ export function buildDraftPacketRows(
     "Experience",
     "Solution",
     "Risk",
+    "Interview",
     "Executive Summary",
     "Architecture Narrative",
   ];

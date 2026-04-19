@@ -1,10 +1,28 @@
 # Changelog
 
+## v0.12.2 — 2026-04-19
+
+- **SRV-1 contract model** (`ContractStructure`, `GroundingBundleContract` in `src/types/contract-model.ts`; canonical data in `canonical-srv1-contract.ts`)
+- **Grounding bundles** persist **`contract`** alongside **`rfp`** — RFP↔contract cross-check warnings; **draft generation** requires contract grounding and injects SRV-1 scope / performance / termination / pricing directives
+- **Pricing validation** (`contract-pricing-validation.ts`): rejects flat lump-sum-only / unstructured pricing; requires validated price-sheet artifact
+- **Dashboard**: **Contract readiness (SRV-1)** card (scope, performance, pricing structure, compliance); **Contract** page shows structured SRV-1 summary
+
+## v0.12.1 — 2026-04-19
+
+- **Structured RFP model** (`src/types/rfp-model.ts`, `canonical-rfp-s000000479.ts`): normalized core, evaluation weights, requirements, submission artifacts, and risk areas for **S000000479**
+- **Grounding bundles** now persist **`rfp`** (official weights, summaries, risk themes) when built server-side; **draft generation** requires structured RFP grounding and injects evaluation priorities into the model prompt
+- **RFP file validation** (`rfp-document-validation.ts`): required document coverage → `missingDocuments` / `parsedDocuments` / `unstructuredDocuments`; **Dashboard** **RFP readiness** card + **Intelligence** solicitation expectations panel
+- **Drafting**: `getBundleGenerationReadiness` blocks when bundle lacks `rfp` (rebuild bundle to attach)
+
+## v0.12.0 — 2026-04-18
+
+- **Live AllCare branding (single app):** Shell (`Header`, `Sidebar`) uses `AppBrandingProvider` + `branding-utils` (`AllCare Bid OS`, client display name from API); **Dashboard** adds **`WorkspaceHeroCard`**; **Intelligence** leads with **`AllCareBrandingPanel`** and moves ingestion/backend tools under **Supporting intelligence & ingestion tools**; **Output** / **Client review** use production-grade executive copy; **Private deploy** banner always available in strict DB mode (no demo-only suppression)
+- **Removed** client demo mode: `VITE_DEMO_MODE`, `VITE_DEMO_CLIENT_NAME`, `DemoModeProvider`, `DashboardDemoHero`, `AllCareBrandingDemoPanel`, `DemoModeBanner`
+- **Docs / scripts:** `scripts/live-workflow-walkthrough.md`, `ENVIRONMENT_SETUP.md`, `CURRENT_STATE.md`, `.env.example`
+
 ## v0.11.0 — 2026-04-19
 
-- **Client demo mode:** `VITE_DEMO_MODE` / `VITE_DEMO_CLIENT_NAME` — AllCare-branded shell (header logo + labels), demo sidebar, `DashboardDemoHero`, softer Intelligence/Output/Client review for walkthroughs; hides strict-deploy banner and internal DB check card; `AllCareBrandingDemoPanel` vs full operator panel
-- **Contexts:** `AppBrandingProvider` (loads branding for shell), `DemoModeProvider` / `useDemoMode`
-- **Docs:** `ENVIRONMENT_SETUP.md`, `scripts/demo-client-walkthrough.md`, `.env.example`
+- Superseded by **v0.12.0** — demo-only env flags and parallel UI paths removed in favor of live branding for all users.
 
 ## v0.10.4 — 2026-04-18
 

@@ -30,7 +30,7 @@ export function DraftingPage() {
         <Card className="border-zinc-300/30 bg-zinc-50/40 px-4 py-3 text-sm text-ink-muted">
           <p className="leading-relaxed">
             <span className="font-medium text-ink">Page constraints:</span>{" "}
-            Experience, Solution, and Risk share a {SECTION_FOCUS.Experience.maxPages}
+            Experience, Solution, Risk, and Interview share a {SECTION_FOCUS.Experience.maxPages}
             -page cap; Executive Summary {SECTION_FOCUS["Executive Summary"].maxPages}.
             Align narrative to the model in{" "}
             <Link to="/control/scoring" className="text-ink underline underline-offset-2">

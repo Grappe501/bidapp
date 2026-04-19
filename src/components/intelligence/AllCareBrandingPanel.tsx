@@ -109,12 +109,13 @@ export function AllCareBrandingPanel() {
       <div className="flex flex-col gap-3 border-b border-emerald-900/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold tracking-tight text-ink">
-            AllCare intelligence
+            AllCare company profile
           </h3>
           <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-ink-muted">
-            Controlled ingest from the public AllCare site only. Pages respect
-            robots rules (including crawl-delay). Marketing language is stored
-            as unverified claims—never treated as independently verified fact.
+            Operational profile for proposal alignment — summary, service lines,
+            capabilities, and technology signals from your controlled sources.
+            Load the profile first; use advanced sourcing when you need to refresh
+            from the public AllCare site.
           </p>
         </div>
       </div>
@@ -123,304 +124,53 @@ export function AllCareBrandingPanel() {
         <p className="rounded-md border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs text-amber-950">
           Configure{" "}
           <code className="rounded bg-white/90 px-1">VITE_FUNCTIONS_BASE_URL</code>{" "}
-          to enable ingest.
+          to enable company profile APIs.
         </p>
       ) : null}
 
-      <label className="block max-w-md space-y-1.5">
-        <span className="text-xs font-medium text-ink-muted">Project ID</span>
-        <Input
-          value={projectId}
-          onChange={(e) => setProjectId(e.target.value)}
-          placeholder="Project UUID"
-          disabled={busy}
-          className="font-mono text-xs"
-        />
-      </label>
-
-      <div className="grid gap-4 rounded-lg border border-zinc-200/80 bg-white/60 p-4 sm:grid-cols-2">
-        <label className="flex cursor-pointer items-start gap-2 text-xs text-ink">
-          <input
-            type="checkbox"
-            className="mt-0.5 rounded border-zinc-300"
-            checked={liveCrawl}
-            onChange={(e) => setLiveCrawl(e.target.checked)}
-            disabled={busy}
-          />
-          <span>
-            <span className="font-medium text-ink">Live page fetch</span>
-            <span className="mt-0.5 block text-ink-muted">
-              Uncheck to reuse pages already in the database (faster re-AI only).
-            </span>
-          </span>
-        </label>
-        <label className="flex cursor-pointer items-start gap-2 text-xs text-ink">
-          <input
-            type="checkbox"
-            className="mt-0.5 rounded border-zinc-300"
-            checked={forceReparse}
-            onChange={(e) => setForceReparse(e.target.checked)}
-            disabled={busy}
-          />
-          <span>
-            <span className="font-medium text-ink">Force re-parse (AI)</span>
-            <span className="mt-0.5 block text-ink-muted">
-              Re-runs extraction on each page and replaces only AllCare-managed
-              fact rows for those pages—not your manual notes or other sources.
-            </span>
-          </span>
-        </label>
-        <label className="flex cursor-pointer items-start gap-2 text-xs text-ink sm:col-span-2">
-          <input
-            type="checkbox"
-            className="mt-0.5 rounded border-zinc-300"
-            checked={runBackfill}
-            onChange={(e) => setRunBackfill(e.target.checked)}
-            disabled={busy}
-          />
-          <span>
-            <span className="font-medium text-ink">Legacy fact metadata pass</span>
-            <span className="mt-0.5 block text-ink-muted">
-              Optional. Off by default — turn on to audit or repair credibility
-              labels on stored facts (never runs unless you enable it here).
-            </span>
-          </span>
-        </label>
-        {runBackfill ? (
-          <label className="block space-y-1.5 text-xs sm:col-span-2">
-            <span className="font-medium text-ink-muted">Backfill mode</span>
-            <select
-              className="w-full max-w-md rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-ink"
-              value={backfillMode}
-              onChange={(e) =>
-                setBackfillMode(e.target.value as AllCareLegacyFactBackfillMode)
-              }
-              disabled={busy}
-            >
-              <option value="fill-missing">
-                Fill missing only (safest — empty fields)
-              </option>
-              <option value="audit-only">Audit only (no writes)</option>
-              <option value="safe-correct">
-                Safe correct (fill missing + narrow fixes)
-              </option>
-              <option value="moderate-correct">
-                Moderate correct (opt-in — extra likely fixes; audit first)
-              </option>
-            </select>
-          </label>
-        ) : null}
-        <label className="block space-y-1.5 text-xs">
-          <span className="font-medium text-ink-muted">Max pages (optional)</span>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <label className="block min-w-0 flex-1 max-w-md space-y-1.5">
+          <span className="text-xs font-medium text-ink-muted">Project ID</span>
           <Input
-            value={maxPages}
-            onChange={(e) => setMaxPages(e.target.value)}
-            placeholder="Default 20"
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            placeholder="Project UUID"
             disabled={busy}
-            inputMode="numeric"
+            className="font-mono text-xs"
           />
         </label>
-        <label className="block space-y-1.5 text-xs">
-          <span className="font-medium text-ink-muted">Max depth (optional)</span>
-          <Input
-            value={maxDepth}
-            onChange={(e) => setMaxDepth(e.target.value)}
-            placeholder="Default 2"
-            disabled={busy}
-            inputMode="numeric"
-          />
-        </label>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          disabled={busy || !projectId.trim()}
-          onClick={() =>
-            withBusy(async () => {
-              const r = await postScrapeAllCareSite({
-                projectId: projectId.trim(),
-                runAiParse: true,
-                forceReparse,
-                forceRecrawl: liveCrawl,
-                maxPages: parseOptInt(maxPages),
-                maxDepth: parseOptInt(maxDepth),
-                runBackfill,
-                backfillMode: runBackfill ? backfillMode : undefined,
-              });
-              setLastRun(r);
-              const warn =
-                r.errors.length > 0
-                  ? ` · ${r.errors.length} parse warning(s)`
-                  : "";
-              setStatus(
-                `Ingest finished: ${r.pagesStored} page(s) stored, ${r.factsCreated} facts, ` +
-                  `${r.tagsCreated} tags, ${r.claimsPromoted} vendor claim(s) promoted.` +
-                  warn,
-              );
-              const b = await postGetBrandingProfile({
-                projectId: projectId.trim(),
-                ensureProfile: false,
-              }).catch(() => null);
-              if (b) setBranding(b.branding);
-            })
-          }
-        >
-          Run ingest
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={busy || !projectId.trim()}
-          onClick={() => loadBranding(true)}
-        >
-          Sync client profile
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={busy || !projectId.trim()}
-          onClick={() => loadBranding(false)}
-        >
-          Load branding
-        </Button>
-      </div>
-
-      {lastRun && !lastRun.dryRun ? (
-        <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/50 px-4 py-3 text-xs text-ink-muted">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-muted">
-            Last run
-          </p>
-          {lastRun.schemaReady === false ? (
-            <p className="mt-2 rounded border border-amber-200/80 bg-amber-50/80 px-2 py-1.5 text-[0.7rem] text-amber-950">
-              Schema preflight: issues reported — apply DB migrations before relying
-              on ingest.
-            </p>
-          ) : null}
-          <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
-            <div className="flex justify-between gap-2">
-              <dt>Discovered / fetched</dt>
-              <dd className="text-ink">
-                {lastRun.pagesDiscovered} / {lastRun.pagesFetched}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>Skipped (robots / dup)</dt>
-              <dd className="text-ink">
-                {lastRun.pagesSkippedRobots} / {lastRun.pagesSkippedDuplicate}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>Fetch errors</dt>
-              <dd className="text-ink">{lastRun.pagesErrored}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>From cache</dt>
-              <dd className="text-ink">{lastRun.pagesLoadedFromStore}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>Logo discovery</dt>
-              <dd className="text-ink">
-                {lastRun.logoDiscovered ? "Yes" : "No"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt>Vendor mapping</dt>
-              <dd className="text-ink">
-                {lastRun.promotion.vendorMapped ? "Yes" : "No"}
-              </dd>
-            </div>
-            {lastRun.qualityBand ? (
-              <div className="flex justify-between gap-2 sm:col-span-2">
-                <dt>Quality band</dt>
-                <dd className="text-ink">{labelCase(lastRun.qualityBand)}</dd>
-              </div>
-            ) : null}
-            {lastRun.qualityConfidence ? (
-              <div className="flex justify-between gap-2 sm:col-span-2">
-                <dt>Quality confidence</dt>
-                <dd className="text-ink">{labelCase(lastRun.qualityConfidence)}</dd>
-              </div>
-            ) : null}
-            {lastRun.qualityWarnings && lastRun.qualityWarnings.length > 0 ? (
-              <div className="sm:col-span-2">
-                <dt className="text-ink-muted">Notes</dt>
-                <dd className="mt-0.5 text-ink">
-                  {lastRun.qualityWarnings.slice(0, 2).join(" · ")}
-                  {lastRun.qualityWarnings.length > 2 ? " · …" : ""}
-                </dd>
-              </div>
-            ) : null}
-            {lastRun.qualityExplanation ? (
-              <div className="sm:col-span-2">
-                <dt className="text-ink-muted">Quality summary</dt>
-                <dd className="mt-0.5 text-ink">{lastRun.qualityExplanation}</dd>
-              </div>
-            ) : null}
-            {lastRun.robotsOperatorNote ? (
-              <div className="sm:col-span-2">
-                <dt className="text-ink-muted">Robots</dt>
-                <dd className="mt-0.5 text-ink">{lastRun.robotsOperatorNote}</dd>
-              </div>
-            ) : null}
-            {lastRun.robotsReviewRecommended ? (
-              <div className="sm:col-span-2">
-                <dt className="text-ink-muted">Robots review</dt>
-                <dd className="mt-0.5 text-amber-950/90">
-                  {lastRun.robotsReviewReason?.trim() ||
-                    "Practical robots matching — manual review recommended."}
-                </dd>
-              </div>
-            ) : null}
-            {lastRun.legacyFactAudit ? (
-              <div className="sm:col-span-2">
-                <dt className="text-ink-muted">Legacy fact pass</dt>
-                <dd className="mt-0.5 text-ink">
-                  {lastRun.legacyFactAudit.mode}: examined{" "}
-                  {lastRun.legacyFactAudit.examined}, filled{" "}
-                  {lastRun.legacyFactAudit.filledMissing}, corrected{" "}
-                  {lastRun.legacyFactAudit.correctedValues}
-                  {lastRun.legacyFactAudit.correctedSafeCount != null ||
-                  lastRun.legacyFactAudit.correctedModerateCount != null ? (
-                    <>
-                      {" "}
-                      (safe{" "}
-                      {lastRun.legacyFactAudit.correctedSafeCount ?? "—"}, mod{" "}
-                      {lastRun.legacyFactAudit.correctedModerateCount ?? "—"})
-                    </>
-                  ) : null}
-                  , ambiguous skipped{" "}
-                  {lastRun.legacyFactAudit.skippedAmbiguous}
-                  {lastRun.legacyFactAudit.wouldFillMissing != null ? (
-                    <>
-                      {" "}
-                      (would fill {lastRun.legacyFactAudit.wouldFillMissing})
-                    </>
-                  ) : null}
-                  {(lastRun.legacyFactAudit.skippedAmbiguousExamples?.length ??
-                    0) > 0 ? (
-                    <span className="mt-1 block text-[0.65rem] text-amber-950/85">
-                      Some ambiguous rows were skipped — review examples in
-                      branding when loaded.
-                    </span>
-                  ) : null}
-                </dd>
-              </div>
-            ) : null}
-            {lastRun.legacyFactsBackfilled != null &&
-            lastRun.legacyFactsBackfilled > 0 ? (
-              <div className="flex justify-between gap-2 sm:col-span-2">
-                <dt>Legacy facts backfilled</dt>
-                <dd className="text-ink">{lastRun.legacyFactsBackfilled}</dd>
-              </div>
-            ) : null}
-          </dl>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy || !projectId.trim()}
+            onClick={() => loadBranding(false)}
+          >
+            Load company profile
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy || !projectId.trim()}
+            onClick={() => loadBranding(true)}
+          >
+            Sync client profile
+          </Button>
         </div>
-      ) : null}
+      </div>
 
       {status ? (
         <p className="rounded-md border border-zinc-200/90 bg-white px-3 py-2 text-xs leading-relaxed text-ink-muted">
           {status}
+        </p>
+      ) : null}
+
+      {!branding ? (
+        <p className="rounded-md border border-zinc-200/70 bg-zinc-50/60 px-3 py-2 text-xs text-ink-muted">
+          No company profile loaded yet. Enter the workspace project ID and choose{" "}
+          <span className="font-medium text-ink">Load company profile</span>, or open{" "}
+          <span className="font-medium text-ink">Advanced sourcing</span> below to
+          refresh from the public site.
         </p>
       ) : null}
 
@@ -439,7 +189,7 @@ export function AllCareBrandingPanel() {
             return nextActions.length > 0 ? (
               <div className="rounded-lg border border-emerald-800/15 bg-emerald-50/50 px-3 py-2.5">
                 <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-950/80">
-                  What to do next
+                  Next actions
                 </p>
                 <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-[0.7rem] text-ink-muted">
                   {nextActions.map((line) => (
@@ -619,7 +369,7 @@ export function AllCareBrandingPanel() {
 
           <dl className="grid gap-2 text-xs sm:grid-cols-2">
             <div>
-              <dt className="text-ink-muted">Last ingest</dt>
+              <dt className="text-ink-muted">Last public refresh</dt>
               <dd className="font-medium text-ink">
                 {formatWhen(
                   branding.lastScrapeAt ?? branding.lastWebsiteScrapeAt,
@@ -736,6 +486,278 @@ export function AllCareBrandingPanel() {
           ) : null}
         </div>
       ) : null}
+
+      <details className="rounded-lg border border-zinc-200/80 bg-zinc-50/50 p-3">
+        <summary className="cursor-pointer select-none text-sm font-medium text-ink">
+          Advanced sourcing &amp; maintenance
+        </summary>
+        <div className="mt-4 space-y-5">
+      <div className="grid gap-4 rounded-lg border border-zinc-200/80 bg-white/60 p-4 sm:grid-cols-2">
+        <label className="flex cursor-pointer items-start gap-2 text-xs text-ink">
+          <input
+            type="checkbox"
+            className="mt-0.5 rounded border-zinc-300"
+            checked={liveCrawl}
+            onChange={(e) => setLiveCrawl(e.target.checked)}
+            disabled={busy}
+          />
+          <span>
+            <span className="font-medium text-ink">Live page fetch</span>
+            <span className="mt-0.5 block text-ink-muted">
+              Uncheck to reuse pages already in the database (faster re-AI only).
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2 text-xs text-ink">
+          <input
+            type="checkbox"
+            className="mt-0.5 rounded border-zinc-300"
+            checked={forceReparse}
+            onChange={(e) => setForceReparse(e.target.checked)}
+            disabled={busy}
+          />
+          <span>
+            <span className="font-medium text-ink">Force re-parse (AI)</span>
+            <span className="mt-0.5 block text-ink-muted">
+              Re-runs extraction on each page and replaces only AllCare-managed
+              fact rows for those pages—not your manual notes or other sources.
+            </span>
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2 text-xs text-ink sm:col-span-2">
+          <input
+            type="checkbox"
+            className="mt-0.5 rounded border-zinc-300"
+            checked={runBackfill}
+            onChange={(e) => setRunBackfill(e.target.checked)}
+            disabled={busy}
+          />
+          <span>
+            <span className="font-medium text-ink">Legacy fact metadata pass</span>
+            <span className="mt-0.5 block text-ink-muted">
+              Optional. Off by default — turn on to audit or repair credibility
+              labels on stored facts (never runs unless you enable it here).
+            </span>
+          </span>
+        </label>
+        {runBackfill ? (
+          <label className="block space-y-1.5 text-xs sm:col-span-2">
+            <span className="font-medium text-ink-muted">Backfill mode</span>
+            <select
+              className="w-full max-w-md rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-xs text-ink"
+              value={backfillMode}
+              onChange={(e) =>
+                setBackfillMode(e.target.value as AllCareLegacyFactBackfillMode)
+              }
+              disabled={busy}
+            >
+              <option value="fill-missing">
+                Fill missing only (safest — empty fields)
+              </option>
+              <option value="audit-only">Audit only (no writes)</option>
+              <option value="safe-correct">
+                Safe correct (fill missing + narrow fixes)
+              </option>
+              <option value="moderate-correct">
+                Moderate correct (opt-in — extra likely fixes; audit first)
+              </option>
+            </select>
+          </label>
+        ) : null}
+        <label className="block space-y-1.5 text-xs">
+          <span className="font-medium text-ink-muted">Max pages (optional)</span>
+          <Input
+            value={maxPages}
+            onChange={(e) => setMaxPages(e.target.value)}
+            placeholder="Default 20"
+            disabled={busy}
+            inputMode="numeric"
+          />
+        </label>
+        <label className="block space-y-1.5 text-xs">
+          <span className="font-medium text-ink-muted">Max depth (optional)</span>
+          <Input
+            value={maxDepth}
+            onChange={(e) => setMaxDepth(e.target.value)}
+            placeholder="Default 2"
+            disabled={busy}
+            inputMode="numeric"
+          />
+        </label>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          disabled={busy || !projectId.trim()}
+          onClick={() =>
+            withBusy(async () => {
+              const r = await postScrapeAllCareSite({
+                projectId: projectId.trim(),
+                runAiParse: true,
+                forceReparse,
+                forceRecrawl: liveCrawl,
+                maxPages: parseOptInt(maxPages),
+                maxDepth: parseOptInt(maxDepth),
+                runBackfill,
+                backfillMode: runBackfill ? backfillMode : undefined,
+              });
+              setLastRun(r);
+              const warn =
+                r.errors.length > 0
+                  ? ` · ${r.errors.length} parse warning(s)`
+                  : "";
+              setStatus(
+                `Public refresh finished: ${r.pagesStored} page(s) stored, ${r.factsCreated} facts, ` +
+                  `${r.tagsCreated} tags, ${r.claimsPromoted} vendor claim(s) promoted.` +
+                  warn,
+              );
+              const b = await postGetBrandingProfile({
+                projectId: projectId.trim(),
+                ensureProfile: false,
+              }).catch(() => null);
+              if (b) setBranding(b.branding);
+            })
+          }
+        >
+          Refresh from public site
+        </Button>
+      </div>
+
+      {lastRun && !lastRun.dryRun ? (
+        <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/50 px-4 py-3 text-xs text-ink-muted">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-ink-muted">
+            Last run
+          </p>
+          {lastRun.schemaReady === false ? (
+            <p className="mt-2 rounded border border-amber-200/80 bg-amber-50/80 px-2 py-1.5 text-[0.7rem] text-amber-950">
+              Schema preflight: issues reported — apply DB migrations before relying
+              on this refresh.
+            </p>
+          ) : null}
+          <dl className="mt-2 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+            <div className="flex justify-between gap-2">
+              <dt>Discovered / fetched</dt>
+              <dd className="text-ink">
+                {lastRun.pagesDiscovered} / {lastRun.pagesFetched}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>Skipped (robots / dup)</dt>
+              <dd className="text-ink">
+                {lastRun.pagesSkippedRobots} / {lastRun.pagesSkippedDuplicate}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>Fetch errors</dt>
+              <dd className="text-ink">{lastRun.pagesErrored}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>From cache</dt>
+              <dd className="text-ink">{lastRun.pagesLoadedFromStore}</dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>Logo discovery</dt>
+              <dd className="text-ink">
+                {lastRun.logoDiscovered ? "Yes" : "No"}
+              </dd>
+            </div>
+            <div className="flex justify-between gap-2">
+              <dt>Vendor mapping</dt>
+              <dd className="text-ink">
+                {lastRun.promotion.vendorMapped ? "Yes" : "No"}
+              </dd>
+            </div>
+            {lastRun.qualityBand ? (
+              <div className="flex justify-between gap-2 sm:col-span-2">
+                <dt>Quality band</dt>
+                <dd className="text-ink">{labelCase(lastRun.qualityBand)}</dd>
+              </div>
+            ) : null}
+            {lastRun.qualityConfidence ? (
+              <div className="flex justify-between gap-2 sm:col-span-2">
+                <dt>Quality confidence</dt>
+                <dd className="text-ink">{labelCase(lastRun.qualityConfidence)}</dd>
+              </div>
+            ) : null}
+            {lastRun.qualityWarnings && lastRun.qualityWarnings.length > 0 ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Notes</dt>
+                <dd className="mt-0.5 text-ink">
+                  {lastRun.qualityWarnings.slice(0, 2).join(" · ")}
+                  {lastRun.qualityWarnings.length > 2 ? " · …" : ""}
+                </dd>
+              </div>
+            ) : null}
+            {lastRun.qualityExplanation ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Quality summary</dt>
+                <dd className="mt-0.5 text-ink">{lastRun.qualityExplanation}</dd>
+              </div>
+            ) : null}
+            {lastRun.robotsOperatorNote ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Robots</dt>
+                <dd className="mt-0.5 text-ink">{lastRun.robotsOperatorNote}</dd>
+              </div>
+            ) : null}
+            {lastRun.robotsReviewRecommended ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Robots review</dt>
+                <dd className="mt-0.5 text-amber-950/90">
+                  {lastRun.robotsReviewReason?.trim() ||
+                    "Practical robots matching — manual review recommended."}
+                </dd>
+              </div>
+            ) : null}
+            {lastRun.legacyFactAudit ? (
+              <div className="sm:col-span-2">
+                <dt className="text-ink-muted">Legacy fact pass</dt>
+                <dd className="mt-0.5 text-ink">
+                  {lastRun.legacyFactAudit.mode}: examined{" "}
+                  {lastRun.legacyFactAudit.examined}, filled{" "}
+                  {lastRun.legacyFactAudit.filledMissing}, corrected{" "}
+                  {lastRun.legacyFactAudit.correctedValues}
+                  {lastRun.legacyFactAudit.correctedSafeCount != null ||
+                  lastRun.legacyFactAudit.correctedModerateCount != null ? (
+                    <>
+                      {" "}
+                      (safe{" "}
+                      {lastRun.legacyFactAudit.correctedSafeCount ?? "—"}, mod{" "}
+                      {lastRun.legacyFactAudit.correctedModerateCount ?? "—"})
+                    </>
+                  ) : null}
+                  , ambiguous skipped{" "}
+                  {lastRun.legacyFactAudit.skippedAmbiguous}
+                  {lastRun.legacyFactAudit.wouldFillMissing != null ? (
+                    <>
+                      {" "}
+                      (would fill {lastRun.legacyFactAudit.wouldFillMissing})
+                    </>
+                  ) : null}
+                  {(lastRun.legacyFactAudit.skippedAmbiguousExamples?.length ??
+                    0) > 0 ? (
+                    <span className="mt-1 block text-[0.65rem] text-amber-950/85">
+                      Some ambiguous rows were skipped — review examples in
+                      branding when loaded.
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            ) : null}
+            {lastRun.legacyFactsBackfilled != null &&
+            lastRun.legacyFactsBackfilled > 0 ? (
+              <div className="flex justify-between gap-2 sm:col-span-2">
+                <dt>Legacy facts backfilled</dt>
+                <dd className="text-ink">{lastRun.legacyFactsBackfilled}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </div>
+      ) : null}
+
+        </div>
+      </details>
     </Card>
   );
 }

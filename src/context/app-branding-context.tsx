@@ -23,7 +23,7 @@ type AppBrandingContextValue = {
 const AppBrandingContext = createContext<AppBrandingContextValue | null>(null);
 
 /**
- * Loads AllCare / client branding for shell and demo surfaces (best-effort).
+ * Loads AllCare / client branding for the shell and live surfaces (best-effort).
  */
 export function AppBrandingProvider({ children }: { children: ReactNode }) {
   const { projectId } = useProjectWorkspace();

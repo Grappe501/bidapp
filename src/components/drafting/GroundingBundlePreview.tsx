@@ -3,6 +3,7 @@ import {
   assessGroundingBundleQuality,
   getGroundingBundleStats,
 } from "@/lib/drafting-utils";
+import { computePricingHealth } from "@/lib/pricing-structure";
 import type { DraftSectionType, GroundingBundlePayload } from "@/types";
 import { GroundingBundleQualityBadge } from "./GroundingBundleQualityBadge";
 import { GroundingBundleStatsRow } from "./GroundingBundleStats";
@@ -36,6 +37,9 @@ export function GroundingBundlePreview({
 }: GroundingBundlePreviewProps) {
   const stats = getGroundingBundleStats(payload);
   const quality = assessGroundingBundleQuality(payload);
+  const pricingHealth = payload.pricing
+    ? computePricingHealth(payload.pricing)
+    : null;
   const assembled = formatWhen(payload.assembledAt);
   const title = payload.title?.trim() || "Untitled grounding bundle";
 
@@ -64,6 +68,29 @@ export function GroundingBundlePreview({
       </div>
 
       <GroundingBundleStatsRow stats={stats} variant="grid" />
+
+      {payload.pricing ? (
+        <div className="rounded-md border border-violet-200/80 bg-violet-50/40 px-3 py-2 text-xs">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-subtle">
+            Structured pricing (bundle)
+          </p>
+          <p className="mt-1 text-ink-muted">
+            Annual ${payload.pricing.model.totals.annual.toLocaleString()} · Contract{" "}
+            ${payload.pricing.model.totals.contractTotal.toLocaleString()}
+            {pricingHealth?.ready ? (
+              <span className="ml-2 text-emerald-900">· Ready</span>
+            ) : (
+              <span className="ml-2 text-amber-900">· Not ready</span>
+            )}
+          </p>
+          {pricingHealth ? (
+            <p className="mt-1 text-[10px] text-ink-subtle">
+              Parsed {pricingHealth.parsed ? "✓" : "✗"} · Categorized {pricingHealth.categorized ? "✓" : "✗"} · RFP{" "}
+              {pricingHealth.rfpCoverage ? "✓" : "✗"} · Contract {pricingHealth.contractCompliant ? "✓" : "✗"}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border/60 pt-3 text-[10px] text-ink-subtle">
         {assembled ? (

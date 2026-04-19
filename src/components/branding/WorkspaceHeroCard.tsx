@@ -1,23 +1,21 @@
 import { Card } from "@/components/ui/Card";
 import { useAppBranding } from "@/context/app-branding-context";
 import { useArchitecture } from "@/context/useArchitecture";
-import { useDemoMode } from "@/context/demo-mode-context";
 import { useOutput } from "@/context/useOutput";
 import { useWorkspace } from "@/context/useWorkspace";
+import { liveClientDisplayName } from "@/lib/branding-utils";
 import { readinessHeadline } from "@/lib/client-review-utils";
 
 /**
- * Executive-facing overview for client demo mode (layered above existing dashboard cards).
+ * Live home-screen summary: readiness, architecture line, strengths, next moves.
  */
-export function DashboardDemoHero() {
-  const { isDemoMode, demoClientDisplayName } = useDemoMode();
+export function WorkspaceHeroCard() {
   const { project } = useWorkspace();
   const { readiness } = useOutput();
   const { options } = useArchitecture();
   const { branding } = useAppBranding();
 
-  if (!isDemoMode) return null;
-
+  const clientName = liveClientDisplayName(branding);
   const recommended = options.find((o) => o.recommended);
   const strengths =
     branding?.serviceLines?.slice(0, 3).filter(Boolean) ??
@@ -26,13 +24,13 @@ export function DashboardDemoHero() {
 
   const nextActions: string[] = [];
   if (readiness.overall < 0.85) {
-    nextActions.push("Close readiness gaps flagged in Review.");
+    nextActions.push("Close readiness gaps in Review.");
   }
-  nextActions.push("Validate client review packet in Output.");
+  nextActions.push("Align Output packaging with client review priorities.");
   if (!recommended) {
-    nextActions.push("Confirm architecture recommendation in Architecture.");
+    nextActions.push("Confirm a recommended architecture option.");
   } else {
-    nextActions.push(`Align solution narrative with "${recommended.name}".`);
+    nextActions.push(`Align solution narrative with “${recommended.name}”.`);
   }
 
   return (
@@ -40,16 +38,15 @@ export function DashboardDemoHero() {
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0 space-y-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">
-            {demoClientDisplayName} · {project.bidNumber}
+            {clientName} · {project.bidNumber}
           </p>
           <h2 className="text-xl font-semibold tracking-tight text-slate-900">
             {project.title}
           </h2>
           <p className="max-w-2xl text-sm leading-relaxed text-slate-600">
-            Pharmacy Services for DHS HDCs — bid operating workspace for solicitation{" "}
+            Pharmacy Services for DHS HDCs — live workspace for solicitation{" "}
             <span className="font-medium text-slate-800">{project.bidNumber}</span>.
-            This view summarizes readiness and recommended direction for stakeholder
-            alignment.
+            Readiness, architecture, and next actions update from your connected data.
           </p>
           {branding?.summary ? (
             <p className="max-w-2xl border-l-2 border-emerald-700/25 pl-3 text-sm italic leading-relaxed text-slate-700">
@@ -65,8 +62,8 @@ export function DashboardDemoHero() {
             {readinessHeadline(readiness.overall)}
           </p>
           <p className="mt-2 text-xs text-slate-600">
-            Overall score {(readiness.overall * 100).toFixed(0)}% — reflects review
-            rules across requirements, evidence, and drafts.
+            Overall {(readiness.overall * 100).toFixed(0)}% from review rules across
+            requirements, evidence, and drafts.
           </p>
         </div>
       </div>
@@ -74,17 +71,17 @@ export function DashboardDemoHero() {
       <div className="mt-6 grid gap-4 border-t border-slate-200/70 pt-6 sm:grid-cols-2">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Recommended architecture
+            Recommended approach
           </p>
           <p className="mt-1 text-sm text-slate-800">
             {recommended
-              ? `${recommended.name} — Malone-led orchestration with defined vendor roles.`
-              : "Define a recommended option in the Architecture workspace."}
+              ? `${recommended.name} — orchestration-led stack with defined vendor roles.`
+              : "Select a recommended option in Architecture."}
           </p>
         </div>
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-            Top strengths to emphasize
+            Positioning highlights
           </p>
           {strengths.length > 0 ? (
             <ul className="mt-1 list-inside list-disc text-sm text-slate-700">
@@ -94,8 +91,8 @@ export function DashboardDemoHero() {
             </ul>
           ) : (
             <p className="mt-1 text-sm text-slate-600">
-              Service lines and capabilities appear here when the company profile is
-              loaded from Intelligence.
+              Service lines and capabilities appear when the company profile is loaded
+              from Intelligence.
             </p>
           )}
         </div>
@@ -103,7 +100,7 @@ export function DashboardDemoHero() {
 
       <div className="mt-5">
         <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-          Suggested next actions
+          Next actions
         </p>
         <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
           {nextActions.slice(0, 4).map((a) => (

@@ -58,6 +58,11 @@ export const SECTION_STRATEGY: Record<
     focus:
       "Explicit risks with mitigation and proof; interview team must own the same story.",
   },
+  Interview: {
+    maxPages: 2,
+    focus:
+      "Oral defense: align to Solution/Risk volumes; defend pricing and operations; anticipate evaluator Q&A without new unsupported facts.",
+  },
   "Executive Summary": {
     maxPages: 1,
     focus:
@@ -75,6 +80,7 @@ export function scoringForSectionType(sectionType: DraftSectionType): typeof DRA
     Experience: ["Experience"],
     Solution: ["Solution"],
     Risk: ["Risk"],
+    Interview: ["Interview", "Cost", "Solution", "Risk"],
     "Executive Summary": [
       "Experience",
       "Solution",
@@ -96,6 +102,8 @@ export const SECTION_SUPPORT_EXPECTATIONS: Record<DraftSectionType, string> = {
     "Approach must be defensible in oral review: plain-language value, criterion mapping, and no uncited technical depth.",
   Risk:
     "Each material risk needs mitigation, owner, and trace to evidence or an explicit gap — no undocumented residual risk.",
+  Interview:
+    "Oral-defense script: claims must match written volumes, structured pricing, and contract/RFP; rehearse delivery, billing, integration, and cost-stability answers.",
   "Executive Summary":
     "High-level only: mirror scored volumes; no new facts; flag where volumes are still open.",
   "Architecture Narrative":

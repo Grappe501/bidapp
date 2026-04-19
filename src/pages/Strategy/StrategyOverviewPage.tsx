@@ -5,6 +5,7 @@ import { ScoringAdvantageCard } from "@/components/strategy/ScoringAdvantageCard
 import { StrategyActionPanel } from "@/components/strategy/StrategyActionPanel";
 import { StrategySubNav } from "@/components/strategy/StrategySubNav";
 import { ThreatMapCard } from "@/components/strategy/ThreatMapCard";
+import { WhyAllCareWinsCard } from "@/components/strategy/WhyAllCareWinsCard";
 import { useStrategy } from "@/context/useStrategy";
 import { useWorkspace } from "@/context/useWorkspace";
 
@@ -35,6 +36,8 @@ export function StrategyOverviewPage() {
         </div>
 
         <CompetitiveSummaryCard summary={strategicSummary} bidNumber={project.bidNumber} />
+
+        <WhyAllCareWinsCard bidNumber={project.bidNumber} />
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="p-5">

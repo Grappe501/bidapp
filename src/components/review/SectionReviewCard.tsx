@@ -34,7 +34,12 @@ export function SectionReviewCard({ snapshot }: SectionReviewCardProps) {
     );
   }
 
-  const scored: DraftSectionType[] = ["Experience", "Solution", "Risk"];
+  const scored: DraftSectionType[] = [
+    "Experience",
+    "Solution",
+    "Risk",
+    "Interview",
+  ];
 
   return (
     <Card className="space-y-3 p-4">

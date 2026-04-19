@@ -36,11 +36,17 @@ import { DifferentiationPage } from "@/pages/Strategy/DifferentiationPage";
 import { EvaluatorLensPage } from "@/pages/Strategy/EvaluatorLensPage";
 import { StrategyOverviewPage } from "@/pages/Strategy/StrategyOverviewPage";
 import { WinThemesPage } from "@/pages/Strategy/WinThemesPage";
+import { BidIntelligencePage } from "@/pages/Agent/BidIntelligencePage";
 
 export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage />} />
+      <Route path="/agent" element={<BidIntelligencePage />} />
+      <Route
+        path="/bid-intelligence"
+        element={<Navigate to="/agent" replace />}
+      />
       <Route path="/files" element={<FilesPage />} />
       <Route path="/files/:fileId" element={<FileDetailPage />} />
       <Route

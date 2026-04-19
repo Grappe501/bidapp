@@ -1028,6 +1028,122 @@ export type NarrativeAlignmentResult = {
   correctiveActions: string[];
 };
 
+/** Bid Intelligence Agent — structured, evidence-backed answers (server + UI). */
+export type BidAgentAnswerType =
+  | "requirements"
+  | "readiness"
+  | "vendor_analysis"
+  | "pricing"
+  | "risk"
+  | "strategy"
+  | "drafting"
+  | "submission"
+  | "comparison"
+  | "decision"
+  | "mixed";
+
+export type BidAgentEvidenceSourceType =
+  | "rfp"
+  | "technical_packet"
+  | "contract"
+  | "pricing"
+  | "vendor"
+  | "interview"
+  | "simulation"
+  | "decision"
+  | "draft"
+  | "workspace";
+
+export type BidAgentSuggestedActionType =
+  | "navigate"
+  | "rebuild_bundle"
+  | "run_vendor_research"
+  | "review_section"
+  | "open_submission"
+  | "open_vendor"
+  | "open_compare"
+  | "none";
+
+export type BidAgentAnswer = {
+  answerType: BidAgentAnswerType;
+  headline: string;
+  shortAnswer: string;
+  sections: Array<{ title: string; content: string }>;
+  confidence: "high" | "medium" | "low";
+  evidence: Array<{
+    label: string;
+    sourceType: BidAgentEvidenceSourceType;
+    ref?: string;
+    pageRoute?: string;
+  }>;
+  suggestedActions: Array<{
+    label: string;
+    actionType: BidAgentSuggestedActionType;
+    target?: string;
+  }>;
+  caveats: string[];
+};
+
+/** Bounded workflows Agent Malone may trigger (server-enforced). */
+export type AgentMaloneActionType =
+  | "open_page"
+  | "build_grounding_bundle"
+  | "generate_draft"
+  | "run_vendor_research"
+  | "compute_vendor_fit"
+  | "compute_vendor_score"
+  | "generate_vendor_interview"
+  | "run_claim_validation"
+  | "run_failure_simulation"
+  | "run_role_fit"
+  | "run_pricing_reality"
+  | "run_competitor_simulation"
+  | "run_decision_synthesis"
+  | "run_narrative_alignment"
+  | "refresh_final_readiness"
+  | "copy_export"
+  | "run_strategy_refresh_recipe"
+  | "run_vendor_interview_prep_recipe";
+
+export type AgentMaloneActionRequest = {
+  actionType: AgentMaloneActionType;
+  projectId: string;
+  vendorId?: string;
+  architectureOptionId?: string | null;
+  sectionId?: string;
+  bundleType?: string;
+  targetEntityId?: string | null;
+  additionalParams?: Record<string, unknown>;
+};
+
+export type AgentMaloneActionResult = {
+  actionType: string;
+  status: "success" | "failed" | "partial" | "blocked";
+  headline: string;
+  summary: string;
+  details?: string[];
+  affectedEntityIds?: string[];
+  nextActions?: Array<{
+    label: string;
+    actionType: string;
+    target?: string;
+  }>;
+  errorMessage?: string;
+};
+
+export type AgentMaloneSuggestedAction = {
+  label: string;
+  actionType: string;
+  target?: string;
+  payload?: AgentMaloneActionRequest;
+};
+
+/** Agent Malone — structured answer plus optional executed workflow result. */
+export type AgentMaloneAnswer = Omit<BidAgentAnswer, "suggestedActions"> & {
+  suggestedActions: AgentMaloneSuggestedAction[];
+  executedAction?: AgentMaloneActionResult;
+};
+
 export type GroundingBundlePayload = {
   bundleType: GroundingBundleType;
   title: string;

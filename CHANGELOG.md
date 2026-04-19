@@ -2,6 +2,8 @@
 
 ## v0.12.2 — 2026-04-19
 
+- **Agent Malone** (`/agent`, nav **Agent Malone**): V2 operational agent — bounded **`AgentMaloneActionRequest`** / **`AgentMaloneActionResult`** / **`AgentMaloneAnswer`**; registry + **`executeMaloneAction`** wrappers over grounding bundles, vendor intelligence jobs, competitor simulation, decision synthesis, narrative/readiness snapshots, strategy & interview-prep recipes; intent patterns for chat-triggered actions; quick-action buttons; workflow result cards in-thread. **`ask-bid-agent`** accepts `question` and/or **`actionRequest`**
+- **Bid Intelligence (V1) superseded in-product** by Agent Malone — same route, expanded contract
 - **SRV-1 contract model** (`ContractStructure`, `GroundingBundleContract` in `src/types/contract-model.ts`; canonical data in `canonical-srv1-contract.ts`)
 - **Grounding bundles** persist **`contract`** alongside **`rfp`** — RFP↔contract cross-check warnings; **draft generation** requires contract grounding and injects SRV-1 scope / performance / termination / pricing directives
 - **Pricing validation** (`contract-pricing-validation.ts`): rejects flat lump-sum-only / unstructured pricing; requires validated price-sheet artifact

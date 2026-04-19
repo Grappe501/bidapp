@@ -10,6 +10,11 @@ type NavItem =
 
 const navItems: NavItem[] = [
   { to: "/", label: "Dashboard", end: true },
+  {
+    to: "/agent",
+    label: "Agent Malone",
+    title: "Ask questions and run bounded bid workflows",
+  },
   { to: "/files", label: "Files" },
   { to: "/requirements", label: "Requirements" },
   { to: "/evidence", label: "Evidence" },

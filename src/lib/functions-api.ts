@@ -1,4 +1,6 @@
 import type {
+  AgentMaloneActionRequest,
+  AgentMaloneAnswer,
   ArchitectureOption,
   CompanyProfile,
   DraftMetadata,
@@ -199,6 +201,17 @@ export async function postCompetitorSimulation(input: {
     "competitor-simulation",
     input,
   );
+}
+
+export async function postAskBidAgent(input: {
+  projectId: string;
+  question?: string;
+  actionRequest?: AgentMaloneActionRequest;
+  currentPage?: string;
+  selectedVendorId?: string | null;
+  architectureOptionId?: string | null;
+}): Promise<AgentMaloneAnswer> {
+  return postFunctionJson<AgentMaloneAnswer>("ask-bid-agent", input);
 }
 
 export async function postIngestUrl(input: {

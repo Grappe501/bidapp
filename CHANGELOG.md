@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.11.0 — 2026-04-19
+
+- **Client demo mode:** `VITE_DEMO_MODE` / `VITE_DEMO_CLIENT_NAME` — AllCare-branded shell (header logo + labels), demo sidebar, `DashboardDemoHero`, softer Intelligence/Output/Client review for walkthroughs; hides strict-deploy banner and internal DB check card; `AllCareBrandingDemoPanel` vs full operator panel
+- **Contexts:** `AppBrandingProvider` (loads branding for shell), `DemoModeProvider` / `useDemoMode`
+- **Docs:** `ENVIRONMENT_SETUP.md`, `scripts/demo-client-walkthrough.md`, `.env.example`
+
 ## v0.10.4 — 2026-04-18
 
 - **Netlify production verification:** `scripts/netlify-deploy-checklist.md` (before/after deploy, rollback triage), `npm run check:netlify-prod-env` for local preflight against required prod-shaped vars

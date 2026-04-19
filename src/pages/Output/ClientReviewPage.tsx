@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { Card } from "@/components/ui/Card";
+import { useDemoMode } from "@/context/demo-mode-context";
 import { ClientArchitectureSnapshot } from "@/components/output/ClientArchitectureSnapshot";
 import { ClientDecisionPanel } from "@/components/output/ClientDecisionPanel";
 import { ClientNextActionsPanel } from "@/components/output/ClientNextActionsPanel";
@@ -25,6 +27,7 @@ import {
 import { copyTextToClipboard } from "@/lib/output-utils";
 
 export function ClientReviewPage() {
+  const { isDemoMode } = useDemoMode();
   const { project, readiness, reviewIssues, reviewSnapshot } = useOutput();
   const { options } = useArchitecture();
   const { submissionItems } = useControl();
@@ -122,7 +125,7 @@ export function ClientReviewPage() {
 
         <header className="space-y-2 border-b border-border pb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            Client review packet
+            {isDemoMode ? "Client review — executive brief" : "Client review packet"}
           </h1>
           <p className="max-w-3xl text-sm leading-relaxed text-ink-muted">
             Executive brief for <span className="font-medium text-ink">{project.bidNumber}</span>
@@ -131,6 +134,65 @@ export function ClientReviewPage() {
             internal debugging.
           </p>
         </header>
+
+        {isDemoMode ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Card className="border-slate-200/90 bg-slate-50/70 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Recommended operating approach
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-800">
+                {vendorStrategyLine}
+              </p>
+            </Card>
+            <Card className="border-emerald-900/10 bg-emerald-50/40 p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-900/70">
+                Why AllCare is well positioned
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-800">
+                Alignment between documented capabilities, architecture choices, and
+                solicitation emphasis — with clear traceability to requirements and evidence.
+              </p>
+            </Card>
+            <Card className="border-slate-200/90 bg-white p-4 sm:col-span-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Top strengths for this bid
+              </p>
+              <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
+                <li>
+                  Structured traceability from requirements to evidence and draft sections.
+                </li>
+                <li>
+                  Evaluation-aligned architecture narrative for{" "}
+                  <span className="font-medium text-slate-800">{project.bidNumber}</span>.
+                </li>
+                {recommended ? (
+                  <li>
+                    Coherent stack story anchored on {recommended.name} with explicit vendor
+                    roles.
+                  </li>
+                ) : (
+                  <li>Finalize a recommended architecture option to lock the solution story.</li>
+                )}
+              </ul>
+            </Card>
+            <Card className="border-slate-200/90 bg-white p-4 sm:col-span-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Next actions toward submission
+              </p>
+              <ul className="mt-2 space-y-1.5 text-sm text-slate-800">
+                {nextActions.slice(0, 4).map((a) => (
+                  <li key={a.id} className="flex gap-2">
+                    <span className="text-emerald-800" aria-hidden>
+                      →
+                    </span>
+                    <span>{a.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </div>
+        ) : null}
 
         <ClientReviewSummaryCard
           bidNumber={project.bidNumber}

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useDemoMode } from "@/context/demo-mode-context";
 import { OutputAttentionPanel } from "@/components/output/OutputAttentionPanel";
 import { OutputBundleCard } from "@/components/output/OutputBundleCard";
 import { OutputCommandSummary } from "@/components/output/OutputCommandSummary";
@@ -28,6 +29,7 @@ function sortBundles(list: OutputBundle[]): OutputBundle[] {
 }
 
 export function OutputCenterPage() {
+  const { isDemoMode } = useDemoMode();
   const {
     bundles,
     packagingByBundle,
@@ -91,18 +93,29 @@ export function OutputCenterPage() {
 
         <header className="space-y-2 border-b border-border pb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            Output center
+            {isDemoMode ? "Finalization & readiness" : "Output center"}
           </h1>
           <p className="max-w-3xl text-sm leading-relaxed text-ink-muted">
-            Final packaging and <span className="font-medium text-ink">readiness</span>{" "}
-            — what is on track, what is{" "}
-            <span className="font-medium text-ink">blocked</span>, and what belongs in
-            the <span className="font-medium text-ink">client review packet</span>,{" "}
-            <span className="font-medium text-ink">submission package</span>,{" "}
-            <span className="font-medium text-ink">redacted packet</span>, or{" "}
-            <span className="font-medium text-ink">final readiness bundle</span>. Artifact
-            workflow uses the same labels everywhere: Draft → In Progress → Ready →
-            Validated → Locked.
+            {isDemoMode ? (
+              <>
+                Where the bid stands for packaging:{" "}
+                <span className="font-medium text-ink">readiness</span>,{" "}
+                <span className="font-medium text-ink">blockers</span>, and the four primary
+                deliverable bundles — oriented for leadership review, not internal tooling.
+              </>
+            ) : (
+              <>
+                Final packaging and <span className="font-medium text-ink">readiness</span>{" "}
+                — what is on track, what is{" "}
+                <span className="font-medium text-ink">blocked</span>, and what belongs in
+                the <span className="font-medium text-ink">client review packet</span>,{" "}
+                <span className="font-medium text-ink">submission package</span>,{" "}
+                <span className="font-medium text-ink">redacted packet</span>, or{" "}
+                <span className="font-medium text-ink">final readiness bundle</span>. Artifact
+                workflow uses the same labels everywhere: Draft → In Progress → Ready →
+                Validated → Locked.
+              </>
+            )}
           </p>
         </header>
 
@@ -128,12 +141,9 @@ export function OutputCenterPage() {
             Bundles
           </h2>
           <p className="max-w-3xl text-xs leading-relaxed text-ink-muted">
-            Compare the <span className="font-medium text-ink">submission package</span>,{" "}
-            <span className="font-medium text-ink">client review packet</span>,{" "}
-            <span className="font-medium text-ink">redacted packet</span>, and{" "}
-            <span className="font-medium text-ink">final readiness bundle</span> at a
-            glance. Packaging <span className="font-medium text-ink">blockers</span> count
-            artifacts not yet Ready, Validated, or Locked.
+            {isDemoMode
+              ? "Primary deliverable bundles at a glance — each must reach the right readiness state before submission."
+              : `Compare the submission package, client review packet, redacted packet, and final readiness bundle at a glance. Packaging blockers count artifacts not yet Ready, Validated, or Locked.`}
           </p>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {sortedBundles.map((b) => (
@@ -154,18 +164,30 @@ export function OutputCenterPage() {
           </div>
         </section>
 
-        <OutputAttentionPanel items={attentionItems} />
+        {!isDemoMode ? (
+          <OutputAttentionPanel items={attentionItems} />
+        ) : null}
 
-        <OutputQuickActionPanel
-          onCopyReadiness={() => void copyReadinessSummary()}
-          onCopyChecklist={() => void copyChecklistSummary()}
-        />
+        {!isDemoMode ? (
+          <OutputQuickActionPanel
+            onCopyReadiness={() => void copyReadinessSummary()}
+            onCopyChecklist={() => void copyChecklistSummary()}
+          />
+        ) : null}
 
-        <p className="text-xs leading-relaxed text-ink-subtle">
-          <span className="font-medium text-ink">Readiness</span> scores come from the
-          review workspace (BP-007). This page does not replace that model — it orients
-          packaging work around the four primary bundles above.
-        </p>
+        {!isDemoMode ? (
+          <p className="text-xs leading-relaxed text-ink-subtle">
+            <span className="font-medium text-ink">Readiness</span> scores come from the
+            review workspace (BP-007). This page does not replace that model — it orients
+            packaging work around the four primary bundles above.
+          </p>
+        ) : (
+          <p className="text-xs leading-relaxed text-ink-subtle">
+            <span className="font-medium text-ink">Readiness</span> reflects the review
+            workspace; this view orients leadership around packaging status and the four
+            primary bundles.
+          </p>
+        )}
       </div>
     </div>
   );

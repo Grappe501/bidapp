@@ -1,5 +1,7 @@
 import { useMemo } from "react";
+import { DashboardDemoHero } from "@/components/dashboard/DashboardDemoHero";
 import { Card } from "@/components/ui/Card";
+import { useDemoMode } from "@/context/demo-mode-context";
 import { useWorkspace } from "@/context/useWorkspace";
 import { useDbProjects } from "@/hooks/useDbProjects";
 import { ActivityCard } from "@/components/workspace/ActivityCard";
@@ -10,6 +12,7 @@ import { FILE_CATEGORIES } from "@/types";
 
 export function DashboardPage() {
   const { project, files } = useWorkspace();
+  const { isDemoMode } = useDemoMode();
   const { projects: dbProjects, loading: dbLoading, error: dbError, functionsEnabled } =
     useDbProjects();
 
@@ -48,13 +51,16 @@ export function DashboardPage() {
       <div className="mx-auto max-w-6xl space-y-8">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink">
-            Workspace overview
+            {isDemoMode ? "Command overview" : "Workspace overview"}
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Operational snapshot for the active bid. Requirements and evidence
-            linking follow in the next phase.
+            {isDemoMode
+              ? "Executive snapshot for the active solicitation — readiness, direction, and next moves."
+              : "Operational snapshot for the active bid. Requirements and evidence linking follow in the next phase."}
           </p>
         </div>
+
+        <DashboardDemoHero />
 
         <ProjectSummaryCard
           project={project}
@@ -63,7 +69,7 @@ export function DashboardPage() {
           processedFiles={processedFiles}
         />
 
-        {functionsEnabled ? (
+        {functionsEnabled && !isDemoMode ? (
           <Card className="space-y-2 border-zinc-200 bg-zinc-50/80 px-4 py-3">
             <h2 className="text-sm font-semibold text-ink">
               Database project check (list-projects)

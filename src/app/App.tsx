@@ -1,5 +1,7 @@
 import { BrowserRouter } from "react-router-dom";
 import { SystemConfigGate } from "@/components/SystemConfigGate";
+import { AppBrandingProvider } from "@/context/app-branding-context";
+import { DemoModeProvider } from "@/context/demo-mode-context";
 import { ArchitectureProvider } from "@/context/ArchitectureProvider";
 import { ControlProvider } from "@/context/ControlProvider";
 import { DraftingProvider } from "@/context/DraftingProvider";
@@ -21,33 +23,37 @@ export function App() {
     <SystemConfigGate>
       <BrowserRouter>
         <ProjectWorkspaceProvider>
-          <WorkspaceProvider>
-            <RequirementProvider>
-              <EvidenceProvider>
-                <VendorProvider>
-                  <ArchitectureProvider>
-                    <ControlProvider>
-                      <IntelligenceProvider>
-                        <DraftingProvider>
-                          <ReviewProvider>
-                            <OutputProvider>
-                              <SubmissionProvider>
-                                <StrategyProvider>
-                                  <AppLayout>
-                                    <AppRoutes />
-                                  </AppLayout>
-                                </StrategyProvider>
-                              </SubmissionProvider>
-                            </OutputProvider>
-                          </ReviewProvider>
-                        </DraftingProvider>
-                      </IntelligenceProvider>
-                    </ControlProvider>
-                  </ArchitectureProvider>
-                </VendorProvider>
-              </EvidenceProvider>
-            </RequirementProvider>
-          </WorkspaceProvider>
+          <AppBrandingProvider>
+            <DemoModeProvider>
+              <WorkspaceProvider>
+                <RequirementProvider>
+                  <EvidenceProvider>
+                    <VendorProvider>
+                      <ArchitectureProvider>
+                        <ControlProvider>
+                          <IntelligenceProvider>
+                            <DraftingProvider>
+                              <ReviewProvider>
+                                <OutputProvider>
+                                  <SubmissionProvider>
+                                    <StrategyProvider>
+                                      <AppLayout>
+                                        <AppRoutes />
+                                      </AppLayout>
+                                    </StrategyProvider>
+                                  </SubmissionProvider>
+                                </OutputProvider>
+                              </ReviewProvider>
+                            </DraftingProvider>
+                          </IntelligenceProvider>
+                        </ControlProvider>
+                      </ArchitectureProvider>
+                    </VendorProvider>
+                  </EvidenceProvider>
+                </RequirementProvider>
+              </WorkspaceProvider>
+            </DemoModeProvider>
+          </AppBrandingProvider>
         </ProjectWorkspaceProvider>
       </BrowserRouter>
     </SystemConfigGate>

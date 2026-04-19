@@ -1,4 +1,5 @@
 import { useProjectWorkspace } from "@/context/project-workspace-context";
+import { isDemoModeClient } from "@/lib/demo-mode";
 import { isStrictDbModeClient } from "@/lib/strict-client-env";
 
 /**
@@ -6,6 +7,7 @@ import { isStrictDbModeClient } from "@/lib/strict-client-env";
  */
 export function PrivateDeployBanner() {
   const { projectId, error } = useProjectWorkspace();
+  if (isDemoModeClient()) return null;
   if (!isStrictDbModeClient()) return null;
 
   return (

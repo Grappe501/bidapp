@@ -22,6 +22,9 @@
     "check:netlify-prod-env": "tsx scripts/check-netlify-prod-env.ts",
     "typecheck:server": "tsc -p tsconfig.server.json && npm run check:server-aliases",
     "lift:db": "npm run db:migrate && npm run db:seed",
+    "local:postgres": "docker compose up -d",
+    "local:stack": "docker compose up -d && npm run lift:db",
+    "dev:netlify": "npx --yes netlify-cli dev",
     "lift:verify": "npm run check:private-deploy-env && npm run lint && npm run typecheck:server && npm run build",
     "lift": "npm run lift:db && npm run lift:verify",
     "netlify:build": "npx --yes netlify-cli build"

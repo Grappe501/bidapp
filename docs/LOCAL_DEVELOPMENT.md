@@ -9,6 +9,14 @@ Run the app with a real Postgres database, migrations, seed data, and Netlify fu
 - **Netlify CLI** — for `netlify dev` (or use `npx netlify dev` without a global install)
 - **OpenAI API key** — required for AI-backed functions (embed, parse, drafts, Agent Malone, etc.)
 
+## Quick start (bottom up)
+
+1. `cp .env.example .env` and fill `DATABASE_URL`, `OPENAI_API_KEY`, and (after seed) `VITE_DEFAULT_PROJECT_ID` from `npm run db:print-project-id`. For local Docker Postgres, set `DATABASE_URL` and `PGSSLMODE=disable` as in the table below. Set `ALLOWED_ORIGIN=http://localhost:8888` and keep `STRICT_DB_MODE=false` unless you need production parity.
+2. **Start Postgres:** `npm run local:postgres` (or `docker compose up -d` from the repo root). Start **Docker Desktop** first on Windows/macOS.
+3. **Migrate + seed:** `npm run local:stack` (same as `docker compose up -d && npm run db:migrate && npm run db:seed`), or `npm run lift:db` if Postgres is already running.
+4. **Run the app:** `npm run dev:netlify` (runs `npx netlify-cli dev`). Open **http://localhost:8888** — the SPA and Netlify functions share this origin, so `VITE_FUNCTIONS_BASE_URL` can be unset or `http://localhost:8888`.
+5. If you use **`npm run dev`** (Vite on port 5173) **with** Netlify functions in another terminal, leave `VITE_FUNCTIONS_BASE_URL` unset or set it to `http://localhost:8888` and run `netlify dev` there; the app defaults API calls to that URL when the page is on localhost:5173.
+
 ## 1. Clone and install
 
 ```bash
@@ -84,12 +92,14 @@ npm run build
 The UI calls `/.netlify/functions/*`. Use Netlify’s dev server so functions load your `.env`:
 
 ```bash
-npx netlify dev
+npm run dev:netlify
 ```
+
+(or `npx netlify dev`)
 
 Open the URL the CLI prints (usually **http://localhost:8888**). Use that exact origin in `ALLOWED_ORIGIN` and `VITE_FUNCTIONS_BASE_URL`.
 
-**Frontend only** (`npm run dev`, typically port 5173) does **not** load Netlify functions unless you proxy manually — prefer `netlify dev` for full-stack local testing.
+**Frontend only** (`npm run dev`, typically port 5173): the SPA does not serve functions, but the client defaults to calling **`http://localhost:8888`** for `/.netlify/functions/*` — run **`netlify dev`** in another terminal so that port is up. For a single process, prefer **`npm run dev:netlify`**.
 
 ## 7. Strict API key mode (optional)
 

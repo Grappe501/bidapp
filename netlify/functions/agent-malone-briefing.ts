@@ -7,19 +7,19 @@ import {
 } from "../../src/server/netlify/guards";
 import { jsonResponse, readJson } from "../../src/server/netlify/http";
 import { requireProjectId } from "../../src/server/netlify/require-project-id";
-import { askAgentMalone } from "../../src/server/services/bid-intelligence-agent.service";
-import type { AgentMaloneActionRequest } from "../../src/types";
+import { parseBriefingModeParam } from "../../src/server/lib/agent-malone-briefing-intent";
+import { getAgentMaloneBriefing } from "../../src/server/services/agent-malone-briefing.service";
+import type { AgentMaloneBriefingMode } from "../../src/types";
 
 type Body = {
   projectId?: string;
   threadId?: string | null;
-  question?: string;
-  actionRequest?: AgentMaloneActionRequest;
+  mode?: string | null;
   currentPage?: string;
   selectedVendorId?: string | null;
   architectureOptionId?: string | null;
   sectionId?: string | null;
-  persistTurn?: boolean;
+  updateThreadSummary?: boolean;
 };
 
 export const handler: Handler = async (event) => {
@@ -33,26 +33,24 @@ export const handler: Handler = async (event) => {
   const body = readJson<Body>(event.body) ?? {};
   const projectId = requireProjectId(body, event);
   if (typeof projectId !== "string") return projectId;
-  const question = typeof body.question === "string" ? body.question.trim() : "";
-  const actionRequest = body.actionRequest as AgentMaloneActionRequest | undefined;
-  if (!question && !actionRequest) {
-    return jsonResponse(400, { error: "question or actionRequest required" }, event);
-  }
+
+  const mode: AgentMaloneBriefingMode =
+    parseBriefingModeParam(body.mode) ?? "default";
+
   try {
-    const result = await askAgentMalone({
+    const briefing = await getAgentMaloneBriefing({
       projectId,
       threadId: body.threadId ?? null,
-      question: question || undefined,
-      actionRequest,
+      mode,
       currentPage: body.currentPage,
       selectedVendorId: body.selectedVendorId ?? null,
       architectureOptionId: body.architectureOptionId ?? null,
       sectionId: body.sectionId ?? null,
-      persistTurn: body.persistTurn !== false,
+      updateThreadSummary: body.updateThreadSummary !== false,
     });
-    return jsonResponse(200, result, event);
+    return jsonResponse(200, { briefing }, event);
   } catch (e) {
-    logServerError("ask-bid-agent", e);
+    logServerError("agent-malone-briefing", e);
     return internalErrorResponse(event);
   }
 };

@@ -4,6 +4,7 @@ type Props = {
 };
 
 const PROMPTS = [
+  "Brief me on this thread.",
   "Are we ready to submit?",
   "What are the biggest risks in the current bid?",
   "Which vendor is currently preferred and why?",

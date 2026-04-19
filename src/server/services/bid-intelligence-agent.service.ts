@@ -2,11 +2,23 @@ import type {
   AgentMaloneActionRequest,
   AgentMaloneActionResult,
   AgentMaloneAnswer,
+  AgentMaloneBriefing,
+  AgentMaloneThreadSummary,
+  AgentMaloneTurnResponse,
   BidAgentAnswer,
   BidAgentAnswerType,
   BidAgentEvidenceSourceType,
   BidAgentSuggestedActionType,
 } from "../../types";
+import { dbAgentMaloneMemoryToApi } from "../lib/agent-malone-memory-map";
+import { briefingToAgentAnswer } from "../lib/agent-malone-briefing-builder";
+import { parseBriefingIntentFromQuestion } from "../lib/agent-malone-briefing-intent";
+import { applyExplicitUserMemoryCommands } from "../lib/agent-malone-memory-capture";
+import {
+  memoryRowsByKey,
+  resolveArchitectureIdFromPolicy,
+  resolveVendorIdFromPolicy,
+} from "../lib/agent-malone-memory-policy";
 import { executeMaloneAction } from "../lib/agent-malone-actions";
 import { isAllowedMaloneAction } from "../lib/agent-malone-action-registry";
 import { parseMaloneActionIntentFromQuestion } from "../lib/agent-malone-intent";
@@ -16,7 +28,125 @@ import {
   gatherBidAgentContext,
   type BidAgentGatheredContext,
 } from "../lib/bid-agent-toolkit";
+import type { DbAgentMaloneMemory } from "../repositories/agent-malone-memory.repo";
+import {
+  listAgentMaloneMemoryByThread,
+} from "../repositories/agent-malone-memory.repo";
+import {
+  insertAgentMaloneMessage,
+  listRecentAgentMaloneMessages,
+} from "../repositories/agent-malone-message.repo";
+import {
+  getAgentMaloneThreadById,
+  updateAgentMaloneThread,
+  type DbAgentMaloneThread,
+} from "../repositories/agent-malone-thread.repo";
+import { listVendorsByProject } from "../repositories/vendor.repo";
+import { getAgentMaloneBriefing } from "./agent-malone-briefing.service";
+import {
+  buildThreadSummaryLine,
+  ensureAgentMaloneThread,
+  persistActionResultToWorkingMemory,
+  syncPageContextToMemory,
+} from "./agent-malone-thread-workflow.service";
 import { defaultParseModel, getOpenAI } from "./openai-client";
+
+type MaloneCoreInput = {
+  projectId: string;
+  question?: string;
+  actionRequest?: AgentMaloneActionRequest;
+  currentPage?: string;
+  selectedVendorId?: string | null;
+  architectureOptionId?: string | null;
+};
+
+async function tryLoadThreadBundle(input: {
+  projectId: string;
+  threadId?: string | null;
+  question?: string;
+  selectedVendorId?: string | null;
+  architectureOptionId?: string | null;
+  sectionId?: string | null;
+}): Promise<{
+  thread: DbAgentMaloneThread;
+  memory: Map<string, DbAgentMaloneMemory>;
+} | null> {
+  try {
+    const { thread } = await ensureAgentMaloneThread(
+      input.projectId,
+      input.threadId,
+    );
+    await syncPageContextToMemory({
+      projectId: input.projectId,
+      threadId: thread.id,
+      selectedVendorId: input.selectedVendorId,
+      architectureOptionId: input.architectureOptionId,
+      sectionId: input.sectionId,
+    });
+    let t = (await getAgentMaloneThreadById(thread.id)) ?? thread;
+    const q = input.question?.trim() ?? "";
+    if (q) {
+      const vendors = await listVendorsByProject(input.projectId);
+      await applyExplicitUserMemoryCommands({
+        projectId: input.projectId,
+        threadId: t.id,
+        message: q,
+        vendors: vendors.map((v) => ({ id: v.id, name: v.name })),
+      });
+      const refreshed = await getAgentMaloneThreadById(t.id);
+      if (refreshed) t = refreshed;
+    }
+    const rows = await listAgentMaloneMemoryByThread(t.id);
+    return { thread: t, memory: memoryRowsByKey(rows) };
+  } catch {
+    return null;
+  }
+}
+
+async function persistMaloneTurn(input: {
+  projectId: string;
+  threadId: string;
+  userContent: string;
+  executed?: AgentMaloneActionResult;
+  answer: AgentMaloneAnswer;
+  briefing?: AgentMaloneBriefing;
+}): Promise<void> {
+  await insertAgentMaloneMessage({
+    threadId: input.threadId,
+    role: "user",
+    content: input.userContent.slice(0, 12000),
+  });
+  if (input.executed) {
+    await persistActionResultToWorkingMemory({
+      projectId: input.projectId,
+      threadId: input.threadId,
+      actionType: input.executed.actionType,
+      result: input.executed,
+    });
+    await insertAgentMaloneMessage({
+      threadId: input.threadId,
+      role: "action",
+      content: input.executed.headline,
+      structuredPayload: input.executed,
+    });
+  }
+  await insertAgentMaloneMessage({
+    threadId: input.threadId,
+    role: "agent",
+    content: `${input.answer.headline}\n\n${input.answer.shortAnswer}`.slice(0, 16000),
+    structuredPayload: input.briefing
+      ? { briefing: input.briefing, answerType: input.answer.answerType }
+      : {
+          answerType: input.answer.answerType,
+          confidence: input.answer.confidence,
+        },
+  });
+  const t = await getAgentMaloneThreadById(input.threadId);
+  if (t && !input.briefing) {
+    const line = await buildThreadSummaryLine(t);
+    await updateAgentMaloneThread({ id: input.threadId, summaryLine: line });
+  }
+}
 
 const ANSWER_TYPES: BidAgentAnswerType[] = [
   "requirements",
@@ -331,14 +461,16 @@ function buildAnswerFromExecuted(
   };
 }
 
-export async function askAgentMalone(input: {
-  projectId: string;
-  question?: string;
-  actionRequest?: AgentMaloneActionRequest;
-  currentPage?: string;
-  selectedVendorId?: string | null;
-  architectureOptionId?: string | null;
-}): Promise<AgentMaloneAnswer> {
+async function runCoreTurn(
+  input: MaloneCoreInput,
+  threadPrompt?: {
+    threadId: string;
+    threadTitle: string;
+    summaryLine?: string | null;
+    workingMemory: Record<string, string>;
+    recentTurns: { role: string; content: string }[];
+  },
+): Promise<AgentMaloneAnswer> {
   const q = input.question?.trim() ?? "";
   let executed: AgentMaloneActionResult | undefined;
 
@@ -449,6 +581,7 @@ export async function askAgentMalone(input: {
                 summary: executed.summary,
               }
             : undefined,
+          threadPrompt,
         ),
       },
     ],
@@ -463,6 +596,198 @@ export async function askAgentMalone(input: {
   }
 
   return widenToMalone(normalizeAnswer(parsed, ctx), executed);
+}
+
+export async function askAgentMalone(input: {
+  projectId: string;
+  threadId?: string | null;
+  question?: string;
+  actionRequest?: AgentMaloneActionRequest;
+  currentPage?: string;
+  selectedVendorId?: string | null;
+  architectureOptionId?: string | null;
+  sectionId?: string | null;
+  persistTurn?: boolean;
+}): Promise<AgentMaloneTurnResponse> {
+  const q = input.question?.trim() ?? "";
+  const bundle = await tryLoadThreadBundle({
+    projectId: input.projectId,
+    threadId: input.threadId,
+    question: input.question,
+    selectedVendorId: input.selectedVendorId,
+    architectureOptionId: input.architectureOptionId,
+    sectionId: input.sectionId,
+  });
+
+  let core: MaloneCoreInput = {
+    projectId: input.projectId,
+    question: input.question,
+    actionRequest: input.actionRequest,
+    currentPage: input.currentPage,
+    selectedVendorId: input.selectedVendorId ?? null,
+    architectureOptionId: input.architectureOptionId ?? null,
+  };
+
+  let threadPrompt:
+    | {
+        threadId: string;
+        threadTitle: string;
+        summaryLine?: string | null;
+        workingMemory: Record<string, string>;
+        recentTurns: { role: string; content: string }[];
+      }
+    | undefined;
+
+  if (bundle) {
+    const ev = resolveVendorIdFromPolicy({
+      explicitRequest: input.selectedVendorId,
+      pageContext: input.selectedVendorId,
+      thread: bundle.thread,
+      memory: bundle.memory,
+    });
+    const ea = resolveArchitectureIdFromPolicy({
+      explicitRequest: input.architectureOptionId,
+      pageContext: input.architectureOptionId,
+      thread: bundle.thread,
+      memory: bundle.memory,
+    });
+    core = {
+      ...core,
+      selectedVendorId: ev,
+      architectureOptionId: ea,
+    };
+
+    const rows = await listAgentMaloneMemoryByThread(bundle.thread.id);
+    const wm: Record<string, string> = {};
+    for (const r of rows) {
+      wm[r.memoryKey] = r.memoryValue;
+    }
+    const recent = await listRecentAgentMaloneMessages(bundle.thread.id, 6);
+    threadPrompt = {
+      threadId: bundle.thread.id,
+      threadTitle: bundle.thread.title,
+      summaryLine: bundle.thread.summaryLine,
+      workingMemory: wm,
+      recentTurns: recent.map((m) => ({
+        role: m.role,
+        content: m.content.slice(0, 1200),
+      })),
+    };
+  }
+
+  const briefingMode =
+    q.length > 0 && !input.actionRequest
+      ? parseBriefingIntentFromQuestion(q)
+      : null;
+
+  if (briefingMode && bundle) {
+    const briefing = await getAgentMaloneBriefing({
+      projectId: input.projectId,
+      threadId: bundle.thread.id,
+      mode: briefingMode,
+      currentPage: input.currentPage,
+      selectedVendorId: input.selectedVendorId,
+      architectureOptionId: input.architectureOptionId,
+      sectionId: input.sectionId,
+      updateThreadSummary: true,
+    });
+    const answer = briefingToAgentAnswer(briefing);
+    const shouldPersist =
+      input.persistTurn !== false && (q.length > 0 || Boolean(input.actionRequest));
+    if (shouldPersist) {
+      try {
+        await persistMaloneTurn({
+          projectId: input.projectId,
+          threadId: bundle.thread.id,
+          userContent: q,
+          answer,
+          briefing,
+        });
+      } catch {
+        /* best-effort */
+      }
+    }
+    const threadAfter =
+      (await getAgentMaloneThreadById(bundle.thread.id)) ?? bundle.thread;
+    const rowsOut = await listAgentMaloneMemoryByThread(bundle.thread.id);
+    const threadSummary: AgentMaloneThreadSummary = {
+      threadId: bundle.thread.id,
+      projectId: input.projectId,
+      title: threadAfter.title,
+      currentFocus: threadAfter.currentFocus ?? undefined,
+      currentVendorId: threadAfter.currentVendorId ?? undefined,
+      currentArchitectureOptionId:
+        threadAfter.currentArchitectureOptionId ?? undefined,
+      lastUserQuestion: q || undefined,
+      lastAgentHeadline: answer.headline,
+      summaryLine: threadAfter.summaryLine ?? undefined,
+      updatedAt: threadAfter.updatedAt,
+    };
+    return {
+      ...answer,
+      threadId: bundle.thread.id,
+      threadSummary,
+      workingMemorySnapshot: rowsOut.map(dbAgentMaloneMemoryToApi),
+      briefing,
+    };
+  }
+
+  const answer = await runCoreTurn(core, threadPrompt);
+
+  const shouldPersist =
+    bundle &&
+    input.persistTurn !== false &&
+    (q.length > 0 || Boolean(input.actionRequest));
+
+  if (shouldPersist) {
+    const userContent =
+      q ||
+      (input.actionRequest
+        ? `[Action] ${input.actionRequest.actionType}`
+        : "");
+    try {
+      await persistMaloneTurn({
+        projectId: input.projectId,
+        threadId: bundle.thread.id,
+        userContent,
+        executed: answer.executedAction,
+        answer,
+      });
+    } catch {
+      /* persistence is best-effort */
+    }
+  }
+
+  const threadAfter = bundle
+    ? (await getAgentMaloneThreadById(bundle.thread.id)) ?? bundle.thread
+    : null;
+
+  const rowsOut = bundle
+    ? await listAgentMaloneMemoryByThread(bundle.thread.id)
+    : [];
+
+  const threadSummary: AgentMaloneThreadSummary | undefined = bundle
+    ? {
+        threadId: bundle.thread.id,
+        projectId: input.projectId,
+        title: threadAfter?.title ?? bundle.thread.title,
+        currentFocus: threadAfter?.currentFocus ?? undefined,
+        currentVendorId: threadAfter?.currentVendorId ?? undefined,
+        currentArchitectureOptionId:
+          threadAfter?.currentArchitectureOptionId ?? undefined,
+        lastUserQuestion: q || undefined,
+        lastAgentHeadline: answer.headline,
+        summaryLine: threadAfter?.summaryLine ?? undefined,
+        updatedAt: threadAfter?.updatedAt ?? bundle.thread.updatedAt,
+      }
+    : undefined;
+
+  return {
+    ...answer,
+    threadId: bundle?.thread.id,
+    threadSummary,
+    workingMemorySnapshot: bundle ? rowsOut.map(dbAgentMaloneMemoryToApi) : undefined,
+  };
 }
 
 /** @deprecated Use askAgentMalone — same implementation. */

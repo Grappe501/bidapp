@@ -1,6 +1,10 @@
 import type {
   AgentMaloneActionRequest,
-  AgentMaloneAnswer,
+  AgentMaloneBriefing,
+  AgentMaloneBriefingMode,
+  AgentMaloneThread,
+  AgentMaloneTurnResponse,
+  AgentMaloneWorkingMemory,
   ArchitectureOption,
   CompanyProfile,
   DraftMetadata,
@@ -205,13 +209,50 @@ export async function postCompetitorSimulation(input: {
 
 export async function postAskBidAgent(input: {
   projectId: string;
+  threadId?: string | null;
   question?: string;
   actionRequest?: AgentMaloneActionRequest;
   currentPage?: string;
   selectedVendorId?: string | null;
   architectureOptionId?: string | null;
-}): Promise<AgentMaloneAnswer> {
-  return postFunctionJson<AgentMaloneAnswer>("ask-bid-agent", input);
+  sectionId?: string | null;
+  persistTurn?: boolean;
+}): Promise<AgentMaloneTurnResponse> {
+  return postFunctionJson<AgentMaloneTurnResponse>("ask-bid-agent", input);
+}
+
+export async function postAgentMaloneBriefing(input: {
+  projectId: string;
+  threadId?: string | null;
+  mode?: AgentMaloneBriefingMode;
+  currentPage?: string;
+  selectedVendorId?: string | null;
+  architectureOptionId?: string | null;
+  sectionId?: string | null;
+  updateThreadSummary?: boolean;
+}): Promise<{ briefing: AgentMaloneBriefing }> {
+  return postFunctionJson<{ briefing: AgentMaloneBriefing }>(
+    "agent-malone-briefing",
+    input,
+  );
+}
+
+export async function postAgentMaloneThreads(input: {
+  projectId: string;
+  action: "list" | "create" | "get" | "update" | "archive" | "clear_memory";
+  threadId?: string;
+  title?: string;
+  currentVendorId?: string | null;
+  currentArchitectureOptionId?: string | null;
+  currentSectionId?: string | null;
+  currentFocus?: string | null;
+}): Promise<{
+  threads?: AgentMaloneThread[];
+  thread?: AgentMaloneThread;
+  workingMemory?: AgentMaloneWorkingMemory[];
+  ok?: boolean;
+}> {
+  return postFunctionJson("agent-malone-threads", input);
 }
 
 export async function postIngestUrl(input: {

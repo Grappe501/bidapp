@@ -1144,6 +1144,137 @@ export type AgentMaloneAnswer = Omit<BidAgentAnswer, "suggestedActions"> & {
   executedAction?: AgentMaloneActionResult;
 };
 
+export type AgentMaloneThreadStatus = "active" | "archived";
+
+/** Project-scoped conversation thread (persisted). */
+export type AgentMaloneThread = {
+  id: string;
+  projectId: string;
+  title: string;
+  status: AgentMaloneThreadStatus;
+  currentVendorId?: string;
+  currentArchitectureOptionId?: string;
+  currentSectionId?: string;
+  currentFocus?: string;
+  summaryLine?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AgentMaloneMessageRole = "user" | "agent" | "system" | "action";
+
+export type AgentMaloneMessage = {
+  id: string;
+  threadId: string;
+  role: AgentMaloneMessageRole;
+  content: string;
+  structuredPayload?: unknown;
+  createdAt: string;
+};
+
+export type AgentMaloneMemoryKey =
+  | "current_vendor"
+  | "current_architecture"
+  | "current_section"
+  | "current_focus"
+  | "current_readiness_blocker"
+  | "current_decision"
+  | "last_action"
+  | "last_action_result"
+  | "open_follow_up"
+  | "open_risk"
+  | "selected_bundle_type";
+
+export type AgentMaloneWorkingMemory = {
+  id: string;
+  threadId: string;
+  projectId: string;
+  memoryKey: AgentMaloneMemoryKey;
+  memoryValue: string;
+  confidence?: "high" | "medium" | "low";
+  source: "explicit_user" | "page_context" | "agent_inferred" | "action_result";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AgentMaloneThreadSummary = {
+  threadId: string;
+  projectId: string;
+  title: string;
+  currentFocus?: string;
+  currentVendorId?: string;
+  currentArchitectureOptionId?: string;
+  lastUserQuestion?: string;
+  lastAgentHeadline?: string;
+  summaryLine?: string;
+  updatedAt: string;
+};
+
+/** Agent Malone — operational briefing over live bid state (not generic chat summary). */
+export type AgentMaloneBriefingMode =
+  | "default"
+  | "executive"
+  | "strategy"
+  | "vendor"
+  | "readiness"
+  | "drafting"
+  | "pricing"
+  | "comparison";
+
+export type AgentMaloneBriefingRecommendationConfidence =
+  | "high"
+  | "medium"
+  | "low"
+  | "provisional";
+
+export type AgentMaloneBriefing = {
+  projectId: string;
+  threadId?: string;
+  mode: AgentMaloneBriefingMode;
+  headline: string;
+  summary: string;
+  currentFocus?: string;
+  currentVendorId?: string;
+  currentArchitectureOptionId?: string;
+  currentSectionId?: string;
+  recommendation?: {
+    label: string;
+    confidence: AgentMaloneBriefingRecommendationConfidence;
+    rationale: string;
+  };
+  readiness?: {
+    overallState: FinalReadinessOverallState;
+    keyBlockers: string[];
+    keyWarnings: string[];
+  };
+  topRisks: string[];
+  topWeaknesses: string[];
+  strongestSignals: string[];
+  recentChanges: string[];
+  openFollowUps: string[];
+  nextActions: Array<{
+    label: string;
+    actionType: string;
+    target?: string;
+  }>;
+  confidence: "high" | "medium" | "low";
+  evidence: Array<{
+    label: string;
+    sourceType: BidAgentEvidenceSourceType | string;
+    pageRoute?: string;
+  }>;
+  generatedAt: string;
+};
+
+/** API response: answer plus optional thread + memory snapshot for UI. */
+export type AgentMaloneTurnResponse = AgentMaloneAnswer & {
+  threadId?: string;
+  threadSummary?: AgentMaloneThreadSummary;
+  workingMemorySnapshot?: AgentMaloneWorkingMemory[];
+  /** Present when the turn was a structured briefing (chat or standalone). */
+  briefing?: AgentMaloneBriefing;
+};
+
 export type GroundingBundlePayload = {
   bundleType: GroundingBundleType;
   title: string;

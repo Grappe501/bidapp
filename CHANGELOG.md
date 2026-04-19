@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.12.4 — 2026-04-18
+
+- **Agent Malone Briefing Mode:** structured `AgentMaloneBriefing` from live `gatherBidAgentContext` + thread memory + recent action messages; modes (default, executive, strategy, vendor, readiness, drafting, pricing, comparison); landing **Operational briefing** panel with refresh; chat phrases route to briefing via `parseBriefingIntentFromQuestion`; **`POST agent-malone-briefing`** Netlify function; thread `summary_line` updated from briefing headline; quick prompt “Brief me on this thread.”
+
+## v0.12.3 — 2026-04-18
+
+- **Agent Malone V3 — project memory & threads:** Postgres tables `agent_malone_threads`, `agent_malone_messages`, `agent_malone_memory` (migration `015_agent_malone_threads.sql`); **`ask-bid-agent`** accepts **`threadId`**, **`sectionId`**, persists turns and working memory; **`agent-malone-threads`** function for list/create/get/update/archive/clear_memory; UI thread sidebar, context chips, working memory panel on **`/agent`**; bounded operational memory (explicit, page, action, low-confidence inference) with policy order in **`agent-malone-memory-policy.ts`**
+
 ## v0.12.2 — 2026-04-19
 
 - **Agent Malone** (`/agent`, nav **Agent Malone**): V2 operational agent — bounded **`AgentMaloneActionRequest`** / **`AgentMaloneActionResult`** / **`AgentMaloneAnswer`**; registry + **`executeMaloneAction`** wrappers over grounding bundles, vendor intelligence jobs, competitor simulation, decision synthesis, narrative/readiness snapshots, strategy & interview-prep recipes; intent patterns for chat-triggered actions; quick-action buttons; workflow result cards in-thread. **`ask-bid-agent`** accepts `question` and/or **`actionRequest`**

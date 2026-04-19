@@ -22,6 +22,13 @@ export function buildBidAgentUserPrompt(
     headline: string;
     summary: string;
   },
+  threadWorkingContext?: {
+    threadId: string;
+    threadTitle: string;
+    summaryLine?: string | null;
+    workingMemory: Record<string, string>;
+    recentTurns: { role: string; content: string }[];
+  },
 ): string {
   const payload = {
     question,
@@ -29,6 +36,7 @@ export function buildBidAgentUserPrompt(
     domains,
     context: ctx,
     executedAction: executedAction ?? null,
+    threadWorkingContext: threadWorkingContext ?? null,
   };
   let json = JSON.stringify(payload, null, 0);
   const max = 28000;

@@ -42,6 +42,19 @@ import {
   extractDomainFromUrl,
   normalizeVendorWebsiteUrl,
 } from "../../src/server/lib/vendor-site-url";
+import {
+  listVendorClaimValidationPublic,
+  patchVendorClaimValidationRecord,
+  runVendorClaimValidation,
+} from "../../src/server/services/vendor-claim-validation.service";
+import {
+  listVendorFailureSimulationForApi,
+  runVendorFailureSimulation,
+} from "../../src/server/services/vendor-failure-mode.service";
+import {
+  listVendorRoleFitForApi,
+  runVendorRoleFitAnalysis,
+} from "../../src/server/services/vendor-role-fit.service";
 
 type Body = {
   action?:
@@ -60,10 +73,18 @@ type Body = {
     | "updateVendorWebsite"
     | "runVendorWebsiteResearch"
     | "ingestVendorManualUrl"
-    | "getVendorWebsiteStatus";
+    | "getVendorWebsiteStatus"
+    | "runClaimValidation"
+    | "listClaimValidations"
+    | "patchClaimValidation"
+    | "runFailureSimulation"
+    | "listFailureModes"
+    | "runRoleFitAnalysis"
+    | "listRoleFit";
   projectId?: string;
   vendorId?: string;
   questionId?: string;
+  validationId?: string;
   patch?: Record<string, unknown>;
   answer?: Record<string, unknown>;
   websiteUrl?: string;
@@ -71,6 +92,7 @@ type Body = {
   maxPages?: number;
   maxDepth?: number;
   forceRecrawl?: boolean;
+  architectureOptionId?: string | null;
 };
 
 export const handler: Handler = async (event) => {
@@ -238,6 +260,87 @@ export const handler: Handler = async (event) => {
       });
       const v = await getVendorById(vendorId);
       return jsonResponse(200, { ...result, vendor: v }, event);
+    }
+
+    if (action === "runClaimValidation") {
+      const result = await runVendorClaimValidation({
+        projectId,
+        vendorId,
+      });
+      return jsonResponse(200, result, event);
+    }
+
+    if (action === "listClaimValidations") {
+      const rows = await listVendorClaimValidationPublic(vendorId);
+      return jsonResponse(200, { validations: rows }, event);
+    }
+
+    if (action === "runFailureSimulation") {
+      const archRaw = body.architectureOptionId;
+      const architectureOptionId =
+        archRaw === null || archRaw === undefined
+          ? null
+          : String(archRaw).trim() || null;
+      const summary = await runVendorFailureSimulation({
+        projectId,
+        vendorId,
+        architectureOptionId,
+      });
+      return jsonResponse(200, { summary }, event);
+    }
+
+    if (action === "listFailureModes") {
+      const data = await listVendorFailureSimulationForApi({
+        projectId,
+        vendorId,
+      });
+      return jsonResponse(200, data, event);
+    }
+
+    if (action === "runRoleFitAnalysis") {
+      const archRaw = body.architectureOptionId;
+      const architectureOptionId =
+        archRaw === null || archRaw === undefined
+          ? null
+          : String(archRaw).trim() || null;
+      const result = await runVendorRoleFitAnalysis({
+        projectId,
+        vendorId,
+        architectureOptionId,
+      });
+      return jsonResponse(200, { summary: result.summary, roles: result.roles }, event);
+    }
+
+    if (action === "listRoleFit") {
+      const data = await listVendorRoleFitForApi({
+        projectId,
+        vendorId,
+      });
+      return jsonResponse(200, data, event);
+    }
+
+    if (action === "patchClaimValidation") {
+      const vid = body.validationId?.trim() ?? "";
+      if (!vid) {
+        return jsonResponse(400, { error: "validationId required" }, event);
+      }
+      const p = body.patch ?? {};
+      await patchVendorClaimValidationRecord({
+        vendorId,
+        validationId: vid,
+        claimText: typeof p.claimText === "string" ? p.claimText : undefined,
+        claimTextLocked: typeof p.claimTextLocked === "boolean" ? p.claimTextLocked : undefined,
+        humanNote: typeof p.humanNote === "string" ? p.humanNote : undefined,
+        isCritical: typeof p.isCritical === "boolean" ? p.isCritical : undefined,
+        supportLevelOverride:
+          p.supportLevelOverride === null
+            ? null
+            : typeof p.supportLevelOverride === "string"
+              ? p.supportLevelOverride
+              : undefined,
+      });
+      const rows = await listVendorClaimValidationPublic(vendorId);
+      return jsonResponse(200, { ok: true, validations: rows }, event);
     }
 
     if (action === "ingestVendorManualUrl") {

@@ -465,3 +465,128 @@ CREATE TABLE IF NOT EXISTS draft_versions (
 );
 CREATE INDEX IF NOT EXISTS idx_draft_versions_section_id ON draft_versions (section_id);
 CREATE INDEX IF NOT EXISTS idx_draft_versions_grounding_bundle_id ON draft_versions (grounding_bundle_id);
+
+-- Claim validation (see migrations/012_vendor_claim_validation.sql)
+CREATE TABLE IF NOT EXISTS vendor_claim_validations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id uuid NOT NULL REFERENCES vendors (id) ON DELETE CASCADE,
+  normalized_claim_key text NOT NULL,
+  machine_claim_text text NOT NULL DEFAULT '',
+  claim_text text NOT NULL,
+  claim_text_locked boolean NOT NULL DEFAULT false,
+  claim_category text NOT NULL DEFAULT 'other',
+  claim_source_type text NOT NULL DEFAULT 'derived',
+  support_level text NOT NULL DEFAULT 'none',
+  contradiction_status text NOT NULL DEFAULT 'none',
+  confidence text NOT NULL DEFAULT 'low',
+  needs_follow_up boolean NOT NULL DEFAULT false,
+  follow_up_reason text,
+  scoring_impact text NOT NULL DEFAULT 'neutral',
+  rationale text NOT NULL DEFAULT '',
+  machine_rationale text NOT NULL DEFAULT '',
+  human_note text NOT NULL DEFAULT '',
+  is_critical boolean NOT NULL DEFAULT false,
+  support_level_override text,
+  evidence_source_ids jsonb NOT NULL DEFAULT '[]',
+  supporting_fact_ids jsonb NOT NULL DEFAULT '[]',
+  contradicting_fact_ids jsonb NOT NULL DEFAULT '[]',
+  originating_vendor_claim_id uuid REFERENCES vendor_claims (id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (vendor_id, normalized_claim_key)
+);
+CREATE INDEX IF NOT EXISTS idx_vendor_claim_validations_vendor_id ON vendor_claim_validations (vendor_id);
+CREATE TABLE IF NOT EXISTS vendor_claim_validation_evidence (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  validation_id uuid NOT NULL REFERENCES vendor_claim_validations (id) ON DELETE CASCADE,
+  source_id uuid REFERENCES intelligence_sources (id) ON DELETE SET NULL,
+  fact_id uuid NULL REFERENCES intelligence_facts (id) ON DELETE CASCADE,
+  relation_type text NOT NULL CHECK (relation_type IN ('support', 'contradict')),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_vendor_claim_validation_evidence_validation_id ON vendor_claim_validation_evidence (validation_id);
+
+-- Failure mode simulator (see migrations/013_vendor_failure_modes.sql)
+CREATE TABLE IF NOT EXISTS vendor_failure_modes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  project_id uuid NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+  vendor_id uuid NOT NULL REFERENCES vendors (id) ON DELETE CASCADE,
+  architecture_option_id uuid NULL REFERENCES architecture_options (id) ON DELETE SET NULL,
+  scenario_key text NOT NULL,
+  category text NOT NULL,
+  title text NOT NULL,
+  description text NOT NULL DEFAULT '',
+  likelihood text NOT NULL,
+  impact text NOT NULL,
+  recoverability text NOT NULL,
+  time_to_recover_estimate text,
+  vendor_preparedness text NOT NULL,
+  evidence_strength text NOT NULL,
+  rationale text NOT NULL DEFAULT '',
+  scoring_solution_impact smallint NOT NULL DEFAULT 0,
+  scoring_risk_impact smallint NOT NULL DEFAULT 0,
+  scoring_interview_impact smallint NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (project_id, vendor_id, scenario_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_failure_modes_vendor ON vendor_failure_modes (vendor_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_failure_modes_project ON vendor_failure_modes (project_id);
+
+CREATE TABLE IF NOT EXISTS vendor_failure_mode_details (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  failure_mode_id uuid NOT NULL REFERENCES vendor_failure_modes (id) ON DELETE CASCADE,
+  detail_type text NOT NULL CHECK (
+    detail_type IN ('trigger', 'mitigation', 'unknown', 'source_link')
+  ),
+  detail_text text NOT NULL DEFAULT '',
+  source_id uuid REFERENCES intelligence_sources (id) ON DELETE SET NULL,
+  fact_id uuid NULL REFERENCES intelligence_facts (id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_failure_mode_details_mode ON vendor_failure_mode_details (failure_mode_id);
+
+-- Vendor role fit (see migrations/014_vendor_role_fit.sql)
+CREATE TABLE IF NOT EXISTS vendor_role_fit (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  project_id uuid NOT NULL REFERENCES projects (id) ON DELETE CASCADE,
+  vendor_id uuid NOT NULL REFERENCES vendors (id) ON DELETE CASCADE,
+  architecture_option_id uuid NULL REFERENCES architecture_options (id) ON DELETE SET NULL,
+  role_key text NOT NULL,
+  ownership_recommendation text NOT NULL,
+  confidence text NOT NULL,
+  fit_level text NOT NULL,
+  evidence_strength text NOT NULL,
+  malone_dependency_level text NOT NULL,
+  handoff_complexity text NOT NULL,
+  overlap_risk text NOT NULL,
+  gap_risk text NOT NULL,
+  rationale text NOT NULL DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (project_id, vendor_id, role_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_role_fit_vendor ON vendor_role_fit (vendor_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_role_fit_project ON vendor_role_fit (project_id);
+
+CREATE TABLE IF NOT EXISTS vendor_role_fit_details (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid (),
+  role_fit_id uuid NOT NULL REFERENCES vendor_role_fit (id) ON DELETE CASCADE,
+  detail_type text NOT NULL CHECK (
+    detail_type IN (
+      'strength',
+      'weakness',
+      'malone_responsibility',
+      'unresolved_question'
+    )
+  ),
+  detail_text text NOT NULL DEFAULT '',
+  source_id uuid REFERENCES intelligence_sources (id) ON DELETE SET NULL,
+  fact_id uuid NULL REFERENCES intelligence_facts (id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_role_fit_details_role ON vendor_role_fit_details (role_fit_id);

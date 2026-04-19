@@ -14,6 +14,9 @@ import type {
   RedactionPackagingSummary,
   ReviewIssue,
   TechnicalProposalPacketCompliance,
+  NarrativeAlignmentResult,
+  StrategicNarrativeSpine,
+  VendorDecisionSynthesis,
 } from "@/types";
 import type { SubmissionPackageSummaryStats } from "@/lib/output-utils";
 
@@ -30,6 +33,12 @@ export type OutputContextValue = {
   evaluatorSimulation: EvaluatorSimulationResult;
   /** Latest competitor-aware simulation for this project (UI + readiness gate). */
   competitorAwareSimulation: CompetitorAwareSimulationResult | null;
+  /** Unified recommendation narrative (derived from competitor sim + layers). */
+  vendorDecisionSynthesis: VendorDecisionSynthesis | null;
+  /** Canonical strategic spine for this bid (aligned to decision synthesis). */
+  strategicNarrativeSpine: StrategicNarrativeSpine;
+  /** Cross-section narrative coherence vs spine. */
+  narrativeAlignmentResult: NarrativeAlignmentResult;
   finalReadinessGate: FinalReadinessGate;
   technicalProposalPacketCompliance: TechnicalProposalPacketCompliance;
   arbuySolicitationCompliance: ArbuySolicitationCompliance | null;

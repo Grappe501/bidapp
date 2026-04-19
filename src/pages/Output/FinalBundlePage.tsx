@@ -5,6 +5,7 @@ import { FinalBlockerList } from "@/components/output/FinalBlockerList";
 import { FinalReadinessActionPanel } from "@/components/output/FinalReadinessActionPanel";
 import { FinalReadinessGateCard } from "@/components/output/FinalReadinessGateCard";
 import { FinalReadinessSummaryStrip } from "@/components/output/FinalReadinessSummaryStrip";
+import { NarrativeAlignmentSummary } from "@/components/output/NarrativeAlignmentSummary";
 import { OutputSubNav } from "@/components/output/OutputSubNav";
 import { SubmitBlockerMatrix } from "@/components/output/SubmitBlockerMatrix";
 import { ArbuySolicitationStatus } from "@/components/output/ArbuySolicitationStatus";
@@ -31,6 +32,7 @@ export function FinalBundlePage() {
     finalReadinessGate,
     technicalProposalPacketCompliance,
     arbuySolicitationCompliance,
+    narrativeAlignmentResult,
   } = useOutput();
 
   const blockers = useMemo(
@@ -90,6 +92,8 @@ export function FinalBundlePage() {
         </header>
 
         <FinalReadinessGateCard gate={finalReadinessGate} />
+
+        <NarrativeAlignmentSummary result={narrativeAlignmentResult} />
 
         <TechnicalProposalPacketStatus compliance={technicalProposalPacketCompliance} />
 

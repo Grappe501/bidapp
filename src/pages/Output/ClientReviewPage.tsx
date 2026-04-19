@@ -11,6 +11,9 @@ import { ClientEvaluatorBrief } from "@/components/output/ClientEvaluatorBrief";
 import { TechnicalProposalPacketStatus } from "@/components/output/TechnicalProposalPacketStatus";
 import { WhyWinsCard } from "@/components/output/WhyWinsCard";
 import { ClientRiskSnapshot } from "@/components/output/ClientRiskSnapshot";
+import { NarrativeAlignmentSummary } from "@/components/output/NarrativeAlignmentSummary";
+import { DecisionRiskSummary } from "@/components/output/DecisionRiskSummary";
+import { DecisionSummaryCard } from "@/components/output/DecisionSummaryCard";
 import { ClientCompetitorSummarySection } from "@/components/vendors/ClientCompetitorSummarySection";
 import { ClientVendorIntelligenceSection } from "@/components/vendors/ClientVendorIntelligenceSection";
 import { OutputSubNav } from "@/components/output/OutputSubNav";
@@ -39,6 +42,8 @@ export function ClientReviewPage() {
     evaluatorSimulation,
     technicalProposalPacketCompliance,
     competitorAwareSimulation,
+    vendorDecisionSynthesis,
+    narrativeAlignmentResult,
   } = useOutput();
   const { options } = useArchitecture();
   const { submissionItems } = useControl();
@@ -117,6 +122,14 @@ export function ClientReviewPage() {
       }),
     [project, readiness, recommended, vendorStrategyLine, watchouts, nextActions],
   );
+
+  const vendorNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const e of competitorAwareSimulation?.entries ?? []) {
+      m[e.vendorId] = e.vendorName;
+    }
+    return m;
+  }, [competitorAwareSimulation]);
 
   const packetSummaryText = useMemo(
     () =>
@@ -228,7 +241,17 @@ export function ClientReviewPage() {
 
         <WhyWinsCard bidNumber={project.bidNumber} />
 
+        <NarrativeAlignmentSummary result={narrativeAlignmentResult} compact />
+
         <ClientVendorIntelligenceSection />
+
+        <DecisionSummaryCard
+          synthesis={vendorDecisionSynthesis}
+          vendorNameById={vendorNameById}
+        />
+        {vendorDecisionSynthesis ? (
+          <DecisionRiskSummary synthesis={vendorDecisionSynthesis} />
+        ) : null}
 
         <ClientCompetitorSummarySection />
 

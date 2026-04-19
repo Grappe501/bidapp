@@ -46,3 +46,29 @@ export type PricingHealthStatus = {
   contractCompliant: boolean;
   ready: boolean;
 };
+
+/** Heuristic pricing believability vs scope, role-fit, and Malone workload — not a quote audit. */
+export type VendorPricingReality = {
+  vendorId: string;
+  projectId: string;
+  completeness: "complete" | "partial" | "incomplete";
+  consistency: "consistent" | "minor_issues" | "inconsistent";
+  pricingLevel: "low" | "market" | "high";
+  pricingConfidence: "high" | "medium" | "low";
+  underpricingRisk: "low" | "medium" | "high";
+  overpricingRisk: "low" | "medium" | "high";
+  hiddenCostRisk: "low" | "medium" | "high";
+  volatilityRisk: "low" | "medium" | "high";
+  maloneUnpricedDependency: "low" | "medium" | "high";
+  roleAlignment: "aligned" | "partial" | "misaligned";
+  keyFindings: string[];
+  riskDrivers: string[];
+  missingPricingAreas: string[];
+  likelyFutureCostZones: string[];
+  scoringImpact: {
+    solutionImpact: number;
+    riskImpact: number;
+    interviewImpact: number;
+  };
+  rationale: string;
+};

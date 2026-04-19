@@ -137,6 +137,68 @@ export function ClientVendorIntelligenceSection() {
                 </p>
               </div>
             </div>
+            {v.pricingReality ? (
+              <div className="mt-3 rounded-md border border-dashed border-border bg-white/80 p-2">
+                <p className="text-[10px] font-medium uppercase text-ink-subtle">
+                  Pricing reality
+                </p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  Workbook vs role:{" "}
+                  <span className="font-medium capitalize text-ink">
+                    {v.pricingReality.completeness}
+                  </span>{" "}
+                  completeness,{" "}
+                  <span className="font-medium capitalize text-ink">
+                    {v.pricingReality.roleAlignment}
+                  </span>{" "}
+                  alignment — hidden-cost {v.pricingReality.hiddenCostRisk}, Malone unpriced{" "}
+                  {v.pricingReality.maloneUnpricedDependency}. Avoid low-price bragging without scope
+                  proof.
+                </p>
+              </div>
+            ) : null}
+            {v.roleFit ? (
+              <div className="mt-3 rounded-md border border-dashed border-slate-200 bg-slate-50/60 p-2">
+                <p className="text-[10px] font-medium uppercase text-ink-subtle">
+                  Role fit (vendor vs Malone)
+                </p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  Strategy:{" "}
+                  <span className="font-medium capitalize text-ink">
+                    {v.roleFit.summary.roleStrategyAssessment.replace(/_/g, " ")}
+                  </span>
+                  {" — "}
+                  {v.roleFit.summary.strongOwnRoles.length} strong own role(s);{" "}
+                  {v.roleFit.summary.avoidRoles.length} avoid;{" "}
+                  {v.roleFit.summary.highestDependencyRoles.length} high Malone-dependency role(s).
+                  Name RACI in Solution/Risk — do not imply seamless vendor-only coverage.
+                </p>
+              </div>
+            ) : null}
+            {v.failureSimulation ? (
+              <div className="mt-3 rounded-md border border-dashed border-border bg-white/80 p-2">
+                <p className="text-[10px] font-medium uppercase text-ink-subtle">
+                  Failure simulation (heuristic)
+                </p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  Resilience:{" "}
+                  <span className="font-medium capitalize text-ink">
+                    {v.failureSimulation.summary.overallResilience.replace(/_/g, " ")}
+                  </span>
+                  {" — "}
+                  {v.failureSimulation.summary.scenarioCount} scenarios modeled; critical-impact{" "}
+                  {v.failureSimulation.summary.criticalScenarioCount}. Ground Risk / Solution
+                  drafting on top modes and Malone dependency, not on vendor marketing alone.
+                </p>
+                {v.failureSimulation.summary.decisionWarnings.length > 0 ? (
+                  <ul className="mt-1 list-inside list-disc text-[11px] text-amber-950/90">
+                    {v.failureSimulation.summary.decisionWarnings.slice(0, 3).map((w, i) => (
+                      <li key={i}>{w}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>

@@ -16,10 +16,12 @@ import {
   replaceVendorInterviewQuestionsFull,
   type InterviewQuestionInsertRow,
 } from "../repositories/vendor-interview.repo";
+import { listVendorClaimValidations } from "../repositories/vendor-claim-validation.repo";
 import {
   getVendorById,
   listVendorClaimsByVendorId,
 } from "../repositories/vendor.repo";
+import { effectiveSupportLevelFromRow } from "./vendor-claim-validation-merge.service";
 
 function fillTemplate(t: string, vars: Record<string, string>): string {
   let s = t;
@@ -169,6 +171,39 @@ export async function generateVendorInterviewQuestions(
         sortOrder: sortOrder++,
       });
     }
+  }
+
+  const claimVals = await listVendorClaimValidations(vendorId);
+  let claimFollowUps = 0;
+  for (const val of claimVals) {
+    if (claimFollowUps >= 8) break;
+    const eff = effectiveSupportLevelFromRow(val);
+    const hot =
+      ["integration", "delivery", "compliance", "clinical"].includes(
+        String(val.claimCategory),
+      ) || val.isCritical;
+    if (
+      !hot ||
+      (eff !== "weak" &&
+        eff !== "none" &&
+        val.contradictionStatus === "none")
+    ) {
+      continue;
+    }
+    claimFollowUps++;
+    rows.push({
+      question: `${vendor.name}: claim validation flags "${val.normalizedClaimKey}" (${eff} support${val.contradictionStatus !== "none" ? `, ${val.contradictionStatus} contradiction` : ""}). Walk through concrete evidence — live deployment, interface method, and owners — and reconcile any contradicting facts.`,
+      category: "truth_test",
+      priority: "P1",
+      linkedGapId: null,
+      whyItMatters: "Proposal-critical claims must be defensible; weak or contradicted claims inflate scoring risk.",
+      riskIfUnanswered: "Evaluator may treat Solution/Risk language as marketing unless verified.",
+      linkedRequirementKeys: [],
+      linkedFitDimensionKeys: [],
+      linkedGapKeys: [val.normalizedClaimKey],
+      answerStatus: "unanswered",
+      sortOrder: sortOrder++,
+    });
   }
 
   rows.sort((a, b) => {

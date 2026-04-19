@@ -215,6 +215,59 @@ export function VendorComparePage() {
                   {sim.entries.map((e) => (
                     <Card key={e.vendorId} className="space-y-2 p-4">
                       <h3 className="text-sm font-semibold text-ink">{e.vendorName}</h3>
+                      {e.pricingReality ? (
+                        <div className="rounded-md border border-dashed border-emerald-200/60 bg-emerald-50/40 p-2 text-[11px] text-ink-muted">
+                          <p className="font-medium text-ink">
+                            Pricing reality: {e.pricingReality.completeness} · hidden-cost{" "}
+                            {e.pricingReality.hiddenCostRisk} · Malone unpriced{" "}
+                            {e.pricingReality.maloneUnpricedDependency}
+                          </p>
+                        </div>
+                      ) : null}
+                      {e.roleFitSummary ? (
+                        <div className="rounded-md border border-dashed border-slate-200 bg-slate-50/50 p-2 text-[11px] text-ink-muted">
+                          <p className="font-medium text-ink">
+                            Role fit:{" "}
+                            <span className="capitalize">
+                              {e.roleFitSummary.roleStrategyAssessment.replace(/_/g, " ")}
+                            </span>
+                          </p>
+                          <p className="mt-1">
+                            Strong own {e.roleFitSummary.strongOwnRoles.length} · Avoid{" "}
+                            {e.roleFitSummary.avoidRoles.length} · High Malone-dep roles{" "}
+                            {e.roleFitSummary.highestDependencyRoles.length}
+                          </p>
+                        </div>
+                      ) : null}
+                      {e.failureResilienceSummary ? (
+                        <div className="rounded-md border border-dashed border-border bg-zinc-50/60 p-2 text-[11px] text-ink-muted">
+                          <p className="font-medium text-ink">
+                            Failure posture:{" "}
+                            <span className="capitalize">
+                              {e.failureResilienceSummary.overallResilience.replace(
+                                /_/g,
+                                " ",
+                              )}
+                            </span>
+                          </p>
+                          <p className="mt-1">
+                            Critical-impact scenarios:{" "}
+                            {e.failureResilienceSummary.criticalScenarioCount} ·
+                            High-likelihood: {e.failureResilienceSummary.highLikelihoodCount}{" "}
+                            · Weak/unknown prep:{" "}
+                            {e.failureResilienceSummary.lowPreparednessCount}
+                          </p>
+                          {e.failureResilienceSummary.decisionWarnings.length > 0 ? (
+                            <ul className="mt-1 list-inside list-disc text-[10px] text-amber-950/90">
+                              {e.failureResilienceSummary.decisionWarnings
+                                .slice(0, 2)
+                                .map((w, i) => (
+                                  <li key={i}>{w}</li>
+                                ))}
+                            </ul>
+                          ) : null}
+                        </div>
+                      ) : null}
                       <p className="text-[10px] font-medium uppercase text-ink-subtle">
                         Advantages
                       </p>

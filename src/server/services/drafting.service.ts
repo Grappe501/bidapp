@@ -87,7 +87,11 @@ function validateGrounding(grounding: GroundingBundlePayload): void {
         vi.intelligenceFacts.length +
         vi.interviewQuestions.length +
         vi.integrationRequirements.length +
-        (vi.interviewIntelligence ? 1 : 0)
+        (vi.interviewIntelligence ? 1 : 0) +
+        (vi.claimValidation ? 1 : 0) +
+        (vi.failureSimulation ? 1 : 0) +
+        (vi.roleFit ? 1 : 0) +
+        (vi.pricingReality ? 1 : 0)
       : 0;
   const ccN = grounding.competitorComparisonContext ? 1 : 0;
   const paN = grounding.proposalAdaptation ? 1 : 0;
@@ -448,6 +452,9 @@ Return shape:
       : "",
     input.grounding.competitorComparisonContext
       ? `COMPETITOR / BID COMPARISON (interpretive — scores are not predictions; use for selection rationale, mitigations, and gap honesty only):\n${JSON.stringify(input.grounding.competitorComparisonContext, null, 0)}`
+      : "",
+    input.grounding.strategicNarrativeSpine
+      ? `STRATEGIC NARRATIVE SPINE (canonical story for this bid — keep strategic truth consistent; sections may differ in depth and caution, but must not contradict this spine or invent new vendor facts):\n${JSON.stringify(input.grounding.strategicNarrativeSpine, null, 0)}`
       : "",
     `ARCHITECTURE OPTIONS:\n${JSON.stringify(arch, null, 0)}`,
     `RETRIEVED SOURCE EXCERPTS:\n${JSON.stringify(chunkHints, null, 0)}`,

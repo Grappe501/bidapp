@@ -53,6 +53,16 @@ export function FinalReadinessGateCard({ gate }: { gate: FinalReadinessGate }) {
           <GateBool label="ARBuy solicitation" ok={gate.arbuySolicitation.ready} />
         ) : null}
         <GateBool label="Vendor / stack decision" ok={gate.vendorStrategyViable} />
+        <GateBool
+          label="Strategic narrative coherence"
+          ok={
+            !gate.narrativeAlignment ||
+            (gate.narrativeAlignment.overallAlignment !== "misaligned" &&
+              !gate.narrativeAlignment.criticalMisalignments.some(
+                (m) => m.severity === "critical",
+              ))
+          }
+        />
         <div className="bg-white px-4 py-3">
           <p className="text-xs font-semibold text-ink">Hard blockers</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">

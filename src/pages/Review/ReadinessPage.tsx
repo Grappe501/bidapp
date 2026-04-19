@@ -10,13 +10,18 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useReview } from "@/context/useReview";
 import { useControl } from "@/context/useControl";
+import { NarrativeAlignmentCard } from "@/components/review/NarrativeAlignmentCard";
 import { useOutput } from "@/context/useOutput";
 import { useWorkspace } from "@/context/useWorkspace";
 import { activeIssues, issueSummary } from "@/lib/review-utils";
 
 export function ReadinessPage() {
   const { project } = useWorkspace();
-  const { evaluatorSimulation, technicalProposalPacketCompliance } = useOutput();
+  const {
+    evaluatorSimulation,
+    technicalProposalPacketCompliance,
+    narrativeAlignmentResult,
+  } = useOutput();
   const { readiness, allIssues, snapshot, runReview } = useReview();
   const { redactionFlags } = useControl();
   const act = activeIssues(allIssues);
@@ -82,6 +87,8 @@ export function ReadinessPage() {
         </div>
 
         <EvaluatorScorecard result={evaluatorSimulation} />
+
+        <NarrativeAlignmentCard result={narrativeAlignmentResult} />
 
         <TechnicalProposalPacketStatus compliance={technicalProposalPacketCompliance} />
 

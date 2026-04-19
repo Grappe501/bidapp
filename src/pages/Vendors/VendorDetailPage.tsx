@@ -5,11 +5,15 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
+import { VendorClaimValidationPanel } from "@/components/vendors/VendorClaimValidationPanel";
 import { VendorInterviewWorkspace } from "@/components/vendors/VendorInterviewWorkspace";
 import { VendorWebsitePanel } from "@/components/vendors/VendorWebsitePanel";
 import { VendorCapabilityList } from "@/components/vendors/VendorCapabilityList";
 import { VendorMetadataCard } from "@/components/vendors/VendorMetadataCard";
 import { VendorRiskList } from "@/components/vendors/VendorRiskList";
+import { VendorFailureModePanel } from "@/components/vendors/VendorFailureModePanel";
+import { VendorRoleFitPanel } from "@/components/vendors/VendorRoleFitPanel";
+import { VendorPricingRealityCard } from "@/components/vendors/VendorPricingRealityCard";
 import { useArchitecture } from "@/context/useArchitecture";
 import { useProjectWorkspace } from "@/context/project-workspace-context";
 import { useVendors } from "@/context/useVendors";
@@ -35,9 +39,13 @@ type TabId =
   | "overview"
   | "website"
   | "evidence"
+  | "claims"
   | "fit"
   | "integration"
   | "risk"
+  | "failure"
+  | "role"
+  | "pricing"
   | "interview"
   | "compare";
 
@@ -45,9 +53,13 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "website", label: "Website & research" },
   { id: "evidence", label: "Evidence" },
+  { id: "claims", label: "Claim validation" },
   { id: "fit", label: "Fit" },
   { id: "integration", label: "Integration" },
   { id: "risk", label: "Risk" },
+  { id: "failure", label: "Failure modes" },
+  { id: "role", label: "Role fit" },
+  { id: "pricing", label: "Pricing check" },
   { id: "interview", label: "Interview prep" },
   { id: "compare", label: "Compare" },
 ];
@@ -92,6 +104,11 @@ export function VendorDetailPage() {
   const archUsing = useMemo(
     () => (vendor ? architectureOptionsUsingVendor(options, vendor.id) : []),
     [options, vendor],
+  );
+
+  const archOptsForFailurePanel = useMemo(
+    () => archUsing.map((o) => ({ id: o.id, name: o.name })),
+    [archUsing],
   );
 
   const sourceFiles = useMemo(() => {
@@ -542,6 +559,28 @@ export function VendorDetailPage() {
           </Card>
         )}
 
+        {tab === "failure" && projectId && (
+          <VendorFailureModePanel
+            projectId={projectId}
+            vendorId={vendor.id}
+            architectureOptions={archOptsForFailurePanel}
+            onAfterRun={() => void loadSnapshot()}
+          />
+        )}
+
+        {tab === "role" && projectId && (
+          <VendorRoleFitPanel
+            projectId={projectId}
+            vendorId={vendor.id}
+            architectureOptions={archOptsForFailurePanel}
+            onAfterRun={() => void loadSnapshot()}
+          />
+        )}
+
+        {tab === "pricing" && (
+          <VendorPricingRealityCard reality={snapshot?.pricingReality} />
+        )}
+
         {tab === "interview" && projectId && (
           <Card className="space-y-3">
             <h2 className="text-sm font-semibold text-ink">Interview prep & capture</h2>
@@ -551,6 +590,14 @@ export function VendorDetailPage() {
             </p>
             <VendorInterviewWorkspace projectId={projectId} vendorId={vendor.id} />
           </Card>
+        )}
+
+        {tab === "claims" && projectId && (
+          <VendorClaimValidationPanel
+            projectId={projectId}
+            vendorId={vendor.id}
+            onRefreshSnapshot={loadSnapshot}
+          />
         )}
 
         {tab === "compare" && (

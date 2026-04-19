@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { ExportActionBar } from "@/components/output/ExportActionBar";
 import { FinalReadinessGateCard } from "@/components/output/FinalReadinessGateCard";
 import { ArbuySolicitationStatus } from "@/components/output/ArbuySolicitationStatus";
@@ -19,6 +19,10 @@ import {
   formatPricingNumericSummaryExport,
   formatPricingSummaryExport,
 } from "@/lib/pricing-structure";
+import { computeWorkbookPricingPreview } from "@/lib/pricing-reality-preview";
+import { formatVendorDecisionSynthesisExport } from "@/lib/decision-synthesis-engine";
+import { DecisionSummaryCard } from "@/components/output/DecisionSummaryCard";
+import { PricingRiskSummaryCard } from "@/components/output/PricingRiskSummaryCard";
 import {
   buildSubmissionPackageBlockers,
   buildSubmissionPackageChecklistRows,
@@ -44,6 +48,8 @@ export function SubmissionPackagePage() {
     finalReadinessGate,
     technicalProposalPacketCompliance,
     arbuySolicitationCompliance,
+    competitorAwareSimulation,
+    vendorDecisionSynthesis,
   } = useOutput();
 
   const subBundle = bundles.find((b) => b.bundleType === "Submission Package");
@@ -99,6 +105,24 @@ export function SubmissionPackagePage() {
     [project.bidNumber, files],
   );
 
+  const workbookPricingPreview = useMemo(
+    () => computeWorkbookPricingPreview(pricingLayer, project.bidNumber),
+    [pricingLayer, project.bidNumber],
+  );
+
+  const vendorNameById = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const e of competitorAwareSimulation?.entries ?? []) {
+      m[e.vendorId] = e.vendorName;
+    }
+    return m;
+  }, [competitorAwareSimulation]);
+
+  const copyDecisionSynthesis = useCallback(() => {
+    if (!vendorDecisionSynthesis) return copyTextToClipboard("");
+    return copyTextToClipboard(formatVendorDecisionSynthesisExport(vendorDecisionSynthesis));
+  }, [vendorDecisionSynthesis]);
+
   const copyPricingSummary = () =>
     copyTextToClipboard(formatPricingSummaryExport(pricingLayer));
 
@@ -130,6 +154,11 @@ export function SubmissionPackagePage() {
         </header>
 
         <FinalReadinessGateCard gate={finalReadinessGate} />
+
+        <DecisionSummaryCard
+          synthesis={vendorDecisionSynthesis}
+          vendorNameById={vendorNameById}
+        />
 
         <TechnicalProposalPacketStatus compliance={technicalProposalPacketCompliance} />
 
@@ -193,6 +222,8 @@ export function SubmissionPackagePage() {
           </div>
         </Card>
 
+        <PricingRiskSummaryCard preview={workbookPricingPreview} />
+
         <SubmissionValidationStrip current={assessment.state} />
 
         <PackageChecklist rows={checklistRows} />
@@ -237,6 +268,10 @@ export function SubmissionPackagePage() {
               {
                 label: "Copy readiness summary (text)",
                 onClick: copyReadinessSummary,
+              },
+              {
+                label: "Copy decision synthesis (Markdown)",
+                onClick: copyDecisionSynthesis,
               },
               {
                 label: "Copy submission package readiness (Markdown)",

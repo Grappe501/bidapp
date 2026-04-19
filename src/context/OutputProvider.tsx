@@ -27,6 +27,13 @@ import { computeFinalReadinessGate } from "@/lib/final-readiness-gate";
 import { computeArbuySubmissionCompliance } from "@/lib/arbuy-solicitation";
 import { buildPricingLayerForProject } from "@/lib/pricing-structure";
 import { computeTechnicalProposalPacketCompliance } from "@/lib/technical-proposal-packet";
+import { buildVendorDecisionSynthesis } from "@/lib/decision-synthesis-engine";
+import {
+  evaluateNarrativeAlignment,
+  extractNarrativeSectionTextsFromSnapshot,
+} from "@/lib/narrative-alignment-engine";
+import { buildStrategicNarrativeSpine } from "@/lib/strategic-narrative-spine";
+import { formatPricingSummaryExport } from "@/lib/pricing-structure";
 import type { CompetitorAwareSimulationResult, PackagingCompleteness } from "@/types";
 import { OutputContext } from "./output-context";
 
@@ -186,13 +193,75 @@ export function OutputProvider({ children }: { children: ReactNode }) {
     };
   }, [project.id, vendors, architectureOptions]);
 
+  const recommendedArch =
+    architectureOptions.find((o) => o.recommended) ?? architectureOptions[0];
+  const vendorStackIds = useMemo(
+    () =>
+      recommendedArch
+        ? [
+            ...new Set(
+              recommendedArch.components
+                .filter((c) => !c.optional && c.vendorId)
+                .map((c) => c.vendorId),
+            ),
+          ]
+        : [],
+    [recommendedArch],
+  );
+
+  const vendorDecisionSynthesis = useMemo(() => {
+    if (!competitorAwareSimulation) return null;
+    return buildVendorDecisionSynthesis({
+      sim: competitorAwareSimulation,
+      recommendedVendorStackIds: vendorStackIds,
+      architectureOptionName: recommendedArch?.name,
+    });
+  }, [competitorAwareSimulation, vendorStackIds, recommendedArch?.name]);
+
+  const strategicNarrativeSpine = useMemo(
+    () =>
+      buildStrategicNarrativeSpine({
+        projectId: project.id,
+        synthesis: vendorDecisionSynthesis,
+        sim: competitorAwareSimulation,
+        recommendedVendorDisplayName: vendorDecisionSynthesis?.recommendedVendorId
+          ? competitorAwareSimulation?.entries.find(
+              (e) => e.vendorId === vendorDecisionSynthesis.recommendedVendorId,
+            )?.vendorName
+          : competitorAwareSimulation?.entries[0]?.vendorName,
+        architectureOptionName: recommendedArch?.name,
+      }),
+    [project.id, vendorDecisionSynthesis, competitorAwareSimulation, recommendedArch?.name],
+  );
+
+  const narrativeAlignmentResult = useMemo(() => {
+    const texts = extractNarrativeSectionTextsFromSnapshot(snapshot);
+    const fb = [texts.executive_summary, texts.solution, texts.risk]
+      .filter(Boolean)
+      .join("\n\n");
+    if (fb.length > 0) texts.final_bundle = fb.slice(0, 12000);
+    texts.pricing_summary = formatPricingSummaryExport(pricingLayer).slice(0, 8000);
+    if (recommendedArch) {
+      const names = recommendedArch.components
+        .filter((c) => !c.optional)
+        .map((c) => c.vendorName)
+        .join(", ");
+      texts.client_review = `Client review snapshot: ${recommendedArch.name}; core vendors ${names}.`;
+    }
+    return evaluateNarrativeAlignment({
+      spine: strategicNarrativeSpine,
+      sectionTexts: texts,
+    });
+  }, [strategicNarrativeSpine, snapshot, pricingLayer, recommendedArch]);
+
   const vendorDecision = useMemo(
     () =>
       assessVendorDecisionForReadiness(
         competitorAwareSimulation,
         competitorAwareSimulation?.projectInterviewReadiness ?? null,
+        vendorDecisionSynthesis,
       ),
-    [competitorAwareSimulation],
+    [competitorAwareSimulation, vendorDecisionSynthesis],
   );
 
   const finalReadinessGate = useMemo(
@@ -210,6 +279,7 @@ export function OutputProvider({ children }: { children: ReactNode }) {
         technicalProposalPacket: technicalProposalPacketCompliance,
         arbuySolicitation: arbuySolicitationCompliance,
         vendorDecision,
+        narrativeAlignment: narrativeAlignmentResult,
       }),
     [
       project.bidNumber,
@@ -224,6 +294,7 @@ export function OutputProvider({ children }: { children: ReactNode }) {
       technicalProposalPacketCompliance,
       arbuySolicitationCompliance,
       vendorDecision,
+      narrativeAlignmentResult,
     ],
   );
 
@@ -288,6 +359,9 @@ export function OutputProvider({ children }: { children: ReactNode }) {
       reviewSnapshot: snapshot,
       evaluatorSimulation,
       competitorAwareSimulation,
+      vendorDecisionSynthesis,
+      strategicNarrativeSpine,
+      narrativeAlignmentResult,
       finalReadinessGate,
       technicalProposalPacketCompliance,
       arbuySolicitationCompliance,
@@ -309,6 +383,9 @@ export function OutputProvider({ children }: { children: ReactNode }) {
       snapshot,
       evaluatorSimulation,
       competitorAwareSimulation,
+      vendorDecisionSynthesis,
+      strategicNarrativeSpine,
+      narrativeAlignmentResult,
       finalReadinessGate,
       technicalProposalPacketCompliance,
       arbuySolicitationCompliance,

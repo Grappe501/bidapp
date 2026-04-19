@@ -1,4 +1,7 @@
-import type { CompetitorRecommendationConfidence } from "@/types";
+import type {
+  CompetitorRecommendationConfidence,
+  VendorDecisionSynthesis,
+} from "@/types";
 
 export function formatRecommendationConfidence(
   c: CompetitorRecommendationConfidence,
@@ -15,4 +18,11 @@ export function formatRecommendationConfidence(
     default:
       return c;
   }
+}
+
+/** Labels full decision synthesis confidence for tables and badges. */
+export function formatDecisionSynthesisConfidence(
+  c: VendorDecisionSynthesis["confidence"],
+): string {
+  return formatRecommendationConfidence(c);
 }

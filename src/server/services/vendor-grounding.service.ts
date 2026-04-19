@@ -1,6 +1,7 @@
 import type {
   GroundingBundleVendorIntelligence,
   GroundingBundleVendorInterviewIntelligence,
+  VendorClaimValidationRecord,
   VendorInterviewNormalizedAnswer,
 } from "../../types";
 import { listVendorsByProject } from "../repositories/vendor.repo";
@@ -18,6 +19,11 @@ import {
   getVendorInterviewAssessmentByQuestion,
   listVendorInterviewQuestionsFull,
 } from "../repositories/vendor-interview.repo";
+import { listVendorClaimValidations } from "../repositories/vendor-claim-validation.repo";
+import { buildClaimValidationSummaryFromRows, effectiveSupportLevelFromRow } from "./vendor-claim-validation-merge.service";
+import { listVendorFailureSimulationForApi } from "./vendor-failure-mode.service";
+import { listVendorRoleFitForApi } from "./vendor-role-fit.service";
+import { computeVendorPricingReality } from "./pricing-reality.service";
 
 async function buildInterviewIntelligenceBundle(
   vendorId: string,
@@ -101,6 +107,10 @@ export async function loadVendorIntelligenceForBundle(input: {
     interview,
     integration,
     interviewIntelligence,
+    claimDb,
+    failureSim,
+    roleFit,
+    pricingReality,
   ] = await Promise.all([
     listVendorFitDimensionsByVendor(input.vendorId),
     listVendorClaimsByVendorId(input.vendorId, 48),
@@ -112,7 +122,68 @@ export async function loadVendorIntelligenceForBundle(input: {
     listVendorInterviewQuestionsFull(input.vendorId),
     listVendorIntegrationRequirementsByVendor(input.vendorId),
     buildInterviewIntelligenceBundle(input.vendorId),
+    listVendorClaimValidations(input.vendorId),
+    listVendorFailureSimulationForApi({
+      projectId: input.projectId,
+      vendorId: input.vendorId,
+    }),
+    listVendorRoleFitForApi({
+      projectId: input.projectId,
+      vendorId: input.vendorId,
+    }),
+    computeVendorPricingReality({
+      projectId: input.projectId,
+      vendorId: input.vendorId,
+    }),
   ]);
+
+  const claimValidation =
+    claimDb.length > 0
+      ? {
+          summary: buildClaimValidationSummaryFromRows(claimDb),
+          rows: claimDb.map(
+            (r): VendorClaimValidationRecord => ({
+              id: r.id,
+              normalizedClaimKey: r.normalizedClaimKey,
+              claimText: r.claimText,
+              machineClaimText: r.machineClaimText,
+              claimTextLocked: r.claimTextLocked,
+              claimCategory: String(r.claimCategory),
+              claimSourceType: r.claimSourceType,
+              supportLevel: r.supportLevel as VendorClaimValidationRecord["supportLevel"],
+              effectiveSupportLevel: effectiveSupportLevelFromRow(
+                r,
+              ) as VendorClaimValidationRecord["effectiveSupportLevel"],
+              supportLevelOverride: r.supportLevelOverride,
+              contradictionStatus:
+                r.contradictionStatus as VendorClaimValidationRecord["contradictionStatus"],
+              confidence: r.confidence as VendorClaimValidationRecord["confidence"],
+              needsFollowUp: r.needsFollowUp,
+              followUpReason: r.followUpReason,
+              scoringImpact: r.scoringImpact as VendorClaimValidationRecord["scoringImpact"],
+              rationale: r.rationale,
+              machineRationale: r.machineRationale,
+              humanNote: r.humanNote,
+              isCritical: r.isCritical,
+              evidenceSourceIds: r.evidenceSourceIds,
+              supportingFactIds: r.supportingFactIds,
+              contradictingFactIds: r.contradictingFactIds,
+              createdAt: r.createdAt,
+              updatedAt: r.updatedAt,
+            }),
+          ),
+        }
+      : undefined;
+
+  const failureSimulation =
+    failureSim.summary && failureSim.modes.length > 0
+      ? { summary: failureSim.summary, modes: failureSim.modes }
+      : undefined;
+
+  const roleFitBundle =
+    roleFit.summary && roleFit.roles.length > 0
+      ? { summary: roleFit.summary, roles: roleFit.roles }
+      : undefined;
 
   return {
     vendorId: v.id,
@@ -156,6 +227,10 @@ export async function loadVendorIntelligenceForBundle(input: {
       evidence: r.evidence,
     })),
     interviewIntelligence,
+    claimValidation,
+    failureSimulation,
+    roleFit: roleFitBundle,
+    pricingReality,
   };
 }
 

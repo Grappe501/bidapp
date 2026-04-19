@@ -6,6 +6,7 @@ import type {
   EvaluatorSimulationResult,
   FinalReadinessGate,
   FinalReadinessOverallState,
+  NarrativeAlignmentResult,
   ReadinessScore,
   RedactionPackagingSummary,
   ReviewIssue,
@@ -63,6 +64,8 @@ export function computeFinalReadinessGate(input: {
   arbuySolicitation: ArbuySolicitationCompliance | null;
   /** When set, vendor/stack decision quality can block or downgrade readiness. */
   vendorDecision?: VendorDecisionAssessment | null;
+  /** Cross-section narrative coherence vs strategic spine. */
+  narrativeAlignment?: NarrativeAlignmentResult | null;
 }): FinalReadinessGate {
   const {
     bidNumber,
@@ -77,6 +80,7 @@ export function computeFinalReadinessGate(input: {
     technicalProposalPacket,
     arbuySolicitation,
     vendorDecision: vd,
+    narrativeAlignment: na,
   } = input;
 
   const act = activeIssues(reviewIssues);
@@ -131,6 +135,24 @@ export function computeFinalReadinessGate(input: {
   if (vendorDecisionWarnings.length > 0) {
     for (const w of vendorDecisionWarnings) {
       if (!warnings.includes(w)) warnings.push(w);
+    }
+  }
+
+  if (na) {
+    const criticalNarrative =
+      na.overallAlignment === "misaligned" ||
+      na.criticalMisalignments.some((m) => m.severity === "critical");
+    if (criticalNarrative) {
+      blockers.push(
+        "Strategic narrative misalignment — Executive Summary, Solution, and Risk must tell the same evidence-backed story as the current decision synthesis (critical contradiction or omission).",
+      );
+    } else if (na.overallAlignment === "drifting") {
+      warnings.push(
+        "Strategic narrative drift across volumes — tighten alignment to the decision spine before submission; sections should differ in tone, not in strategic truth.",
+      );
+    }
+    for (const line of na.correctiveActions.slice(0, 5)) {
+      if (!warnings.includes(line)) warnings.push(line);
     }
   }
 
@@ -248,6 +270,11 @@ export function computeFinalReadinessGate(input: {
 
   const vendorHardStop = vendorDecisionBlockers.length > 0;
 
+  const narrativeCriticalStop =
+    na &&
+    (na.overallAlignment === "misaligned" ||
+      na.criticalMisalignments.some((m) => m.severity === "critical"));
+
   const hardStop =
     criticalOpen ||
     checklistStats.missingItems > 0 ||
@@ -256,7 +283,8 @@ export function computeFinalReadinessGate(input: {
     (bidNumber === S000000479_BID_NUMBER && !pricingLayer.contractCompliant) ||
     packetHardStop ||
     arbuyHardStop ||
-    vendorHardStop;
+    vendorHardStop ||
+    Boolean(narrativeCriticalStop);
 
   if (
     hardStop ||
@@ -271,14 +299,16 @@ export function computeFinalReadinessGate(input: {
       checklistStats.missingItems > 0 ||
       !pricingReady ||
       packetHardStop ||
-      vendorHardStop
+      vendorHardStop ||
+      Boolean(narrativeCriticalStop)
         ? "blocked"
         : "not_ready";
   } else if (
     warnings.length > 0 ||
     !redactionReady ||
     !contractReady ||
-    evaluator.overallAssessment === "fragile"
+    evaluator.overallAssessment === "fragile" ||
+    na?.overallAlignment === "drifting"
   ) {
     overallState = "ready_with_risk";
   } else {
@@ -345,5 +375,6 @@ export function computeFinalReadinessGate(input: {
     vendorStrategyViable,
     vendorDecisionBlockers,
     vendorDecisionWarnings,
+    narrativeAlignment: na ?? null,
   };
 }

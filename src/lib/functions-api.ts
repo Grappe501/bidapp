@@ -145,8 +145,16 @@ export async function postVendorIntelligence(input: {
     | "updateVendorWebsite"
     | "runVendorWebsiteResearch"
     | "ingestVendorManualUrl"
-    | "getVendorWebsiteStatus";
+    | "getVendorWebsiteStatus"
+    | "runClaimValidation"
+    | "listClaimValidations"
+    | "patchClaimValidation"
+    | "runFailureSimulation"
+    | "listFailureModes"
+    | "runRoleFitAnalysis"
+    | "listRoleFit";
   questionId?: string;
+  validationId?: string;
   patch?: Record<string, unknown>;
   answer?: Record<string, unknown>;
   websiteUrl?: string;
@@ -154,6 +162,7 @@ export async function postVendorIntelligence(input: {
   maxPages?: number;
   maxDepth?: number;
   forceRecrawl?: boolean;
+  architectureOptionId?: string | null;
 }): Promise<unknown> {
   return postFunctionJson("vendor-intelligence", input);
 }

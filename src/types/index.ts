@@ -1,4 +1,5 @@
 import type { TechnicalProposalPacketCompliance } from "./technical-proposal-packet";
+import type { VendorPricingReality } from "./pricing-model";
 
 export type {
   ArbuyAttachmentCategory,
@@ -689,6 +690,143 @@ export type GroundingBundleVendorInterviewIntelligence = {
   timelineCommitments: string[];
 };
 
+/** Evidence-backed support for a normalized vendor claim (trust layer). */
+export type VendorClaimValidationRecord = {
+  id: string;
+  normalizedClaimKey: string;
+  claimText: string;
+  machineClaimText: string;
+  claimTextLocked: boolean;
+  claimCategory: string;
+  claimSourceType: string;
+  supportLevel: "none" | "weak" | "moderate" | "strong";
+  effectiveSupportLevel: "none" | "weak" | "moderate" | "strong";
+  /** Human override when set — machine support remains in supportLevel after refresh semantics. */
+  supportLevelOverride?: string | null;
+  contradictionStatus: "none" | "possible" | "clear";
+  confidence: "high" | "medium" | "low";
+  needsFollowUp: boolean;
+  followUpReason: string | null;
+  scoringImpact: "positive" | "neutral" | "negative" | "watch";
+  rationale: string;
+  machineRationale: string;
+  humanNote: string;
+  isCritical: boolean;
+  evidenceSourceIds: string[];
+  supportingFactIds: string[];
+  contradictingFactIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorClaimValidationSummary = {
+  strongCount: number;
+  weakOrNoneCount: number;
+  contradictedCount: number;
+  followUpRequiredCount: number;
+  criticalWeakCount: number;
+};
+
+/** Failure mode simulator — operational stress scenarios for this bid (heuristic, not forecast). */
+export type VendorFailureModeCategory =
+  | "delivery"
+  | "integration"
+  | "implementation"
+  | "staffing"
+  | "compliance"
+  | "security"
+  | "billing"
+  | "support"
+  | "data"
+  | "commercial"
+  | "dependency"
+  | "other";
+
+export type VendorFailureModeRecord = {
+  id: string;
+  vendorId: string;
+  projectId: string;
+  category: VendorFailureModeCategory;
+  scenarioKey: string;
+  title: string;
+  description: string;
+  triggerConditions: string[];
+  likelihood: "low" | "medium" | "high";
+  impact: "low" | "medium" | "high" | "critical";
+  recoverability: "easy" | "moderate" | "hard" | "uncertain";
+  timeToRecoverEstimate?: string | null;
+  vendorPreparedness: "strong" | "adequate" | "weak" | "unknown";
+  evidenceStrength: "strong" | "moderate" | "weak" | "none";
+  mitigationSignals: string[];
+  unresolvedUnknowns: string[];
+  scoringImpact: {
+    solutionImpact: number;
+    riskImpact: number;
+    interviewImpact: number;
+  };
+  rationale: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorFailureSimulationSummary = {
+  vendorId: string;
+  scenarioCount: number;
+  criticalScenarioCount: number;
+  highLikelihoodCount: number;
+  lowPreparednessCount: number;
+  overallResilience: "strong" | "acceptable" | "fragile" | "high_risk";
+  topFailureModes: VendorFailureModeRecord[];
+  topMitigations: string[];
+  decisionWarnings: string[];
+};
+
+/** Role-level ownership vs Malone — stack design, not generic fit. */
+export type VendorRoleOwnershipRecommendation =
+  | "own"
+  | "share"
+  | "support"
+  | "avoid"
+  | "unknown";
+
+export type VendorRoleFitRecord = {
+  id: string;
+  vendorId: string;
+  projectId: string;
+  roleKey: string;
+  roleLabel: string;
+  ownershipRecommendation: VendorRoleOwnershipRecommendation;
+  confidence: "high" | "medium" | "low";
+  fitLevel: "strong" | "adequate" | "weak" | "unknown";
+  evidenceStrength: "strong" | "moderate" | "weak" | "none";
+  maloneDependencyLevel: "low" | "medium" | "high";
+  handoffComplexity: "low" | "medium" | "high";
+  overlapRisk: "low" | "medium" | "high";
+  gapRisk: "low" | "medium" | "high";
+  rationale: string;
+  requiredMaloneResponsibilities: string[];
+  vendorStrengthSignals: string[];
+  vendorWeaknessSignals: string[];
+  unresolvedQuestions: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorRoleFitSummary = {
+  vendorId: string;
+  strongOwnRoles: string[];
+  shareRoles: string[];
+  supportRoles: string[];
+  avoidRoles: string[];
+  highestDependencyRoles: string[];
+  highestHandoffRiskRoles: string[];
+  roleStrategyAssessment:
+    | "clear_fit"
+    | "usable_with_malone_support"
+    | "fragile"
+    | "misaligned";
+};
+
 /** Vendor-scoped grounding slice (fit matrix, claims, facts, interview, integration). */
 export type GroundingBundleVendorIntelligence = {
   vendorId: string;
@@ -733,6 +871,23 @@ export type GroundingBundleVendorIntelligence = {
   }>;
   /** Normalized answers + assessment-derived signals for drafting (optional). */
   interviewIntelligence?: GroundingBundleVendorInterviewIntelligence;
+  /** Claim validation engine: comparable keys, support/contradiction, evidence ids. */
+  claimValidation?: {
+    summary: VendorClaimValidationSummary;
+    rows: VendorClaimValidationRecord[];
+  };
+  /** Failure mode simulation — stress scenarios and resilience summary. */
+  failureSimulation?: {
+    summary: VendorFailureSimulationSummary;
+    modes: VendorFailureModeRecord[];
+  };
+  /** Role ownership vs Malone — operating model clarity. */
+  roleFit?: {
+    summary: VendorRoleFitSummary;
+    roles: VendorRoleFitRecord[];
+  };
+  /** Pricing believability vs scope and Malone workload (project workbook + vendor signals). */
+  pricingReality?: VendorPricingReality;
 };
 
 export type VendorInterviewReadinessSummary = {
@@ -809,6 +964,68 @@ export type VendorInterviewWorkspacePayload = {
   vendorName: string;
   summary: VendorInterviewReadinessSummary;
   rows: VendorInterviewWorkspaceRow[];
+};
+
+/** Keys for narrative alignment checks across outward-facing surfaces. */
+export type NarrativeSectionKey =
+  | "executive_summary"
+  | "solution"
+  | "risk"
+  | "interview"
+  | "client_review"
+  | "final_bundle"
+  | "architecture_narrative"
+  | "pricing_summary";
+
+/** Canonical strategic story for the current bid decision — keeps volumes aligned without flattening tone. */
+export type StrategicNarrativeSpine = {
+  projectId: string;
+  recommendedVendorId?: string;
+  recommendedVendorStackIds?: string[];
+
+  corePosition: string;
+  whyThisWins: string[];
+  strongestSupportedClaims: string[];
+  claimsToAvoidOrQualify: string[];
+
+  roleOwnershipStory: string[];
+  pricingStory: string[];
+  riskStory: string[];
+  mitigationStory: string[];
+  interviewStory: string[];
+
+  mustAppearThemes: string[];
+  mustNotContradictThemes: string[];
+  sensitiveThemes: string[];
+
+  evidenceConfidence: "high" | "medium" | "low";
+  generatedFromDecisionSynthesisAt: string;
+};
+
+export type NarrativeMisalignment = {
+  sectionKey: NarrativeSectionKey;
+  severity: "low" | "medium" | "high" | "critical";
+  category:
+    | "contradiction"
+    | "omission"
+    | "overstatement"
+    | "understatement"
+    | "role_conflict"
+    | "pricing_conflict"
+    | "risk_conflict"
+    | "vendor_conflict";
+  message: string;
+  expectedTheme: string;
+  observedTheme?: string;
+  correctionGuidance: string;
+};
+
+export type NarrativeAlignmentResult = {
+  overallAlignment: "strong" | "acceptable" | "drifting" | "misaligned";
+  sectionScores: Record<string, number>;
+  criticalMisalignments: NarrativeMisalignment[];
+  warnings: NarrativeMisalignment[];
+  correctiveActions: string[];
 };
 
 export type GroundingBundlePayload = {
@@ -889,6 +1106,8 @@ export type GroundingBundlePayload = {
   competitorComparisonContext?: GroundingBundleCompetitorContext;
   /** Automatic adaptation to recommended architecture + resolved vendor (Solution/Risk/Interview, etc.). */
   proposalAdaptation?: GroundingBundleProposalAdaptation;
+  /** Canonical strategic spine — align all volumes to this story (tone may differ by section). */
+  strategicNarrativeSpine?: StrategicNarrativeSpine;
 };
 
 export type GroundedProseReviewClarity = "strong" | "moderate" | "weak";
@@ -1178,6 +1397,14 @@ export type CompetitorComparisonEntry = {
   integrationBurdens: string[];
   mustAskQuestions: string[];
   heatmap: Record<string, HeatmapCellStatus>;
+  /** From vendor_claim_validations — sharpens comparative narrative. */
+  claimValidationSummary?: VendorClaimValidationSummary;
+  /** From failure mode simulation — resilience vs operational stress (heuristic). */
+  failureResilienceSummary?: VendorFailureSimulationSummary;
+  /** From vendor role-fit engine — ownership, Malone dependency, handoff risks. */
+  roleFitSummary?: VendorRoleFitSummary;
+  /** From pricing reality engine — workbook vs role / risk alignment. */
+  pricingReality?: VendorPricingReality;
 };
 
 export type CompetitorRecommendationConfidence =
@@ -1218,6 +1445,52 @@ export type CompetitorAwareSimulationResult = {
   projectInterviewReadiness?: ProjectInterviewReadiness;
 };
 
+/** Full decision synthesis — consolidates competitor sim, claims, failure, role-fit, pricing, interview. */
+export type VendorDecisionSynthesis = {
+  projectId: string;
+
+  recommendedVendorId?: string;
+  recommendedVendorStackIds?: string[];
+
+  recommendationType:
+    | "single_vendor"
+    | "multi_vendor_stack"
+    | "provisional"
+    | "undetermined";
+
+  confidence: "high" | "medium" | "low" | "provisional";
+
+  overallScore?: number;
+
+  keyStrengths: string[];
+  keyWeaknesses: string[];
+
+  criticalRisks: string[];
+  mitigationPosture: "strong" | "adequate" | "weak" | "uncertain";
+
+  pricingAssessment: "stable" | "competitive" | "risky" | "uncertain";
+
+  roleFitAssessment: "clear" | "acceptable" | "fragile" | "misaligned";
+
+  failureResilience: "strong" | "moderate" | "fragile" | "high_risk";
+
+  maloneDependency: "low" | "medium" | "high";
+
+  claimConfidence: "high" | "mixed" | "low";
+
+  interviewReadiness: "complete" | "partial" | "weak";
+
+  decisionRationale: string;
+
+  whatWouldChangeDecision: string[];
+  decisionWarnings: string[];
+
+  evaluatorDefenseSummary: string;
+
+  createdAt: string;
+  updatedAt: string;
+};
+
 /** Auto-selected proposal posture: architecture + effective vendor + drafting directive. */
 export type GroundingBundleProposalAdaptation = {
   generatedAt: string;
@@ -1254,6 +1527,8 @@ export type GroundingBundleCompetitorContext = {
     evaluatorBidScoreImpact: CompetitorComparisonEntry["evaluatorBidScoreImpact"];
   }>;
   honestyNote: string;
+  /** Unified recommendation narrative when competitor sim is available. */
+  decisionSynthesis?: VendorDecisionSynthesis;
 };
 
 export type FinalReadinessOverallState =
@@ -1286,6 +1561,8 @@ export type FinalReadinessGate = {
   vendorStrategyViable: boolean;
   vendorDecisionBlockers: string[];
   vendorDecisionWarnings: string[];
+  /** Cross-section narrative coherence vs strategic spine (null when not computed). */
+  narrativeAlignment?: NarrativeAlignmentResult | null;
 };
 
 export const REVIEW_ISSUE_TYPES: ReviewIssueType[] = [
@@ -1705,6 +1982,7 @@ export type {
   PricingHealthStatus,
   PricingItem,
   PricingModel,
+  VendorPricingReality,
 } from "./pricing-model";
 
 export type {

@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArchitectureCompetitorStrip } from "@/components/architecture/ArchitectureCompetitorStrip";
+import { ArchitectureRoleOwnershipStrip } from "@/components/architecture/ArchitectureRoleOwnershipStrip";
 import { ArchitectureOptionCard } from "@/components/architecture/ArchitectureOptionCard";
 import { ArchitectureOptionDetail } from "@/components/architecture/ArchitectureOptionDetail";
 import { useArchitecture } from "@/context/useArchitecture";
+import { useProjectWorkspace } from "@/context/project-workspace-context";
 import { getRecommendedOption, sortArchitectureOptions } from "@/lib/architecture-utils";
 import type { ArchitectureOptionStatus } from "@/types";
 
 export function ArchitecturePage() {
+  const { projectId } = useProjectWorkspace();
   const {
     options,
     updateOption,
@@ -46,6 +49,13 @@ export function ArchitecturePage() {
         </div>
 
         <ArchitectureCompetitorStrip options={sorted} />
+
+        {projectId && selected ? (
+          <ArchitectureRoleOwnershipStrip
+            projectId={projectId}
+            components={selected.components}
+          />
+        ) : null}
 
         <div className="grid gap-8 lg:grid-cols-12">
           <div className="space-y-3 lg:col-span-4">

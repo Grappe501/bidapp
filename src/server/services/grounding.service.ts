@@ -28,6 +28,8 @@ import { buildProjectGroundingBundleRfp } from "../../lib/rfp-narrative";
 import { buildPricingLayerForProject } from "../../lib/pricing-structure";
 import { resolveArbuyModelForBidNumber } from "../../lib/arbuy-solicitation";
 import { selectVendorFactsForGroundingBundle } from "../lib/grounding-quality-utils";
+import { buildVendorDecisionSynthesis } from "../../lib/decision-synthesis-engine";
+import { buildStrategicNarrativeSpine } from "../../lib/strategic-narrative-spine";
 import {
   defaultComparedVendorIdsForProject,
   runCompetitorAwareSimulation,
@@ -378,11 +380,42 @@ export async function buildAndStoreGroundingBundle(input: {
       });
       const selectedForCtx =
         ve ?? sim.recommendedVendorId ?? sim.entries[0]?.vendorId;
-      if (selectedForCtx) {
+      if (selectedForCtx && sim) {
+        const simRun = sim;
+        let stackIds: string[] = [];
+        if (archOptId) {
+          const comps = await listArchitectureComponentsByOptionId(archOptId);
+          stackIds = [
+            ...new Set(
+              comps
+                .filter((c) => !c.optional && c.vendorId)
+                .map((c) => c.vendorId as string),
+            ),
+          ];
+        }
+        const decisionSynthesis = buildVendorDecisionSynthesis({
+          sim: simRun,
+          recommendedVendorStackIds: stackIds,
+          architectureOptionName: archOpt?.name,
+        });
+        const leadName =
+          simRun.entries.find(
+            (e) =>
+              e.vendorId ===
+              (simRun.recommendedVendorId ?? simRun.entries[0]?.vendorId),
+          )?.vendorName;
+        base.strategicNarrativeSpine = buildStrategicNarrativeSpine({
+          projectId: input.projectId,
+          synthesis: decisionSynthesis,
+          sim: simRun,
+          recommendedVendorDisplayName: leadName,
+          architectureOptionName: archOpt?.name,
+        });
         competitorCtx = toGroundingCompetitorContext({
-          simulation: sim,
+          simulation: simRun,
           selectedVendorId: selectedForCtx,
           bidNumber: project?.bidNumber,
+          decisionSynthesis,
         });
       }
     } catch {
@@ -434,12 +467,82 @@ export async function buildAndStoreGroundingBundle(input: {
           "One or more integration requirement rows are unknown — confirm with vendor.",
         );
       }
+      if (vi.claimValidation?.rows?.length) {
+        const s = vi.claimValidation.summary;
+        base.validationNotes.push(
+          `Claim validation (${vi.vendorName}): ${s.strongCount} strong, ${s.weakOrNoneCount} weak/none, ${s.contradictedCount} with contradiction signals, ${s.followUpRequiredCount} need follow-up.`,
+        );
+        let cvNote = 0;
+        for (const row of vi.claimValidation.rows) {
+          if (row.contradictionStatus === "clear" || row.contradictionStatus === "possible") {
+            base.gaps.push(
+              `Claim "${row.claimText.slice(0, 90)}${row.claimText.length > 90 ? "…" : ""}" — ${row.contradictionStatus} contradiction signal; avoid overstating in Solution/Risk until reconciled.`,
+            );
+          } else if (
+            cvNote < 5 &&
+            (row.effectiveSupportLevel === "weak" ||
+              row.effectiveSupportLevel === "none")
+          ) {
+            cvNote++;
+            base.validationNotes.push(
+              `Soften or qualify language on: ${row.normalizedClaimKey} (${row.effectiveSupportLevel} support).`,
+            );
+          }
+        }
+      }
+      if (vi.failureSimulation?.summary) {
+        const fs = vi.failureSimulation.summary;
+        base.validationNotes.push(
+          `Failure simulation (${vi.vendorName}): ${fs.overallResilience} resilience; ${fs.criticalScenarioCount} critical-impact scenario(s); ${fs.highLikelihoodCount} high-likelihood stress path(s).`,
+        );
+        for (const w of fs.decisionWarnings.slice(0, 3)) {
+          if (!base.validationNotes.includes(w)) base.validationNotes.push(w);
+        }
+        for (const m of fs.topFailureModes.slice(0, 3)) {
+          base.gaps.push(
+            `Stress scenario: ${m.title} (${m.likelihood} likelihood, ${m.impact} impact) — address in Risk and Interview defense.`,
+          );
+        }
+      }
+      if (vi.roleFit?.summary) {
+        const rs = vi.roleFit.summary;
+        base.validationNotes.push(
+          `Role fit (${vi.vendorName}): ${rs.roleStrategyAssessment.replace(/_/g, " ")} — own ${rs.strongOwnRoles.length} strong roles; ${rs.highestDependencyRoles.length} high Malone-dependency role(s).`,
+        );
+        if (rs.avoidRoles.length > 0) {
+          base.gaps.push(
+            `Roles marked avoid/weak ownership: ${rs.avoidRoles.slice(0, 4).join(", ")} — state Malone vs vendor RACI explicitly.`,
+          );
+        }
+      }
+      if (vi.pricingReality) {
+        const pr = vi.pricingReality;
+        base.validationNotes.push(
+          `Pricing reality (${vi.vendorName}): ${pr.completeness} completeness, ${pr.roleAlignment} role alignment — hidden-cost ${pr.hiddenCostRisk}, underpricing ${pr.underpricingRisk}, Malone unpriced ${pr.maloneUnpricedDependency}.`,
+        );
+        if (pr.missingPricingAreas.length > 0) {
+          base.gaps.push(
+            `Pricing gaps vs roles/RFP: ${pr.missingPricingAreas.slice(0, 4).join("; ")}.`,
+          );
+        }
+      }
     }
     if (competitorCtx) {
       base.competitorComparisonContext = competitorCtx;
       base.validationNotes.push(
         "Competitor-aware comparison context attached — interpretive only; cite evidence rows, not model scores.",
       );
+      if (competitorCtx.decisionSynthesis) {
+        const ds = competitorCtx.decisionSynthesis;
+        base.validationNotes.push(
+          `Decision synthesis (${ds.recommendationType.replace(/_/g, " ")} — ${ds.confidence} confidence): ${ds.mitigationPosture} mitigation; pricing ${ds.pricingAssessment}; Malone dependency ${ds.maloneDependency}.`,
+        );
+      }
+      if (base.strategicNarrativeSpine) {
+        base.validationNotes.push(
+          "Strategic narrative spine attached — keep Executive Summary, Solution, Risk, and Interview aligned to the same decision story (tone may vary by section).",
+        );
+      }
     }
     if (adaptBundle && archOpt && base.vendorIntelligence) {
       const vi = base.vendorIntelligence;

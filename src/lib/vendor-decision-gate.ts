@@ -2,6 +2,7 @@ import type {
   CompetitorAwareSimulationResult,
   CompetitorRecommendationConfidence,
   ProjectInterviewReadiness,
+  VendorDecisionSynthesis,
 } from "@/types";
 
 export type VendorDecisionAssessment = {
@@ -19,6 +20,7 @@ export type VendorDecisionAssessment = {
 export function assessVendorDecisionForReadiness(
   sim: CompetitorAwareSimulationResult | null | undefined,
   projectInterviewReadiness?: ProjectInterviewReadiness | null,
+  synthesis?: VendorDecisionSynthesis | null,
 ): VendorDecisionAssessment {
   if (!sim || sim.entries.length === 0) {
     return {
@@ -42,6 +44,11 @@ export function assessVendorDecisionForReadiness(
     };
   }
 
+  const cv = lead.claimValidationSummary;
+  const failRes = lead.failureResilienceSummary;
+  const roleFit = lead.roleFitSummary;
+  const pricingReality = lead.pricingReality;
+
   const blockers: string[] = [];
   const warnings: string[] = [];
 
@@ -53,6 +60,71 @@ export function assessVendorDecisionForReadiness(
   if (conf === "provisional" && criticalOnLead >= 2) {
     blockers.push(
       "Vendor recommendation is provisional with multiple unresolved critical gaps — stack choice is not submission-safe.",
+    );
+  }
+
+  if (cv && cv.criticalWeakCount >= 2) {
+    blockers.push(
+      "Multiple critical vendor claims show weak or no evidence in claim validation — do not treat proposal language as submission-safe until substantiated.",
+    );
+  } else if (cv && cv.criticalWeakCount === 1) {
+    warnings.push(
+      "At least one critical normalized claim is weakly supported — tighten proof before locking vendor assertions.",
+    );
+  }
+  if (cv && cv.contradictedCount >= 2) {
+    warnings.push(
+      "Multiple claim topics show contradiction signals between sources — reconcile before final readiness.",
+    );
+  }
+
+  if (
+    failRes &&
+    failRes.overallResilience === "high_risk" &&
+    failRes.criticalScenarioCount >= 4
+  ) {
+    blockers.push(
+      "Failure mode simulation shows high operational risk with multiple critical scenarios — strengthen resilience posture before submission-safe vendor lock.",
+    );
+  } else if (failRes && failRes.overallResilience === "high_risk") {
+    warnings.push(
+      "Failure mode simulation shows high-risk resilience posture — document mitigations and Malone dependency boundaries in Risk.",
+    );
+  } else if (failRes && failRes.overallResilience === "fragile") {
+    warnings.push(
+      "Failure mode simulation shows fragile resilience — treat Solution/Risk language as provisional until recovery and ownership gaps close.",
+    );
+  }
+
+  if (roleFit?.roleStrategyAssessment === "misaligned") {
+    blockers.push(
+      "Vendor role-fit analysis is misaligned — critical operating roles are avoid/unknown; operating model is not submission-safe until RACI is clarified.",
+    );
+  } else if (roleFit?.roleStrategyAssessment === "fragile") {
+    warnings.push(
+      "Vendor role-fit shows fragile division of labor — excessive Malone dependency or handoff risk across multiple roles; strengthen Solution/Risk ownership narrative.",
+    );
+  }
+
+  if (
+    pricingReality?.completeness === "incomplete" ||
+    (pricingReality?.roleAlignment === "misaligned" &&
+      pricingReality.hiddenCostRisk === "high")
+  ) {
+    blockers.push(
+      "Pricing reality check: workbook incomplete or misaligned with scope/Malone workload — cost narrative is not submission-safe until reconciled.",
+    );
+  } else if (
+    pricingReality &&
+    (pricingReality.maloneUnpricedDependency === "high" ||
+      pricingReality.hiddenCostRisk === "high")
+  ) {
+    warnings.push(
+      "Pricing reality: high hidden-cost or unpriced Malone dependency — qualify cost leadership claims and document exclusions.",
+    );
+  } else if (pricingReality?.underpricingRisk === "high") {
+    warnings.push(
+      "Pricing reality flags underpricing vs scope — change-order and lifecycle cost risk may surface in evaluation or performance.",
     );
   }
 
@@ -83,6 +155,36 @@ export function assessVendorDecisionForReadiness(
   if (sim.decisionRisks.length > 0) {
     for (const r of sim.decisionRisks.slice(0, 3)) {
       if (!warnings.includes(r)) warnings.push(r);
+    }
+  }
+
+  if (synthesis) {
+    if (
+      synthesis.mitigationPosture === "weak" &&
+      (synthesis.confidence === "provisional" || synthesis.confidence === "low") &&
+      synthesis.criticalRisks.length >= 3
+    ) {
+      blockers.push(
+        "Decision synthesis: weak mitigation posture with low/provisional confidence and multiple critical risks — vendor lock is not submission-safe until mitigations and proof improve.",
+      );
+    } else if (synthesis.mitigationPosture === "weak") {
+      warnings.push(
+        "Decision synthesis flags weak mitigation posture — strengthen recovery, RACI, and commercial assumptions before executive sign-off.",
+      );
+    }
+    if (synthesis.confidence === "low" && synthesis.recommendationType !== "undetermined") {
+      warnings.push(
+        "Full decision synthesis confidence is low — treat vendor narrative and stack claims as negotiable.",
+      );
+    }
+    if (
+      synthesis.confidence === "provisional" &&
+      synthesis.interviewReadiness === "weak" &&
+      synthesis.criticalRisks.length >= 2
+    ) {
+      warnings.push(
+        "Provisional recommendation with weak interview readiness — align P1 answers before locking Solution/Risk language.",
+      );
     }
   }
 

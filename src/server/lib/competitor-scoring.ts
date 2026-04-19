@@ -8,6 +8,10 @@ import type {
   CompetitorHeatmapMatrix,
   CompetitorRecommendationConfidence,
   HeatmapCellStatus,
+  VendorClaimValidationSummary,
+  VendorFailureSimulationSummary,
+  VendorRoleFitSummary,
+  VendorPricingReality,
 } from "../../types";
 
 export const HEATMAP_THEME_ROWS: readonly {
@@ -87,6 +91,10 @@ export type VendorScoreInput = {
     avgAnswerQuality: number | null;
     lowQualityCount: number;
   };
+  claimValidationSummary?: VendorClaimValidationSummary;
+  failureResilienceSummary?: VendorFailureSimulationSummary;
+  roleFitSummary?: VendorRoleFitSummary;
+  pricingReality?: VendorPricingReality;
 };
 
 export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorComparisonEntry {
@@ -156,6 +164,62 @@ export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorC
     if (ir.lowQualityCount >= 3) overall = Math.max(10, overall - 3);
   }
 
+  const cv = input.claimValidationSummary;
+  if (cv) {
+    if (cv.criticalWeakCount >= 2)
+      overall = Math.max(10, overall - cv.criticalWeakCount * 3);
+    else if (cv.criticalWeakCount === 1) overall = Math.max(10, overall - 2);
+    if (cv.contradictedCount >= 2) overall = Math.max(10, overall - 3);
+    if (cv.strongCount >= 2 && cv.contradictedCount === 0)
+      overall = Math.min(100, overall + 2);
+  }
+
+  const fr = input.failureResilienceSummary;
+  if (fr) {
+    if (fr.overallResilience === "high_risk")
+      overall = Math.max(10, overall - 6);
+    else if (fr.overallResilience === "fragile")
+      overall = Math.max(10, overall - 3);
+    else if (fr.overallResilience === "strong")
+      overall = Math.min(100, overall + 1);
+    if (fr.criticalScenarioCount >= 3) overall = Math.max(10, overall - 2);
+  }
+
+  const roleFit = input.roleFitSummary;
+  const pr = input.pricingReality;
+  if (pr) {
+    if (
+      pr.hiddenCostRisk === "high" ||
+      pr.underpricingRisk === "high" ||
+      pr.maloneUnpricedDependency === "high"
+    )
+      overall = Math.max(10, overall - 5);
+    else if (
+      pr.hiddenCostRisk === "medium" ||
+      pr.underpricingRisk === "medium"
+    )
+      overall = Math.max(10, overall - 2);
+    if (
+      pr.completeness === "complete" &&
+      pr.roleAlignment === "aligned" &&
+      pr.hiddenCostRisk === "low"
+    )
+      overall = Math.min(100, overall + 1);
+  }
+
+  if (roleFit) {
+    if (roleFit.roleStrategyAssessment === "misaligned")
+      overall = Math.max(10, overall - 7);
+    else if (roleFit.roleStrategyAssessment === "fragile")
+      overall = Math.max(10, overall - 4);
+    else if (roleFit.roleStrategyAssessment === "clear_fit")
+      overall = Math.min(100, overall + 2);
+    else if (roleFit.roleStrategyAssessment === "usable_with_malone_support")
+      overall = Math.max(10, overall - 1);
+    if (roleFit.highestDependencyRoles.length >= 8)
+      overall = Math.max(10, overall - 2);
+  }
+
   overall = clamp(Math.round(overall), 18, 100);
 
   const heatmap: Record<string, HeatmapCellStatus> = {};
@@ -207,6 +271,88 @@ export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorC
       "Multiple low-scoring interview answers — treat vendor assertions cautiously until clarified.",
     );
   }
+  if (cv) {
+    if (cv.criticalWeakCount > 0) {
+      topDisadvantages.push(
+        `${cv.criticalWeakCount} critical normalized claim(s) show weak or no evidence — do not treat as proven in Solution/Risk.`,
+      );
+      mustAskQuestions.push(
+        "Obtain written evidence for critical claims (integration, delivery, compliance) that score weak or contradictory in claim validation.",
+      );
+    }
+    if (cv.contradictedCount > 0) {
+      criticalGaps.push(
+        `${cv.contradictedCount} claim topic(s) show contradiction signals between sources — resolve before award language.`,
+      );
+    }
+    if (cv.strongCount >= 2 && cv.contradictedCount === 0) {
+      topAdvantages.push(
+        "Multiple normalized claims show stronger multi-source support in claim validation — improves defensibility vs marketing-only posture.",
+      );
+    }
+  }
+  if (fr) {
+    if (fr.overallResilience === "strong" || fr.overallResilience === "acceptable") {
+      topAdvantages.push(
+        `Failure-mode posture: ${fr.overallResilience} resilience under modeled operational stress (heuristic — not a forecast).`,
+      );
+    } else {
+      topDisadvantages.push(
+        `Failure-mode posture: ${fr.overallResilience} — ${fr.criticalScenarioCount} critical-impact scenario(s), ${fr.highLikelihoodCount} high-likelihood stress path(s).`,
+      );
+      mustAskQuestions.push(
+        "Stress-test recovery: owners, escalation, and Malone boundary for top failure modes before locking Solution/Risk.",
+      );
+    }
+    for (const w of fr.decisionWarnings.slice(0, 2)) {
+      if (!criticalGaps.includes(w)) criticalGaps.push(w);
+    }
+  }
+  if (roleFit) {
+    if (roleFit.roleStrategyAssessment === "clear_fit") {
+      topAdvantages.push(
+        `Role-fit: ${roleFit.strongOwnRoles.length} strong own role(s) with coherent stack story — name Malone vs vendor boundaries in Solution.`,
+      );
+    } else if (roleFit.roleStrategyAssessment === "misaligned") {
+      topDisadvantages.push(
+        "Role-fit: misaligned — critical roles marked avoid/unknown; do not imply clean vendor-only operating model.",
+      );
+      criticalGaps.push(
+        "Role ownership misaligned with solicitation — resolve MatrixCare, delivery, and billing RACI before lock.",
+      );
+      integrationBurdens.push(
+        `High Malone dependency on: ${roleFit.highestDependencyRoles.slice(0, 4).join(", ") || "multiple roles"}.`,
+      );
+    } else if (roleFit.roleStrategyAssessment === "fragile") {
+      topDisadvantages.push(
+        `Role-fit: fragile — many high Malone-dependency or high handoff-risk roles (${roleFit.highestDependencyRoles.length} dep., ${roleFit.highestHandoffRiskRoles.length} handoff).`,
+      );
+    } else {
+      topAdvantages.push(
+        "Role-fit: usable with explicit Malone support — document joint ownership where roles are shared.",
+      );
+    }
+    if (roleFit.avoidRoles.length > 0) {
+      mustAskQuestions.push(
+        `Confirm who executes: ${roleFit.avoidRoles.slice(0, 3).join(", ")} — currently not credible as vendor-owned.`,
+      );
+    }
+  }
+  if (pr) {
+    if (pr.maloneUnpricedDependency === "high" || pr.hiddenCostRisk === "high") {
+      topDisadvantages.push(
+        `Pricing reality: ${pr.maloneUnpricedDependency === "high" ? "Malone workload may be unpriced" : "Hidden cost risk"} — ${pr.keyFindings[0] ?? "validate workbook vs scope."}`,
+      );
+      criticalGaps.push(
+        "Structured pricing may not cover full operating scope — reconcile before cost leadership claims.",
+      );
+    }
+    if (pr.underpricingRisk === "high") {
+      topDisadvantages.push(
+        "Pricing reality flags underpricing vs scope signals — future change-order or cost expansion risk.",
+      );
+    }
+  }
   for (const r of input.integrationRows) {
     if (r.status === "gap" || r.status === "unknown")
       integrationBurdens.push(`${r.requirementKey}: ${r.status} — ${r.evidence.slice(0, 120)}`);
@@ -252,6 +398,9 @@ export function buildVendorComparisonEntry(input: VendorScoreInput): CompetitorC
     integrationBurdens: integrationBurdens.slice(0, 6),
     mustAskQuestions: mustAskQuestions.slice(0, 4),
     heatmap,
+    claimValidationSummary: cv,
+    failureResilienceSummary: fr,
+    roleFitSummary: roleFit,
   };
 }
 
@@ -331,14 +480,40 @@ export function buildRecommendation(input: {
 
   const gap = second ? lead.overallScore - second.overallScore : 100;
   const tight = gap < 6;
-  const conf: CompetitorRecommendationConfidence =
-    lead.confidence === "high" && !tight
-      ? "high"
-      : lead.confidence === "medium" && !tight
-        ? "medium"
-        : tight
-          ? "provisional"
-          : "low";
+  const cvWeak = lead.claimValidationSummary?.criticalWeakCount ?? 0;
+  const fr = lead.failureResilienceSummary;
+  const rf = lead.roleFitSummary;
+  const pr = lead.pricingReality;
+  let conf: CompetitorRecommendationConfidence =
+    fr?.overallResilience === "high_risk"
+      ? "provisional"
+      : cvWeak >= 2
+        ? "provisional"
+        : lead.confidence === "high" && !tight
+          ? "high"
+          : lead.confidence === "medium" && !tight
+            ? "medium"
+            : tight
+              ? "provisional"
+              : "low";
+  if (rf?.roleStrategyAssessment === "misaligned") conf = "provisional";
+  else if (rf?.roleStrategyAssessment === "fragile" && conf === "high")
+    conf = "medium";
+  if (
+    pr &&
+    (pr.hiddenCostRisk === "high" ||
+      pr.underpricingRisk === "high" ||
+      pr.maloneUnpricedDependency === "high") &&
+    conf === "high"
+  )
+    conf = "medium";
+  if (
+    pr &&
+    (pr.hiddenCostRisk === "high" ||
+      pr.maloneUnpricedDependency === "high") &&
+    conf !== "low"
+  )
+    conf = conf === "provisional" ? "provisional" : "medium";
 
   const recommendedRationale: string[] = [
     `${lead.vendorName} is the current leading option for this solicitation's evidence-backed competitiveness (composite ${lead.overallScore}/100, confidence ${lead.confidence}).`,
@@ -365,6 +540,26 @@ export function buildRecommendation(input: {
     decisionRisks.push(...lead.criticalGaps.slice(0, 3));
   if (tight)
     decisionRisks.push("Scores are near-equal — leadership should use interview tie-breakers before lock.");
+  if (cvWeak >= 1) {
+    decisionRisks.push(
+      "Claim validation shows critical topics with weak or unsupported evidence — strengthen proof before locking vendor language.",
+    );
+  }
+  if (fr && (fr.overallResilience === "fragile" || fr.overallResilience === "high_risk")) {
+    decisionRisks.push(
+      `Failure-mode simulation: ${fr.overallResilience} resilience — prioritize recovery runbooks, RACI, and Malone dependency clarity.`,
+    );
+  }
+  if (rf) {
+    decisionRisks.push(
+      `Role-fit assessment: ${rf.roleStrategyAssessment.replace(/_/g, " ")} — ${rf.strongOwnRoles.length} strong own roles, ${rf.avoidRoles.length} avoid roles, ${rf.highestDependencyRoles.length} high Malone-dependency roles.`,
+    );
+  }
+  if (pr) {
+    decisionRisks.push(
+      `Pricing reality: completeness ${pr.completeness}, alignment ${pr.roleAlignment}, hidden-cost ${pr.hiddenCostRisk}, Malone unpriced ${pr.maloneUnpricedDependency}.`,
+    );
+  }
 
   const scenarioNotes = [
     "Switching vendor changes Solution proof obligations, Risk mitigations, and Interview lines — rebuild grounding bundles after selection.",
@@ -404,6 +599,34 @@ export function buildCompetitorInterviewQuestions(
         `Tie-breaker: compare live MatrixCare / EHR touchpoints and escalation paths for ${a.vendorName} vs ${b.vendorName}.`,
       );
     }
+  }
+  const leadCv = sorted[0]?.claimValidationSummary;
+  if (leadCv && leadCv.criticalWeakCount > 0) {
+    qs.push(
+      `Claim validation: drill into ${leadCv.criticalWeakCount} critical weak claim(s) — request live references, interface specs, and runbooks.`,
+    );
+  }
+  const leadFr = sorted[0]?.failureResilienceSummary;
+  if (lead && leadFr && leadFr.overallResilience !== "strong") {
+    qs.push(
+      `Failure modes: ${lead.vendorName} — walk through ${leadFr.topFailureModes[0]?.title ?? "top stress scenario"} recovery, escalation, and Malone boundary for DHS.`,
+    );
+  }
+  const leadRf = sorted[0]?.roleFitSummary;
+  if (lead && leadRf && leadRf.roleStrategyAssessment !== "clear_fit") {
+    qs.push(
+      `Role ownership: ${lead.vendorName} — for each critical path (dispensing, delivery, MatrixCare, billing), who owns escalation: vendor vs Malone vs DHS?`,
+    );
+  }
+  const leadPr = sorted[0]?.pricingReality;
+  if (
+    lead &&
+    leadPr &&
+    (leadPr.hiddenCostRisk !== "low" || leadPr.underpricingRisk !== "low")
+  ) {
+    qs.push(
+      `Pricing: ${lead.vendorName} — what costs are excluded from the workbook, and how do change orders or volume spikes get priced?`,
+    );
   }
   return qs.slice(0, 8);
 }

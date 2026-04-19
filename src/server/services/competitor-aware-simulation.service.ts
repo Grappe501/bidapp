@@ -1,6 +1,7 @@
 import type {
   CompetitorAwareSimulationResult,
   GroundingBundleCompetitorContext,
+  VendorDecisionSynthesis,
 } from "../../types";
 import {
   buildCompetitorInterviewQuestions,
@@ -28,6 +29,16 @@ import {
   getInterviewReadinessSummaryForVendor,
   getProjectInterviewReadinessSummary,
 } from "../repositories/vendor-interview.repo";
+import { listVendorClaimValidations } from "../repositories/vendor-claim-validation.repo";
+import { buildClaimValidationSummaryFromRows } from "./vendor-claim-validation-merge.service";
+import { runVendorClaimValidation } from "./vendor-claim-validation.service";
+import {
+  buildFailureSimulationSummary,
+  runVendorFailureSimulation,
+} from "./vendor-failure-mode.service";
+import { listVendorFailureModes } from "../repositories/vendor-failure-mode.repo";
+import { runVendorRoleFitAnalysis } from "./vendor-role-fit.service";
+import { computeVendorPricingReality } from "./pricing-reality.service";
 function norm(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
 }
@@ -93,6 +104,32 @@ export async function runCompetitorAwareSimulation(input: {
       getInterviewReadinessSummaryForVendor(vid),
     ]);
 
+    await runVendorClaimValidation({ projectId: input.projectId, vendorId: vid });
+    const valRows = await listVendorClaimValidations(vid);
+    const claimValidationSummary = buildClaimValidationSummaryFromRows(valRows);
+
+    const roleFitResult = await runVendorRoleFitAnalysis({
+      projectId: input.projectId,
+      vendorId: vid,
+      architectureOptionId: archOpt?.id ?? input.architectureOptionId ?? null,
+    });
+
+    await runVendorFailureSimulation({
+      projectId: input.projectId,
+      vendorId: vid,
+      architectureOptionId: archOpt?.id ?? input.architectureOptionId ?? null,
+    });
+    const failureRows = await listVendorFailureModes({
+      projectId: input.projectId,
+      vendorId: vid,
+    });
+    const failureResilienceSummary = buildFailureSimulationSummary(failureRows);
+
+    const pricingReality = await computeVendorPricingReality({
+      projectId: input.projectId,
+      vendorId: vid,
+    });
+
     const fitByKey: Record<
       string,
       { score: number; confidence: string; rationale: string }
@@ -153,6 +190,10 @@ export async function runCompetitorAwareSimulation(input: {
           avgAnswerQuality: interviewIr.avgScore,
           lowQualityCount: interviewIr.lowQualityCount,
         },
+        claimValidationSummary,
+        failureResilienceSummary,
+        roleFitSummary: roleFitResult.summary,
+        pricingReality,
       }),
     );
   }
@@ -252,6 +293,7 @@ export function toGroundingCompetitorContext(input: {
   simulation: CompetitorAwareSimulationResult;
   selectedVendorId?: string | null;
   bidNumber?: string;
+  decisionSynthesis?: VendorDecisionSynthesis;
 }): GroundingBundleCompetitorContext {
   const { simulation } = input;
   return {
@@ -273,5 +315,6 @@ export function toGroundingCompetitorContext(input: {
       evaluatorBidScoreImpact: e.evaluatorBidScoreImpact,
     })),
     honestyNote: simulation.honestyNote,
+    decisionSynthesis: input.decisionSynthesis,
   };
 }
